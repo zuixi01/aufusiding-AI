@@ -38,7 +38,7 @@ aho-corasick = "1"
 toml = "0.8"
 walkdir = "2"
 linked-hash-map = "0.5"
-ordered-float = "4"
+ordered-float = "5"
 cpal = { version = "0.15", optional = true }
 tempfile = "3"
 zeroize = "1"
