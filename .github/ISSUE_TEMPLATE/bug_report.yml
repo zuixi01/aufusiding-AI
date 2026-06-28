@@ -1,0 +1,91 @@
+name: Bug 报告
+description: 报告一个 Bug 帮助我们改进
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你花时间报告这个问题！请尽可能详细地填写以下信息。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug 描述
+      description: 清晰简洁地描述这个 Bug
+      placeholder: 告诉我们发生了什么...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 如何复现这个问题？
+      placeholder: |
+        1. 执行 '...'
+        2. 调用 '...'
+        3. 观察到错误
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      description: 你期望发生什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 实际发生了什么？
+    validations:
+      required: true
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: 影响模块
+      options:
+        - 核心引擎 (core)
+        - Agent 集群 (agent)
+        - 环境计算 (ambient)
+        - 普罗万物 (iot)
+        - 数据隐私 (privacy)
+        - 插件系统 (plugins)
+        - CLI 工具 (cli)
+        - HTTP API (server)
+        - FFI 绑定 (ffi)
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 项目版本或 commit hash
+      placeholder: "v0.1.0 / abc1234"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境信息
+      description: 操作系统、Rust 版本等
+      placeholder: |
+        - OS: Ubuntu 24.04
+        - Rust: 1.93.0
+        - Ollama: 0.6.x
+      render: markdown
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      description: 粘贴相关的错误日志或堆栈跟踪
+      render: shell

@@ -1,0 +1,20 @@
+[metadata]
+name = "企业机密"
+category = "corporate"
+sensitivity = 2
+
+[[keywords]]
+terms = [
+    "商业秘密", "并购", "未公开财报", "竞业协议",
+    "内幕信息", "股权结构", "董事会决议", "战略规划",
+    "核心技术", "专利申请", "商业计划书", "尽职调查",
+    "估值报告", "投资意向书", "保密条款",
+]
+
+[[keywords]]
+terms = [
+    "trade secret", "merger", "acquisition",
+    "unpublished financial report", "non-compete agreement",
+    "insider information", "board resolution",
+    "due diligence", "valuation report",
+]

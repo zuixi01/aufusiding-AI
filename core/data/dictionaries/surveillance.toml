@@ -1,0 +1,20 @@
+[metadata]
+name = "监控设备"
+category = "surveillance"
+sensitivity = 2
+
+[[keywords]]
+terms = [
+    "摄像头序列号", "监控录像", "人脸识别", "车牌识别",
+    "行为分析", "轨迹追踪", "布控名单", "预警系统",
+    "视频监控", "智能安防", "门禁记录", "出入记录",
+    "定位追踪", "电子围栏",
+]
+
+[[keywords]]
+terms = [
+    "surveillance camera", "facial recognition",
+    "license plate recognition", "behavior analysis",
+    "trajectory tracking", "watchlist", "access log",
+    "video surveillance", "geofencing",
+]

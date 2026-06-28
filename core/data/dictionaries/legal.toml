@@ -1,0 +1,19 @@
+[metadata]
+name = "法律特权"
+category = "legal"
+sensitivity = 2
+
+[[keywords]]
+terms = [
+    "律师函", "诉讼材料", "庭审记录", "判决书",
+    "起诉状", "答辩状", "证据清单", "调解协议",
+    "仲裁裁决", "法律意见书", "委托代理", "保全裁定",
+    "执行通知", "和解协议",
+]
+
+[[keywords]]
+terms = [
+    "legal brief", "litigation material", "court record",
+    "judgment", "complaint", "evidence list",
+    "arbitration award", "legal opinion", "settlement agreement",
+]

@@ -1,0 +1,101 @@
+namespace prometheus {};
+
+dictionary FfiChatMessage {
+  string role;
+  string content;
+  i64 timestamp_ms;
+};
+
+dictionary FfiConversation {
+  string id;
+  string title;
+  sequence<FfiChatMessage> messages;
+};
+
+dictionary FfiModelInfo {
+  string id;
+  string provider;
+  boolean is_local;
+};
+
+dictionary FfiMemoryItem {
+  string content;
+  double importance;
+};
+
+dictionary FfiKnowledgeResult {
+  string source;
+  string content;
+  double score;
+};
+
+dictionary FfiDeviceInfo {
+  string id;
+  string name;
+  string device_type;
+};
+
+dictionary FfiPersonaInfo {
+  string id;
+  string name;
+  string tone;
+};
+
+interface PrometheusApi {
+  constructor();
+  EngineHandle create_engine();
+  sequence<string> list_models();
+  sequence<FfiModelInfo> list_model_info();
+};
+
+interface EngineHandle {
+  string get_active_model();
+  boolean set_active_model(string model);
+  string send_message(string message);
+  FfiConversation get_conversation();
+
+  // Working Memory
+  boolean add_working_memory(string content, double importance);
+  sequence<FfiMemoryItem> get_working_memory(u32 max_items);
+  u32 working_memory_count();
+
+  // Knowledge Base
+  i32 add_knowledge(string source, string content);
+  sequence<FfiKnowledgeResult> search_knowledge(string query, u32 top_k);
+  u32 knowledge_count();
+
+  // Episodic Memory
+  sequence<string> search_episodes(string query, u32 top_k);
+  u32 episodic_count();
+
+  // Lifecycle
+  boolean pause();
+  boolean resume();
+  boolean shutdown();
+  boolean is_paused();
+  boolean is_shutdown();
+
+  // Settings
+  string get_setting(string key);
+  boolean set_setting(string key, string value);
+
+  // Privacy
+  string export_user_data();
+  boolean delete_user_data();
+  boolean record_consent(string purpose, boolean granted);
+  string anonymize_text(string text);
+
+  // IoT
+  sequence<FfiDeviceInfo> scan_iot_devices();
+  string control_device(string device_id, string command, string params);
+
+  // Sync
+  string get_sync_status();
+
+  // Persona
+  boolean switch_persona(string persona_id);
+  sequence<FfiPersonaInfo> list_personas();
+
+  // Screen
+  string get_screen_context();
+};

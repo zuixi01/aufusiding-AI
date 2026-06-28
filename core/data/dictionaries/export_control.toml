@@ -1,0 +1,21 @@
+[metadata]
+name = "出口管制技术"
+category = "export_control"
+sensitivity = 3
+
+[[keywords]]
+terms = [
+    "加密算法出口", "卫星技术", "生物制剂", "核材料",
+    "出口管制", "军民两用", "管制物项", "核扩散",
+    "生化武器", "化学武器公约", "瓦森纳协定",
+    "导弹技术控制", "核供应国集团", "敏感技术转让",
+    "两用物项", "战略物资",
+]
+
+[[keywords]]
+terms = [
+    "export control", "dual-use", "controlled item",
+    "nuclear proliferation", "wassenaar arrangement",
+    "missile technology control", "sensitive technology transfer",
+    "strategic materials", "biological agent",
+]

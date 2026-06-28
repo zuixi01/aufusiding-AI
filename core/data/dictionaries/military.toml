@@ -1,0 +1,29 @@
+[metadata]
+name = "军事国防"
+category = "military"
+sensitivity = 3
+
+[[keywords]]
+terms = [
+    "导弹", "核武器", "弹道", "战略武器", "军事基地",
+    "雷达系统", "作战计划", "军事演习", "武器系统",
+    "核弹头", "洲际导弹", "巡航导弹", "防空系统",
+    "军事卫星", "电子战", "军事情报", "作战指挥",
+    "弹药库", "军事禁区", "国防机密",
+]
+
+[[keywords]]
+terms = [
+    "missile", "nuclear weapon", "ballistic", "military base",
+    "radar system", "combat plan", "weapon system",
+    "warhead", "intercontinental", "cruise missile",
+    "air defense", "electronic warfare", "classified defense",
+]
+
+[[patterns]]
+regex = "(?:歼|运|轰)-\\d{1,2}[A-Z]?"
+description = "军用飞机型号"
+
+[[patterns]]
+regex = "(?:东风|巨浪|红旗|长剑)-\\d{1,2}[A-Z]?"
+description = "导弹型号"

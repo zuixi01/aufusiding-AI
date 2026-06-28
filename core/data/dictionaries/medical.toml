@@ -1,0 +1,24 @@
+[metadata]
+name = "医疗健康"
+category = "medical"
+sensitivity = 2
+
+[[keywords]]
+terms = [
+    "病历号", "处方", "诊断", "患者", "病历",
+    "医嘱", "手术记录", "出院小结", "检验报告",
+    "影像报告", "病理报告", "门诊病历", "住院病历",
+    "过敏史", "既往病史", "用药记录",
+]
+
+[[keywords]]
+terms = [
+    "medical record", "prescription", "diagnosis",
+    "patient", "surgical record", "discharge summary",
+    "lab report", "radiology report", "pathology report",
+    "allergy history", "medication record",
+]
+
+[[patterns]]
+regex = "[A-Z]\\d{2}(?:\\.\\d{1,2})?"
+description = "ICD 编码"

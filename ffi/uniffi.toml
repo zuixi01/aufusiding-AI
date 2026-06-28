@@ -1,0 +1,5 @@
+[bindings.swift]
+cdylib_name = "prometheus_ffi"
+
+[bindings.kotlin]
+cdylib_name = "prometheus_ffi"

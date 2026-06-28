@@ -1,0 +1,39 @@
+services:
+  server:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - prometheus-data:/home/prometheus/data
+    environment:
+      - PROMETHEUS_HOST=0.0.0.0
+      - PROMETHEUS_PORT=3000
+      - PROMETHEUS_LOG_FORMAT=json
+      - RUST_LOG=info
+      - PROMETHEUS_AUTH_ENABLED=true
+      - PROMETHEUS_JWT_SECRET=${PROMETHEUS_JWT_SECRET:?请设置JWT密钥: export PROMETHEUS_JWT_SECRET=...}
+      - PROMETHEUS_API_KEYS=${PROMETHEUS_API_KEYS:-}
+      - PROMETHEUS_CORS_ORIGINS=${PROMETHEUS_CORS_ORIGINS:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:

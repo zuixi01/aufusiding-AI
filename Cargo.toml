@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = [
+    "core",
+    "ffi",
+    "cli",
+    "plugins/sdk",
+    "plugins/builtin/weather",
+    "plugins/builtin/calculator",
+    "server",
+    "apps/desktop/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/5201314wzq1023-alt/prometheus-ai"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+axum = { version = "0.8", features = ["macros"] }
+tower = { version = "0.5", features = ["limit"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "limit", "compression-gzip"] }
+utoipa = { version = "5", features = ["axum_extras", "uuid"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
+jsonwebtoken = "9"

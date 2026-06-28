@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prometheus 普罗米 — Voice Orb</title>
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --amber:#f59e0b;--orange:#f97316;--deep-orange:#ea580c;
+    --fire-red:#dc2626;--cool-blue:#3b82f6;--ice-blue:#93c5fd;
+    --cyan:#22d3ee;--bg:#09090b;--surface:rgba(255,255,255,0.03);
+    --text:#fafafa;--text-muted:rgba(255,255,255,0.5);
+  }
+  @font-face{font-family:'Inter';src:local('Inter'),local('system-ui');font-display:swap}
+  body{
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    background:var(--bg);color:var(--text);
+    min-height:100vh;overflow-x:hidden;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%,rgba(245,158,11,0.08),transparent),
+      radial-gradient(ellipse 60% 40% at 80% 100%,rgba(59,130,246,0.05),transparent);
+  }
+  /* --- Layout --- */
+  .page{max-width:1200px;margin:0 auto;padding:60px 24px 100px}
+  .header{text-align:center;margin-bottom:72px}
+  .header h1{
+    font-size:clamp(2rem,5vw,3.5rem);font-weight:700;
+    letter-spacing:-0.03em;line-height:1.1;
+    background:linear-gradient(135deg,var(--amber),var(--orange),var(--cool-blue));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+  .header .subtitle{
+    margin-top:12px;font-size:1.05rem;color:var(--text-muted);
+    letter-spacing:0.02em;font-weight:300;
+  }
+  .header .divider{
+    width:60px;height:2px;margin:24px auto 0;
+    background:linear-gradient(90deg,transparent,var(--amber),transparent);
+    border-radius:2px;
+  }
+  /* --- States Grid --- */
+  .states-section{margin-bottom:80px}
+  .section-label{
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.15em;
+    color:var(--text-muted);margin-bottom:32px;text-align:center;
+  }
+  .states-grid{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:24px;
+  }
+  @media(max-width:800px){.states-grid{grid-template-columns:repeat(2,1fr);gap:20px}}
+  @media(max-width:480px){.states-grid{grid-template-columns:1fr}}
+  .state-card{
+    background:var(--surface);
+    border:1px solid rgba(255,255,255,0.06);
+    border-radius:20px;padding:40px 20px 28px;
+    display:flex;flex-direction:column;align-items:center;
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    position:relative;overflow:hidden;
+    transition:border-color .3s,box-shadow .3s;
+  }
+  .state-card::before{
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(circle at 50% 30%,rgba(245,158,11,0.04),transparent 70%);
+    pointer-events:none;
+  }
+  .state-card:hover{
+    border-color:rgba(245,158,11,0.15);
+    box-shadow:0 0 40px rgba(245,158,11,0.05);
+  }
+  .state-label{
+    margin-top:28px;font-size:.85rem;font-weight:500;
+    color:var(--text);letter-spacing:.01em;
+  }
+  .state-label-cn{
+    margin-top:4px;font-size:.75rem;color:var(--text-muted);
+  }
+  /* --- Orb Base --- */
+  .orb-wrap{position:relative;width:100px;height:100px}
+  .orb-wrap.large{width:160px;height:160px}
+  .orb{
+    position:absolute;inset:0;border-radius:50%;
+    background:radial-gradient(circle at 40% 35%,
+      rgba(255,200,50,0.95),
+      var(--amber) 30%,
+      var(--deep-orange) 55%,
+      rgba(59,130,246,0.6) 80%,
+      rgba(59,130,246,0.2) 100%
+    );
+    box-shadow:
+      0 0 30px rgba(245,158,11,0.4),
+      0 0 60px rgba(245,158,11,0.2),
+      inset 0 0 30px rgba(255,255,255,0.1);
+  }
+  .orb-wrap.large .orb{
+    box-shadow:
+      0 0 50px rgba(245,158,11,0.5),
+      0 0 100px rgba(245,158,11,0.25),
+      0 0 150px rgba(245,158,11,0.1),
+      inset 0 0 40px rgba(255,255,255,0.15);
+  }
+  .orb-inner{
+    position:absolute;inset:15%;border-radius:50%;
+    background:radial-gradient(circle at 45% 40%,
+      rgba(255,255,255,0.9),
+      rgba(255,220,100,0.7) 40%,
+      rgba(245,158,11,0.4) 70%,
+      transparent
+    );
+    filter:blur(1px);
+  }
+  .orb-sheen{
+    position:absolute;top:12%;left:18%;width:35%;height:25%;
+    border-radius:50%;
+    background:radial-gradient(ellipse,rgba(255,255,255,0.5),transparent);
+    filter:blur(3px);transform:rotate(-20deg);
+  }
+  /* Glow layer behind orb */
+  .orb-glow{
+    position:absolute;inset:-30%;border-radius:50%;
+    background:radial-gradient(circle,rgba(245,158,11,0.15),transparent 70%);
+    pointer-events:none;
+  }
+  .orb-wrap.large .orb-glow{inset:-40%}
+
+  /* ============ IDLE — breathing glow ============ */
+  .idle .orb-glow{animation:breathe 4s ease-in-out infinite}
+  .idle .orb{animation:idlePulse 4s ease-in-out infinite}
+  @keyframes breathe{
+    0%,100%{opacity:.6;transform:scale(1)}
+    50%{opacity:1;transform:scale(1.12)}
+  }
+  @keyframes idlePulse{
+    0%,100%{box-shadow:0 0 30px rgba(245,158,11,0.4),0 0 60px rgba(245,158,11,0.2);transform:scale(1)}
+    50%{box-shadow:0 0 40px rgba(245,158,11,0.55),0 0 80px rgba(245,158,11,0.3);transform:scale(1.03)}
+  }
+  .idle.large .orb{
+    animation:idlePulseLg 4s ease-in-out infinite;
+  }
+  @keyframes idlePulseLg{
+    0%,100%{box-shadow:0 0 50px rgba(245,158,11,0.5),0 0 100px rgba(245,158,11,0.25),0 0 150px rgba(245,158,11,0.1);transform:scale(1)}
+    50%{box-shadow:0 0 65px rgba(245,158,11,0.65),0 0 120px rgba(245,158,11,0.35),0 0 180px rgba(245,158,11,0.15);transform:scale(1.03)}
+  }
+
+  /* ============ LISTENING — ripple waves ============ */
+  .listening .orb{animation:listenPulse 1.5s ease-in-out infinite}
+  @keyframes listenPulse{
+    0%,100%{transform:scale(1)}
+    50%{transform:scale(1.06)}
+  }
+  .ripple{
+    position:absolute;inset:0;border-radius:50%;
+    border:1.5px solid rgba(245,158,11,0.4);
+    animation:rippleOut 2s ease-out infinite;
+    pointer-events:none;
+  }
+  .ripple:nth-child(2){animation-delay:.5s}
+  .ripple:nth-child(3){animation-delay:1s}
+  .ripple:nth-child(4){animation-delay:1.5s}
+  @keyframes rippleOut{
+    0%{transform:scale(1);opacity:.7}
+    100%{transform:scale(2.2);opacity:0}
+  }
+
+  /* ============ THINKING — orbital rings ============ */
+  .thinking .orb{animation:thinkPulse 2s ease-in-out infinite}
+  @keyframes thinkPulse{
+    0%,100%{transform:scale(1)}
+    50%{transform:scale(1.04)}
+  }
+  .orbit-ring{
+    position:absolute;inset:-15%;border-radius:50%;
+    border:1.5px solid transparent;
+    pointer-events:none;
+  }
+  .orbit-ring.r1{
+    border-top-color:rgba(245,158,11,0.5);
+    border-right-color:rgba(245,158,11,0.2);
+    animation:orbit1 3s linear infinite;
+  }
+  .orbit-ring.r2{
+    inset:-25%;
+    border-bottom-color:rgba(59,130,246,0.5);
+    border-left-color:rgba(59,130,246,0.2);
+    animation:orbit2 4s linear infinite;
+  }
+  .orbit-ring.r3{
+    inset:-20%;
+    border-top-color:rgba(34,211,238,0.3);
+    border-left-color:rgba(34,211,238,0.1);
+    animation:orbit3 2.5s linear infinite;
+  }
+  @keyframes orbit1{0%{transform:rotateX(60deg) rotateZ(0deg)}100%{transform:rotateX(60deg) rotateZ(360deg)}}
+  @keyframes orbit2{0%{transform:rotateX(-50deg) rotateY(30deg) rotateZ(0deg)}100%{transform:rotateX(-50deg) rotateY(30deg) rotateZ(-360deg)}}
+  @keyframes orbit3{0%{transform:rotateY(70deg) rotateZ(0deg)}100%{transform:rotateY(70deg) rotateZ(360deg)}}
+
+  /* Orbit dots */
+  .orbit-dot{
+    position:absolute;width:6px;height:6px;border-radius:50%;
+    pointer-events:none;
+  }
+  .orbit-dot.d1{
+    background:var(--amber);box-shadow:0 0 8px var(--amber);
+    animation:dotOrbit1 3s linear infinite;
+    top:50%;left:50%;
+  }
+  .orbit-dot.d2{
+    background:var(--cool-blue);box-shadow:0 0 8px var(--cool-blue);
+    animation:dotOrbit2 4s linear infinite;
+    top:50%;left:50%;
+  }
+  @keyframes dotOrbit1{
+    0%{transform:rotateX(60deg) rotateZ(0deg) translateX(55px) scale(1)}
+    50%{transform:rotateX(60deg) rotateZ(180deg) translateX(55px) scale(0.6)}
+    100%{transform:rotateX(60deg) rotateZ(360deg) translateX(55px) scale(1)}
+  }
+  @keyframes dotOrbit2{
+    0%{transform:rotateX(-50deg) rotateY(30deg) rotateZ(0deg) translateX(70px) scale(1)}
+    50%{transform:rotateX(-50deg) rotateY(30deg) rotateZ(-180deg) translateX(70px) scale(0.6)}
+    100%{transform:rotateX(-50deg) rotateY(30deg) rotateZ(-360deg) translateX(70px) scale(1)}
+  }
+  .orb-wrap.large .orbit-dot.d1{animation-name:dotOrbit1Lg}
+  .orb-wrap.large .orbit-dot.d2{animation-name:dotOrbit2Lg}
+  @keyframes dotOrbit1Lg{
+    0%{transform:rotateX(60deg) rotateZ(0deg) translateX(90px) scale(1)}
+    50%{transform:rotateX(60deg) rotateZ(180deg) translateX(90px) scale(0.6)}
+    100%{transform:rotateX(60deg) rotateZ(360deg) translateX(90px) scale(1)}
+  }
+  @keyframes dotOrbit2Lg{
+    0%{transform:rotateX(-50deg) rotateY(30deg) rotateZ(0deg) translateX(110px) scale(1)}
+    50%{transform:rotateX(-50deg) rotateY(30deg) rotateZ(-180deg) translateX(110px) scale(0.6)}
+    100%{transform:rotateX(-50deg) rotateY(30deg) rotateZ(-360deg) translateX(110px) scale(1)}
+  }
+
+  /* ============ SPEAKING — pulse burst ============ */
+  .speaking .orb{animation:speakPulse .6s ease-in-out infinite}
+  @keyframes speakPulse{
+    0%,100%{transform:scale(1);filter:brightness(1)}
+    30%{transform:scale(1.12);filter:brightness(1.3)}
+    60%{transform:scale(0.96);filter:brightness(0.95)}
+  }
+  .burst-ring{
+    position:absolute;inset:0;border-radius:50%;
+    pointer-events:none;opacity:0;
+    box-shadow:0 0 20px rgba(245,158,11,0.6),0 0 40px rgba(245,158,11,0.3);
+    animation:burstOut .8s ease-out infinite;
+  }
+  .burst-ring:nth-child(2){animation-delay:.25s}
+  .burst-ring:nth-child(3){animation-delay:.5s}
+  @keyframes burstOut{
+    0%{transform:scale(1);opacity:.8}
+    100%{transform:scale(1.8);opacity:0}
+  }
+  /* Sound wave bars */
+  .sound-waves{
+    position:absolute;inset:0;display:flex;
+    align-items:center;justify-content:center;gap:3px;
+    pointer-events:none;
+  }
+  .sound-bar{
+    width:2.5px;border-radius:2px;
+    background:linear-gradient(180deg,rgba(255,255,255,0.8),rgba(245,158,11,0.6));
+    animation:soundBar .5s ease-in-out infinite alternate;
+  }
+  .sound-bar:nth-child(1){height:12px;animation-delay:0s}
+  .sound-bar:nth-child(2){height:20px;animation-delay:.1s}
+  .sound-bar:nth-child(3){height:28px;animation-delay:.05s}
+  .sound-bar:nth-child(4){height:22px;animation-delay:.15s}
+  .sound-bar:nth-child(5){height:14px;animation-delay:.08s}
+  @keyframes soundBar{
+    0%{transform:scaleY(.4);opacity:.5}
+    100%{transform:scaleY(1);opacity:1}
+  }
+
+  /* ============ PARTICLES (CSS only) ============ */
+  .particles{position:absolute;inset:0;pointer-events:none;overflow:visible}
+  .particle{
+    position:absolute;border-radius:50%;
+    background:var(--amber);
+    animation:particleFloat linear infinite;
+  }
+  @keyframes particleFloat{
+    0%{transform:translateY(0) translateX(0) scale(1);opacity:0}
+    10%{opacity:1}
+    90%{opacity:.6}
+    100%{transform:translateY(-80px) translateX(var(--px,10px)) scale(0);opacity:0}
+  }
+
+  /* ============ Interactive Demo ============ */
+  .demo-section{text-align:center}
+  .demo-glass{
+    display:inline-flex;flex-direction:column;align-items:center;
+    padding:60px 80px 48px;border-radius:28px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,255,255,0.07);
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    position:relative;overflow:hidden;
+  }
+  .demo-glass::before{
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(ellipse at 50% 0%,rgba(245,158,11,0.06),transparent 60%);
+    pointer-events:none;
+  }
+  .demo-state-label{
+    font-size:1.1rem;font-weight:600;margin-top:36px;
+    transition:all .3s;letter-spacing:.01em;
+  }
+  .demo-state-cn{
+    font-size:.85rem;color:var(--text-muted);margin-top:4px;
+    transition:all .3s;
+  }
+  .demo-btn{
+    margin-top:28px;padding:10px 28px;
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:10px;background:rgba(255,255,255,0.05);
+    color:var(--text);font-size:.85rem;cursor:pointer;
+    transition:all .25s;letter-spacing:.02em;
+    backdrop-filter:blur(8px);
+  }
+  .demo-btn:hover{
+    background:rgba(245,158,11,0.12);
+    border-color:rgba(245,158,11,0.3);
+    box-shadow:0 0 20px rgba(245,158,11,0.1);
+  }
+  .demo-btn:active{transform:scale(.97)}
+  .demo-hint{
+    margin-top:12px;font-size:.7rem;color:rgba(255,255,255,0.25);
+  }
+
+  /* ============ Floating Orb (fixed) ============ */
+  .floating-orb{
+    position:fixed;bottom:32px;right:32px;z-index:1000;
+    cursor:pointer;transition:transform .2s;
+  }
+  .floating-orb:hover{transform:scale(1.08)}
+  .floating-orb:active{transform:scale(.95)}
+  .floating-label{
+    position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);
+    font-size:.65rem;color:var(--text-muted);white-space:nowrap;
+    opacity:0;transition:opacity .3s;pointer-events:none;
+  }
+  .floating-orb:hover .floating-label{opacity:1}
+
+  /* ============ Footer ============ */
+  .footer{
+    text-align:center;margin-top:80px;padding-top:40px;
+    border-top:1px solid rgba(255,255,255,0.05);
+  }
+  .footer p{font-size:.75rem;color:rgba(255,255,255,0.2)}
+
+  /* Perspective for 3D orbit rings */
+  .thinking .orb-wrap,.thinking.orb-wrap{perspective:300px}
+  .state-card:has(.thinking){perspective:300px}
+  .orb-wrap{perspective:300px}
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- Header -->
+  <header class="header">
+    <h1>Prometheus 普罗米</h1>
+    <p class="subtitle">Voice Orb — Interaction States</p>
+    <div class="divider"></div>
+  </header>
+
+  <!-- 4 States Side by Side -->
+  <section class="states-section">
+    <p class="section-label">All States</p>
+    <div class="states-grid">
+
+      <!-- IDLE -->
+      <div class="state-card">
+        <div class="orb-wrap idle" id="idle-orb">
+          <div class="orb-glow"></div>
+          <div class="particles" id="particles-idle"></div>
+          <div class="orb">
+            <div class="orb-inner"></div>
+            <div class="orb-sheen"></div>
+          </div>
+        </div>
+        <span class="state-label">Idle</span>
+        <span class="state-label-cn">待机状态</span>
+      </div>
+
+      <!-- LISTENING -->
+      <div class="state-card">
+        <div class="orb-wrap listening">
+          <div class="orb-glow"></div>
+          <div class="ripple"></div>
+          <div class="ripple"></div>
+          <div class="ripple"></div>
+          <div class="ripple"></div>
+          <div class="particles" id="particles-listening"></div>
+          <div class="orb">
+            <div class="orb-inner"></div>
+            <div class="orb-sheen"></div>
+          </div>
+        </div>
+        <span class="state-label">Listening</span>
+        <span class="state-label-cn">聆听中</span>
+      </div>
+
+      <!-- THINKING -->
+      <div class="state-card">
+        <div class="orb-wrap thinking">
+          <div class="orb-glow"></div>
+          <div class="orbit-ring r1"></div>
+          <div class="orbit-ring r2"></div>
+          <div class="orbit-ring r3"></div>
+          <div class="orbit-dot d1"></div>
+          <div class="orbit-dot d2"></div>
+          <div class="particles" id="particles-thinking"></div>
+          <div class="orb">
+            <div class="orb-inner"></div>
+            <div class="orb-sheen"></div>
+          </div>
+        </div>
+        <span class="state-label">Thinking</span>
+        <span class="state-label-cn">思考中</span>
+      </div>
+
+      <!-- SPEAKING -->
+      <div class="state-card">
+        <div class="orb-wrap speaking">
+          <div class="orb-glow"></div>
+          <div class="burst-ring"></div>
+          <div class="burst-ring"></div>
+          <div class="burst-ring"></div>
+          <div class="particles" id="particles-speaking"></div>
+          <div class="orb">
+            <div class="orb-inner"></div>
+            <div class="orb-sheen"></div>
+            <div class="sound-waves">
+              <div class="sound-bar"></div>
+              <div class="sound-bar"></div>
+              <div class="sound-bar"></div>
+              <div class="sound-bar"></div>
+              <div class="sound-bar"></div>
+            </div>
+          </div>
+        </div>
+        <span class="state-label">Speaking</span>
+        <span class="state-label-cn">回答中</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Demo -->
+  <section class="demo-section">
+    <p class="section-label">Interactive Demo</p>
+    <div class="demo-glass">
+      <div class="orb-wrap large idle" id="demo-orb">
+        <div class="orb-glow"></div>
+        <div class="particles" id="particles-demo"></div>
+        <!-- dynamic layers injected by JS -->
+        <div class="orb">
+          <div class="orb-inner"></div>
+          <div class="orb-sheen"></div>
+        </div>
+      </div>
+      <div class="demo-state-label" id="demo-label">Idle</div>
+      <div class="demo-state-cn" id="demo-label-cn">待机状态</div>
+      <button class="demo-btn" id="demo-btn">切换状态 / Cycle State</button>
+      <span class="demo-hint">Click to cycle: Idle → Listening → Thinking → Speaking</span>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>Prometheus 普罗米 — Voice Interface Prototype</p>
+  </footer>
+</div>
+
+<!-- Floating orb (fixed position) -->
+<div class="floating-orb" id="floating-orb">
+  <div class="orb-wrap idle" id="floating-orb-wrap" style="width:56px;height:56px">
+    <div class="orb-glow"></div>
+    <div class="orb">
+      <div class="orb-inner"></div>
+      <div class="orb-sheen"></div>
+    </div>
+  </div>
+  <span class="floating-label">点击交互 / Click me</span>
+</div>
+
+<script>
+(function(){
+  // --- Particle generator ---
+  function spawnParticles(container, count, interval){
+    if(!container) return;
+    function make(){
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random()*3+1.5;
+      const left = 30+Math.random()*40;
+      const top = 30+Math.random()*40;
+      const dur = Math.random()*2+2;
+      const px = (Math.random()-0.5)*40;
+      p.style.cssText = `
+        width:${size}px;height:${size}px;
+        left:${left}%;top:${top}%;
+        --px:${px}px;
+        animation-duration:${dur}s;
+        animation-delay:${Math.random()*dur}s;
+        background:${Math.random()>0.5
+          ? 'rgba(245,158,11,'+(0.5+Math.random()*0.5)+')'
+          : 'rgba(59,130,246,'+(0.3+Math.random()*0.4)+')'};
+        box-shadow:0 0 ${size*2}px currentColor;
+      `;
+      container.appendChild(p);
+      setTimeout(()=>p.remove(), dur*1000+2000);
+    }
+    for(let i=0;i<count;i++) setTimeout(make, Math.random()*2000);
+    setInterval(make, interval);
+  }
+
+  // Spawn particles for each state card
+  spawnParticles(document.getElementById('particles-idle'), 6, 800);
+  spawnParticles(document.getElementById('particles-listening'), 8, 500);
+  spawnParticles(document.getElementById('particles-thinking'), 10, 400);
+  spawnParticles(document.getElementById('particles-speaking'), 12, 300);
+  spawnParticles(document.getElementById('particles-demo'), 10, 600);
+
+  // --- Interactive Demo ---
+  const states = [
+    {cls:'idle',    en:'Idle',      cn:'待机状态'},
+    {cls:'listening',en:'Listening', cn:'聆听中'},
+    {cls:'thinking', en:'Thinking',  cn:'思考中'},
+    {cls:'speaking', en:'Speaking',  cn:'回答中'},
+  ];
+  let current = 0;
+  const demoOrb = document.getElementById('demo-orb');
+  const demoLabel = document.getElementById('demo-label');
+  const demoCn = document.getElementById('demo-label-cn');
+  const demoBtn = document.getElementById('demo-btn');
+  const floatingWrap = document.getElementById('floating-orb-wrap');
+  const floatingOrb = document.getElementById('floating-orb');
+
+  function setDemoState(idx){
+    const s = states[idx];
+    // Remove old state classes and dynamic elements
+    demoOrb.className = 'orb-wrap large ' + s.cls;
+    // Remove old dynamic layers
+    demoOrb.querySelectorAll('.ripple,.orbit-ring,.orbit-dot,.burst-ring,.sound-waves')
+      .forEach(el=>el.remove());
+
+    if(s.cls === 'listening'){
+      for(let i=0;i<4;i++){
+        const r = document.createElement('div');
+        r.className='ripple'; demoOrb.insertBefore(r, demoOrb.querySelector('.orb'));
+      }
+    }
+    if(s.cls === 'thinking'){
+      ['r1','r2','r3'].forEach(c=>{
+        const r=document.createElement('div');
+        r.className='orbit-ring '+c; demoOrb.insertBefore(r, demoOrb.querySelector('.orb'));
+      });
+      ['d1','d2'].forEach(c=>{
+        const d=document.createElement('div');
+        d.className='orbit-dot '+c; demoOrb.insertBefore(d, demoOrb.querySelector('.orb'));
+      });
+    }
+    if(s.cls === 'speaking'){
+      for(let i=0;i<3;i++){
+        const b=document.createElement('div');
+        b.className='burst-ring'; demoOrb.insertBefore(b, demoOrb.querySelector('.orb'));
+      }
+      const sw=document.createElement('div');
+      sw.className='sound-waves';
+      for(let i=0;i<5;i++){const bar=document.createElement('div');bar.className='sound-bar';sw.appendChild(bar)}
+      demoOrb.querySelector('.orb').appendChild(sw);
+    }
+
+    demoLabel.textContent = s.en;
+    demoCn.textContent = s.cn;
+    demoLabel.style.color = s.cls==='idle'?'#fafafa'
+      : s.cls==='listening'?'#f59e0b'
+      : s.cls==='thinking'?'#3b82f6':'#f97316';
+
+    // Sync floating orb
+    floatingWrap.className = 'orb-wrap ' + s.cls;
+    floatingWrap.style.width='56px';floatingWrap.style.height='56px';
+    floatingWrap.querySelectorAll('.ripple,.orbit-ring,.orbit-dot,.burst-ring,.sound-waves')
+      .forEach(el=>el.remove());
+  }
+
+  function cycleState(){
+    current = (current+1) % states.length;
+    setDemoState(current);
+  }
+
+  demoBtn.addEventListener('click', cycleState);
+  floatingOrb.addEventListener('click', cycleState);
+
+  // Keyboard shortcut
+  document.addEventListener('keydown', function(e){
+    if(e.code==='Space'&&e.target===document.body){e.preventDefault();cycleState()}
+  });
+})();
+</script>
+</body>
+</html>

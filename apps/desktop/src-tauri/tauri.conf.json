@@ -1,0 +1,47 @@
+{
+  "productName": "Prometheus AI",
+  "version": "0.1.0",
+  "identifier": "ai.prometheus.desktop",
+  "build": {
+    "frontendDist": "../dist",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Prometheus AI",
+        "width": 430,
+        "height": 932,
+        "minWidth": 390,
+        "minHeight": 700,
+        "resizable": true,
+        "decorations": true,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "msi", "nsis", "appimage", "deb"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Utility",
+    "shortDescription": "Prometheus AI - 环境感知智能助理",
+    "longDescription": "Prometheus AI 是一款环境感知的智能助理应用，支持多模式场景切换、IoT 设备控制、智能对话、记忆系统等功能。",
+    "copyright": "Copyright © 2026 Prometheus AI",
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "wix": null
+    }
+  }
+}

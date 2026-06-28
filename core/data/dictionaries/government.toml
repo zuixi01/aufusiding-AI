@@ -1,0 +1,19 @@
+[metadata]
+name = "政府涉密"
+category = "government"
+sensitivity = 3
+
+[[keywords]]
+terms = [
+    "国家机密", "绝密", "机密", "秘密", "内部文件",
+    "涉密信息", "保密协议", "密级", "涉密人员",
+    "保密审查", "定密", "解密审批", "国家秘密",
+    "工作秘密", "内部资料", "限制分发",
+]
+
+[[keywords]]
+terms = [
+    "state secret", "top secret", "classified",
+    "restricted distribution", "confidential document",
+    "security clearance", "need to know",
+]

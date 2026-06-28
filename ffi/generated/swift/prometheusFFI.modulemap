@@ -1,0 +1,4 @@
+module prometheusFFI {
+    header "prometheusFFI.h"
+    export *
+}

@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 珍珠白陶瓷渐变 -->
+    <linearGradient id="ceramicGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="30%" stop-color="#f8fafc"/>
+      <stop offset="70%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+
+    <!-- 蓝色数字火焰渐变 -->
+    <radialGradient id="blueFlameGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#dbeafe"/>
+      <stop offset="40%" stop-color="#60a5fa"/>
+      <stop offset="70%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#2563eb" stop-opacity="0.3"/>
+    </radialGradient>
+
+    <!-- 内部蓝光 -->
+    <radialGradient id="innerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#93c5fd" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- 柔和全局光照 -->
+    <filter id="softLight" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.15"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- 火焰发光 -->
+    <filter id="flameGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 纯白背景 -->
+  <rect width="512" height="512" fill="#ffffff"/>
+
+  <!-- 机器人上半身 -->
+  <g filter="url(#softLight)">
+    <!-- 头部 - 流线型椭圆 -->
+    <ellipse cx="256" cy="140" rx="50" ry="60" fill="url(#ceramicGradient)"/>
+
+    <!-- 头部高光 -->
+    <ellipse cx="256" cy="125" rx="35" ry="40" fill="#ffffff" opacity="0.4"/>
+
+    <!-- 颈部 -->
+    <rect x="246" y="190" width="20" height="25" rx="10" fill="url(#ceramicGradient)"/>
+
+    <!-- 肩膀 - 对称圆润造型 -->
+    <ellipse cx="200" cy="230" rx="35" ry="30" fill="url(#ceramicGradient)"/>
+    <ellipse cx="312" cy="230" rx="35" ry="30" fill="url(#ceramicGradient)"/>
+
+    <!-- 躯干上部 -->
+    <path d="M 220 215 Q 256 220, 292 215 L 292 260 Q 256 265, 220 260 Z"
+          fill="url(#ceramicGradient)"/>
+
+    <!-- 左眼 - 极简设计 -->
+    <ellipse cx="240" cy="135" rx="6" ry="8" fill="#3b82f6" opacity="0.6"/>
+    <ellipse cx="240" cy="133" rx="3" ry="4" fill="#60a5fa"/>
+
+    <!-- 右眼 -->
+    <ellipse cx="272" cy="135" rx="6" ry="8" fill="#3b82f6" opacity="0.6"/>
+    <ellipse cx="272" cy="133" rx="3" ry="4" fill="#60a5fa"/>
+
+    <!-- 面部细节 - 极简线条 -->
+    <line x1="230" y1="155" x2="250" y2="155" stroke="#cbd5e1" stroke-width="1.5" opacity="0.5"/>
+    <line x1="262" y1="155" x2="282" y2="155" stroke="#cbd5e1" stroke-width="1.5" opacity="0.5"/>
+  </g>
+
+  <!-- 左手臂 -->
+  <g filter="url(#softLight)">
+    <path d="M 200 230 Q 180 260, 170 290"
+          stroke="url(#ceramicGradient)" stroke-width="18" stroke-linecap="round" fill="none"/>
+
+    <!-- 左手 - 优雅弧形 -->
+    <path d="M 170 290 Q 160 310, 170 330 Q 180 340, 195 335 Q 200 325, 195 310 Z"
+          fill="url(#ceramicGradient)"/>
+
+    <!-- 手部高光 -->
+    <ellipse cx="180" cy="315" rx="12" ry="18" fill="#ffffff" opacity="0.3"/>
+  </g>
+
+  <!-- 右手臂 -->
+  <g filter="url(#softLight)">
+    <path d="M 312 230 Q 332 260, 342 290"
+          stroke="url(#ceramicGradient)" stroke-width="18" stroke-linecap="round" fill="none"/>
+
+    <!-- 右手 -->
+    <path d="M 342 290 Q 352 310, 342 330 Q 332 340, 317 335 Q 312 325, 317 310 Z"
+          fill="url(#ceramicGradient)"/>
+
+    <!-- 手部高光 -->
+    <ellipse cx="332" cy="315" rx="12" ry="18" fill="#ffffff" opacity="0.3"/>
+  </g>
+
+  <!-- 蓝色数字火焰 - 空灵效果 -->
+  <g filter="url(#flameGlow)">
+    <!-- 外层光晕 -->
+    <ellipse cx="256" cy="350" rx="45" ry="55" fill="url(#innerGlow)"/>
+
+    <!-- 主火焰体 -->
+    <path d="M 256 310
+             C 235 310, 220 330, 220 355
+             Q 220 380, 235 400
+             Q 245 410, 256 405
+             Q 267 410, 277 400
+             Q 292 380, 292 355
+             C 292 330, 277 310, 256 310 Z"
+          fill="url(#blueFlameGradient)" opacity="0.85"/>
+
+    <!-- 内核 -->
+    <ellipse cx="256" cy="355" rx="18" ry="28" fill="#dbeafe" opacity="0.9"/>
+    <ellipse cx="256" cy="355" rx="10" ry="18" fill="#ffffff" opacity="0.7"/>
+
+    <!-- 数字粒子效果 -->
+    <circle cx="245" cy="335" r="2" fill="#60a5fa" opacity="0.6"/>
+    <circle cx="267" cy="338" r="2" fill="#60a5fa" opacity="0.6"/>
+    <circle cx="250" cy="370" r="1.5" fill="#93c5fd" opacity="0.7"/>
+    <circle cx="262" cy="373" r="1.5" fill="#93c5fd" opacity="0.7"/>
+    <circle cx="256" cy="325" r="1" fill="#dbeafe" opacity="0.8"/>
+  </g>
+
+  <!-- 文字：PROMETHEUS AI -->
+  <g>
+    <text x="256" y="450" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="300"
+          text-anchor="middle" fill="#1e293b" letter-spacing="2">
+      PROMETHEUS AI
+    </text>
+
+    <!-- 水平线装饰 -->
+    <line x1="180" y1="460" x2="332" y2="460" stroke="#cbd5e1" stroke-width="1"/>
+  </g>
+</svg>

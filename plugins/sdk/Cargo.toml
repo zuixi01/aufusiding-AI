@@ -1,0 +1,10 @@
+[package]
+name = "prometheus-plugin-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Prometheus 插件开发 SDK"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

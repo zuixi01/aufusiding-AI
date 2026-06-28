@@ -1,0 +1,20 @@
+[metadata]
+name = "生物特征"
+category = "biometric"
+sensitivity = 2
+
+[[keywords]]
+terms = [
+    "指纹", "虹膜", "声纹", "人脸特征值",
+    "掌纹", "视网膜", "步态识别", "静脉识别",
+    "生物特征模板", "活体检测", "人脸编码",
+    "指纹模板", "虹膜编码",
+]
+
+[[keywords]]
+terms = [
+    "fingerprint", "iris scan", "voiceprint",
+    "facial feature", "palm print", "retina scan",
+    "gait recognition", "vein recognition",
+    "biometric template", "liveness detection",
+]

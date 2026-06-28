@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prometheus — 对话界面</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{
+  --bg:#06060a;--surface:rgba(255,255,255,0.03);--surface-solid:#0e0e14;
+  --border:rgba(255,255,255,0.06);--text:#f0f0f5;--text-secondary:#8888a0;
+  --accent:#7c6aef;--accent-light:#a594fd;--green:#43e97b;--orange:#f5a623;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden;position:relative;}
+body::before{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0.028;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat:repeat;background-size:128px 128px;}
+::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:3px;}
+
+/* SIDEBAR */
+.sidebar{width:260px;background:rgba(14,14,20,0.8);backdrop-filter:blur(40px);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.sb-head{padding:20px 16px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.sb-head h2{font-size:15px;font-weight:600;letter-spacing:-0.3px;}
+.new-btn{height:30px;padding:0 12px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;font-size:12px;font-weight:500;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:5px;transition:all .2s;box-shadow:0 2px 12px rgba(124,106,239,0.3);}
+.new-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(124,106,239,0.4);}
+.new-btn:active{transform:scale(0.97);}
+.new-btn svg{width:13px;height:13px;}
+.sb-search{padding:12px 14px 6px;position:relative;}
+.sb-search svg{position:absolute;left:24px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text-secondary);pointer-events:none;}
+.sb-search input{width:100%;padding:8px 12px 8px 34px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text);font-size:12.5px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;}
+.sb-search input::placeholder{color:rgba(136,136,160,0.5);}
+.sb-search input:focus{border-color:rgba(124,106,239,0.4);}
+.chat-list{flex:1;overflow-y:auto;padding:6px 8px;}
+.ch-item{padding:10px 12px;border-radius:10px;cursor:pointer;transition:all .15s;margin-bottom:1px;border-left:3px solid transparent;position:relative;}
+.ch-item:hover{background:rgba(255,255,255,0.03);border-left-color:rgba(124,106,239,0.3);}
+.ch-item.active{background:rgba(124,106,239,0.06);border-left-color:var(--accent);box-shadow:inset 0 0 20px rgba(124,106,239,0.04);}
+.ch-item h4{font-size:13px;font-weight:500;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ch-item p{font-size:11.5px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0.7;}
+.ch-meta{display:flex;justify-content:space-between;align-items:center;margin-top:5px;}
+.ch-time{font-size:10.5px;color:var(--text-secondary);opacity:0.6;}
+.ch-tag{font-size:10px;padding:2px 7px;border-radius:5px;font-weight:500;background:rgba(124,106,239,0.1);color:var(--accent-light);}
+.sb-foot{padding:10px 14px;border-top:1px solid var(--border);}
+.sb-foot a{display:flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:12.5px;text-decoration:none;padding:8px 10px;border-radius:8px;transition:all .2s;}
+.sb-foot a:hover{background:rgba(255,255,255,0.04);color:var(--text);}
+.sb-foot a svg{width:14px;height:14px;}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;}
+.topbar{height:54px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:rgba(14,14,20,0.6);backdrop-filter:blur(30px);flex-shrink:0;}
+.tb-left{display:flex;align-items:center;gap:14px;}
+.tb-title{font-size:14.5px;font-weight:600;letter-spacing:-0.3px;}
+.tb-model{display:flex;align-items:center;gap:7px;padding:5px 12px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);font-size:12px;color:var(--text-secondary);cursor:pointer;transition:all .2s;position:relative;user-select:none;}
+.tb-model:hover{border-color:rgba(124,106,239,0.3);background:rgba(255,255,255,0.06);}
+.tb-model .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.tb-model .dot.local{background:var(--green);box-shadow:0 0 6px rgba(67,233,123,0.4);}
+.tb-model .dot.cloud{background:var(--orange);box-shadow:0 0 6px rgba(245,166,35,0.4);}
+.tb-model svg{width:12px;height:12px;transition:transform .2s;}
+.tb-model.open svg{transform:rotate(180deg);}
+.model-dd{position:absolute;top:calc(100% + 6px);left:0;background:rgba(14,14,20,0.95);backdrop-filter:blur(30px);border:1px solid var(--border);border-radius:10px;padding:5px;min-width:260px;box-shadow:0 12px 40px rgba(0,0,0,0.5);z-index:10;opacity:0;transform:translateY(-6px);pointer-events:none;transition:all .2s ease;}
+.model-dd.show{opacity:1;transform:translateY(0);pointer-events:auto;}
+.md-opt{padding:9px 12px;border-radius:8px;cursor:pointer;transition:all .12s;display:flex;justify-content:space-between;align-items:center;}
+.md-opt:hover{background:rgba(255,255,255,0.05);}
+.md-opt .md-name{font-size:12.5px;font-weight:500;color:var(--text);}
+.md-opt .md-desc{font-size:10.5px;color:var(--text-secondary);margin-top:1px;}
+.md-opt .md-cost{font-size:10px;padding:2px 8px;border-radius:5px;font-weight:500;}
+.md-cost.free{background:rgba(67,233,123,0.1);color:var(--green);}
+.md-cost.paid{background:rgba(245,166,35,0.1);color:var(--orange);}
+.tb-right{display:flex;gap:6px;}
+.tb-btn{width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}
+.tb-btn:hover{background:rgba(255,255,255,0.07);color:var(--text);}
+.tb-btn:active{transform:scale(0.97);}
+.tb-btn svg{width:15px;height:15px;}
+
+/* MESSAGES */
+.messages{flex:1;overflow-y:auto;padding:28px 32px;display:flex;flex-direction:column;gap:22px;}
+.msg{display:flex;gap:12px;max-width:740px;animation:msgIn .4s ease both;}
+.msg.user{align-self:flex-end;flex-direction:row-reverse;}
+@keyframes msgIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.msg-av{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+.msg.ai .msg-av{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;}
+.msg.user .msg-av{background:rgba(255,255,255,0.08);color:var(--text-secondary);}
+.msg-body{display:flex;flex-direction:column;gap:5px;}
+.msg-bubble{padding:14px 18px;border-radius:16px;font-size:13.5px;line-height:1.75;position:relative;}
+.msg.ai .msg-bubble{background:rgba(255,255,255,0.03);backdrop-filter:blur(10px);border:1px solid var(--border);border-top-left-radius:4px;}
+.msg.user .msg-bubble{background:rgba(124,106,239,0.12);border:1px solid rgba(124,106,239,0.18);border-top-right-radius:4px;}
+.msg-info{font-size:10.5px;color:var(--text-secondary);display:flex;gap:8px;align-items:center;opacity:0.7;}
+.msg.user .msg-info{justify-content:flex-end;}
+.msg-acts{display:flex;gap:3px;opacity:0;transition:opacity .25s;}
+.msg:hover .msg-acts{opacity:1;}
+.msg-act{padding:4px 7px;border-radius:5px;cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--text-secondary);}
+.msg-act:hover{background:rgba(255,255,255,0.06);color:var(--text);}
+.msg-act svg{width:12px;height:12px;}
+/* CODE BLOCKS */
+.code-block{background:#0a0a12;border:1px solid var(--border);border-radius:10px;margin:10px 0;overflow:hidden;}
+.code-top{display:flex;justify-content:space-between;align-items:center;padding:7px 14px;background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border);}
+.code-lang{font-size:11px;color:var(--text-secondary);font-weight:500;}
+.code-copy{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-secondary);cursor:pointer;padding:3px 8px;border-radius:5px;border:none;background:transparent;font-family:'Inter',sans-serif;transition:all .15s;}
+.code-copy:hover{background:rgba(255,255,255,0.06);color:var(--text);}
+.code-copy svg{width:12px;height:12px;}
+.code-body{padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.7;color:#c8c8d8;overflow-x:auto;white-space:pre;}
+.code-body .kw{color:#c792ea;}.code-body .fn{color:#82aaff;}.code-body .str{color:#c3e88d;}.code-body .cm{color:#546e7a;font-style:italic;}.code-body .num{color:#f78c6c;}.code-body .op{color:#89ddff;}
+
+/* THINKING */
+.thinking{display:flex;align-items:center;gap:10px;padding:12px 18px;background:rgba(255,255,255,0.03);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:16px;border-top-left-radius:4px;font-size:12.5px;color:var(--text-secondary);}
+.think-dots{display:flex;gap:4px;}
+.think-dots span{width:5px;height:5px;border-radius:50%;background:var(--accent-light);animation:dotPulse 1.4s infinite ease-in-out;}
+.think-dots span:nth-child(2){animation-delay:.2s;}
+.think-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes dotPulse{0%,80%,100%{opacity:.25;transform:scale(.7);}40%{opacity:1;transform:scale(1);}}
+
+/* INPUT AREA */
+.input-wrap{padding:14px 24px 18px;border-top:1px solid var(--border);background:rgba(14,14,20,0.6);backdrop-filter:blur(30px);flex-shrink:0;}
+.input-row{display:flex;align-items:flex-end;gap:8px;max-width:760px;margin:0 auto;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:14px;padding:6px 6px 6px 14px;transition:border-color .25s,box-shadow .25s;}
+.input-row.focused{border-color:rgba(124,106,239,0.4);box-shadow:0 0 20px rgba(124,106,239,0.08);}
+.input-box{flex:1;background:transparent;border:none;color:var(--text);font-size:13.5px;font-family:'Inter',sans-serif;resize:none;outline:none;min-height:24px;max-height:140px;line-height:1.5;padding:6px 0;}
+.input-box::placeholder{color:rgba(136,136,160,0.45);}
+.in-btns{display:flex;gap:4px;align-items:flex-end;padding-bottom:2px;}
+.in-btn{width:34px;height:34px;border-radius:9px;border:none;background:transparent;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}
+.in-btn:hover{background:rgba(255,255,255,0.06);color:var(--text);}
+.in-btn:active{transform:scale(0.97);}
+.in-btn svg{width:16px;height:16px;}
+.in-btn.send{background:var(--accent);color:#fff;box-shadow:0 2px 10px rgba(124,106,239,0.3);}
+.in-btn.send:hover{background:#8b7af5;box-shadow:0 4px 16px rgba(124,106,239,0.4);}
+.in-btn.send.pulse{animation:sendPulse 1.5s infinite;}
+@keyframes sendPulse{0%,100%{box-shadow:0 2px 10px rgba(124,106,239,0.3);}50%{box-shadow:0 2px 20px rgba(124,106,239,0.5);}}
+.input-status{text-align:center;font-size:10.5px;color:var(--text-secondary);margin-top:8px;display:flex;align-items:center;justify-content:center;gap:5px;opacity:0.6;}
+.input-status .gdot{width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;box-shadow:0 0 6px rgba(67,233,123,0.4);}
+</style>
+</head>
+<body>
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sb-head">
+    <h2>对话</h2>
+    <button class="new-btn"><i data-lucide="plus"></i> 新对话</button>
+  </div>
+  <div class="sb-search">
+    <i data-lucide="search"></i>
+    <input placeholder="搜索对话..." />
+  </div>
+  <div class="chat-list">
+    <div class="ch-item active">
+      <h4>React 性能优化方案</h4>
+      <p>帮我分析一下这个组件的渲染问题...</p>
+      <div class="ch-meta"><span class="ch-time">刚刚</span><span class="ch-tag">本地 14B</span></div>
+    </div>
+    <div class="ch-item">
+      <h4>周末旅行计划</h4>
+      <p>推荐几个适合两天一夜的地方</p>
+      <div class="ch-meta"><span class="ch-time">2小时前</span><span class="ch-tag">本地 3B</span></div>
+    </div>
+    <div class="ch-item">
+      <h4>智能家居自动化</h4>
+      <p>帮我设置一个回家自动开灯的规则</p>
+      <div class="ch-meta"><span class="ch-time">昨天</span><span class="ch-tag">本地 3B</span></div>
+    </div>
+    <div class="ch-item">
+      <h4>论文摘要翻译</h4>
+      <p>把这段英文摘要翻译成中文</p>
+      <div class="ch-meta"><span class="ch-time">2天前</span><span class="ch-tag" style="background:rgba(245,166,35,0.1);color:var(--orange);">Claude</span></div>
+    </div>
+    <div class="ch-item">
+      <h4>Python 数据分析</h4>
+      <p>用 pandas 处理这个 CSV 文件</p>
+      <div class="ch-meta"><span class="ch-time">3天前</span><span class="ch-tag">本地 14B</span></div>
+    </div>
+  </div>
+  <div class="sb-foot">
+    <a href="index.html"><i data-lucide="arrow-left"></i> 返回总览</a>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="tb-left">
+      <span class="tb-title">React 性能优化方案</span>
+      <div class="tb-model" id="modelToggle" onclick="toggleModel()">
+        <span class="dot local"></span>
+        <span>Qwen2.5-14B</span>
+        <i data-lucide="chevron-down"></i>
+        <div class="model-dd" id="modelDD">
+          <div class="md-opt" onclick="selectModel('Qwen2.5-14B','local',this)">
+            <div><div class="md-name">Qwen2.5-14B</div><div class="md-desc">本地运行 · 高质量</div></div>
+            <span class="md-cost free">免费</span>
+          </div>
+          <div class="md-opt" onclick="selectModel('Qwen2.5-3B','local',this)">
+            <div><div class="md-name">Qwen2.5-3B</div><div class="md-desc">本地运行 · 快速</div></div>
+            <span class="md-cost free">免费</span>
+          </div>
+          <div class="md-opt" onclick="selectModel('Claude 3.5','cloud',this)">
+            <div><div class="md-name">Claude 3.5 Sonnet</div><div class="md-desc">云端 · 最强推理</div></div>
+            <span class="md-cost paid">付费</span>
+          </div>
+          <div class="md-opt" onclick="selectModel('GPT-4o','cloud',this)">
+            <div><div class="md-name">GPT-4o</div><div class="md-desc">云端 · 多模态</div></div>
+            <span class="md-cost paid">付费</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tb-right">
+      <button class="tb-btn" title="搜索"><i data-lucide="search"></i></button>
+      <button class="tb-btn" title="记忆"><i data-lucide="brain"></i></button>
+      <button class="tb-btn" title="更多"><i data-lucide="more-horizontal"></i></button>
+    </div>
+  </div>
+  <!-- Messages -->
+  <div class="messages" id="msgArea">
+    <div class="msg ai" style="animation-delay:0s;">
+      <div class="msg-av">P</div>
+      <div class="msg-body">
+        <div class="msg-bubble">你好！我是 Prometheus，你的本地 AI 助理。有什么我可以帮你的吗？</div>
+        <div class="msg-info">
+          <span>14:28 · 本地 Qwen2.5-14B · 0.3s</span>
+          <div class="msg-acts">
+            <span class="msg-act"><i data-lucide="copy"></i></span>
+            <span class="msg-act"><i data-lucide="thumbs-up"></i></span>
+            <span class="msg-act"><i data-lucide="thumbs-down"></i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="msg user" style="animation-delay:.05s;">
+      <div class="msg-av"><i data-lucide="user" style="width:14px;height:14px;"></i></div>
+      <div class="msg-body">
+        <div class="msg-bubble">我有一个 React 组件渲染很慢，列表大概有 2000 条数据，每次状态更新都会卡顿。怎么优化？</div>
+        <div class="msg-info"><span>14:30</span></div>
+      </div>
+    </div>
+
+    <div class="msg ai" style="animation-delay:.1s;">
+      <div class="msg-av">P</div>
+      <div class="msg-body">
+        <div class="msg-bubble">
+          <div>这是一个典型的长列表性能问题。以下是几个关键优化方向：</div>
+          <div style="margin-top:8px;"><strong>1. 虚拟滚动</strong> — 只渲染可视区域内的元素，推荐使用 <code style="background:rgba(124,106,239,0.12);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent-light);">react-window</code>：</div>
+          <div class="code-block">
+            <div class="code-top">
+              <span class="code-lang">tsx</span>
+              <button class="code-copy" onclick="copyCode(this)"><i data-lucide="copy"></i> 复制</button>
+            </div>
+            <div class="code-body"><span class="kw">import</span> { FixedSizeList } <span class="kw">from</span> <span class="str">'react-window'</span>;
+
+<span class="kw">const</span> <span class="fn">VirtualList</span> = <span class="op">(</span>{ items }<span class="op">)</span> <span class="kw">=></span> <span class="op">(</span>
+  <span class="op">&lt;</span><span class="fn">FixedSizeList</span>
+    height<span class="op">={</span><span class="num">600</span><span class="op">}</span>
+    itemCount<span class="op">={</span>items.length<span class="op">}</span>
+    itemSize<span class="op">={</span><span class="num">50</span><span class="op">}</span>
+    width<span class="op">={</span><span class="str">"100%"</span><span class="op">}</span>
+  <span class="op">&gt;</span>
+    {<span class="op">(</span>{ index, style }<span class="op">)</span> <span class="kw">=></span> <span class="op">(</span>
+      <span class="op">&lt;</span>div style<span class="op">={</span>style<span class="op">}&gt;</span>{items[index].name}<span class="op">&lt;/</span>div<span class="op">&gt;</span>
+    <span class="op">)</span>}
+  <span class="op">&lt;/</span><span class="fn">FixedSizeList</span><span class="op">&gt;</span>
+<span class="op">)</span>;</div>
+          </div>
+          <div style="margin-top:8px;"><strong>2. React.memo + useMemo</strong> — 避免不必要的重渲染。</div>
+          <div style="margin-top:4px;"><strong>3. 状态下沉</strong> — 把频繁变化的状态放到子组件中。</div>
+          <div style="margin-top:10px;">建议先用 React DevTools Profiler 录制一次渲染，看看哪个组件耗时最长。要不要我帮你写一个性能检测的 Hook？</div>
+        </div>
+        <div class="msg-info">
+          <span>14:32 · 本地 Qwen2.5-14B · 1.2s</span>
+          <div class="msg-acts">
+            <span class="msg-act"><i data-lucide="copy"></i></span>
+            <span class="msg-act"><i data-lucide="refresh-cw"></i></span>
+            <span class="msg-act"><i data-lucide="thumbs-up"></i></span>
+            <span class="msg-act"><i data-lucide="thumbs-down"></i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="msg user" style="animation-delay:.15s;">
+      <div class="msg-av"><i data-lucide="user" style="width:14px;height:14px;"></i></div>
+      <div class="msg-body">
+        <div class="msg-bubble">帮我写一个性能检测 Hook 吧</div>
+        <div class="msg-info"><span>14:33</span></div>
+      </div>
+    </div>
+
+    <div class="msg ai" id="typingMsg" style="animation-delay:.2s;">
+      <div class="msg-av">P</div>
+      <div class="msg-body">
+        <div class="msg-bubble" id="typewriterTarget"></div>
+        <div class="msg-info" id="typewriterMeta" style="display:none;">
+          <span>14:34 · 本地 Qwen2.5-14B · 0.8s</span>
+          <div class="msg-acts">
+            <span class="msg-act"><i data-lucide="copy"></i></span>
+            <span class="msg-act"><i data-lucide="refresh-cw"></i></span>
+            <span class="msg-act"><i data-lucide="thumbs-up"></i></span>
+            <span class="msg-act"><i data-lucide="thumbs-down"></i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-wrap">
+    <div class="input-row" id="inputRow">
+      <textarea class="input-box" id="inputBox" placeholder="输入消息... (Enter 发送)" rows="1" oninput="autoResize(this)" onfocus="document.getElementById('inputRow').classList.add('focused')" onblur="document.getElementById('inputRow').classList.remove('focused')"></textarea>
+      <div class="in-btns">
+        <button class="in-btn" title="附件"><i data-lucide="paperclip"></i></button>
+        <button class="in-btn" title="语音"><i data-lucide="mic"></i></button>
+        <button class="in-btn send pulse" title="发送"><i data-lucide="send"></i></button>
+      </div>
+    </div>
+    <div class="input-status"><span class="gdot"></span> 本地模型 · 数据不出设备 · 免费</div>
+  </div>
+</main>
+
+<script>
+// Init Lucide icons
+lucide.createIcons();
+
+// Model dropdown
+function toggleModel(){
+  const el=document.getElementById('modelToggle');
+  const dd=document.getElementById('modelDD');
+  el.classList.toggle('open');
+  dd.classList.toggle('show');
+}
+function selectModel(name,type){
+  const toggle=document.getElementById('modelToggle');
+  toggle.querySelector('span:nth-child(2)').textContent=name;
+  const dot=toggle.querySelector('.dot');
+  dot.className='dot '+(type==='local'?'local':'cloud');
+  toggle.classList.remove('open');
+  document.getElementById('modelDD').classList.remove('show');
+}
+document.addEventListener('click',function(e){
+  const t=document.getElementById('modelToggle');
+  if(t&&!t.contains(e.target)){t.classList.remove('open');document.getElementById('modelDD').classList.remove('show');}
+});
+
+// Auto-resize textarea
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';}
+
+// Copy code
+function copyCode(btn){
+  const code=btn.closest('.code-block').querySelector('.code-body').textContent;
+  navigator.clipboard.writeText(code).then(()=>{
+    const orig=btn.innerHTML;
+    btn.innerHTML='<i data-lucide="check"></i> 已复制';
+    lucide.createIcons();
+    setTimeout(()=>{btn.innerHTML=orig;lucide.createIcons();},1500);
+  });
+}
+
+// Typewriter effect for last AI message
+(function(){
+  const target=document.getElementById('typewriterTarget');
+  const meta=document.getElementById('typewriterMeta');
+  if(!target)return;
+  const fullText='好的，这是一个实用的 useRenderTime Hook，可以检测组件渲染耗时并在超过阈值时发出警告：';
+  let i=0;
+  // Show thinking dots first
+  target.innerHTML='<div class="thinking"><div class="think-dots"><span></span><span></span><span></span></div> 正在思考...</div>';
+  setTimeout(()=>{
+    target.innerHTML='';
+    function type(){
+      if(i<fullText.length){
+        target.textContent+=fullText.charAt(i);
+        i++;
+        setTimeout(type,30);
+      }else{
+        meta.style.display='flex';
+        lucide.createIcons();
+      }
+    }
+    type();
+  },1800);
+})();
+
+// Scroll to bottom
+document.getElementById('msgArea').scrollTop=document.getElementById('msgArea').scrollHeight;
+</script>
+</body>
+</html>

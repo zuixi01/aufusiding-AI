@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>插件市场 — Prometheus AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+--bg:#06060a;--surface:rgba(255,255,255,0.03);--surface-solid:#0e0e14;--border:rgba(255,255,255,0.06);
+--text:#f0f0f5;--text-secondary:#8888a0;--accent:#7c6aef;--accent-light:#a594fd;
+--green:#43e97b;--orange:#f8a04c;--blue:#4facfe;--pink:#f093fb;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;overflow-x:hidden;}
+a{color:var(--accent-light);text-decoration:none;}
+/* Noise overlay */
+body::before{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0.028;
+background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+background-repeat:repeat;background-size:200px 200px;}
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.14);}
+
+/* ── Top Bar ── */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(6,6,10,0.72);backdrop-filter:blur(28px) saturate(1.4);-webkit-backdrop-filter:blur(28px) saturate(1.4);border-bottom:1px solid var(--border);padding:0 32px;height:64px;display:flex;align-items:center;gap:18px;}
+.topbar-title{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;white-space:nowrap;color:var(--text);}
+.topbar-title .icon-wrap{display:flex;align-items:center;color:var(--accent-light);}
+.topbar-search{flex:1;max-width:400px;position:relative;}
+.topbar-search input{width:100%;height:38px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);padding:0 14px 0 40px;font-size:13.5px;font-family:'Inter',sans-serif;outline:none;transition:border .25s,box-shadow .25s,background .25s;}
+.topbar-search input::placeholder{color:var(--text-secondary);}
+.topbar-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,106,239,0.18);background:rgba(255,255,255,0.06);}
+.topbar-search .s-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-secondary);pointer-events:none;display:flex;}
+.pills{display:flex;gap:6px;flex-shrink:0;position:relative;}
+.pill{height:32px;padding:0 16px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;transition:all .25s;display:flex;align-items:center;white-space:nowrap;font-weight:500;}
+.pill:hover{border-color:rgba(124,106,239,0.3);color:var(--text);}
+.pill.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;box-shadow:0 2px 12px rgba(124,106,239,0.3);}
+.back-link{margin-left:auto;font-size:13px;color:var(--text-secondary);white-space:nowrap;transition:color .2s;display:flex;align-items:center;gap:6px;}
+.back-link:hover{color:var(--accent-light);}
+/* ── Main ── */
+.main{max-width:1260px;margin:0 auto;padding:32px 32px 64px;}
+.section-title{font-size:20px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+.section-title .badge{font-size:11px;background:var(--accent);color:#fff;border-radius:6px;padding:2px 10px;font-weight:600;letter-spacing:0.3px;}
+.section-title .badge.green{background:rgba(67,233,123,0.15);color:var(--green);}
+
+/* ── Featured Row ── */
+.featured-row{display:flex;gap:20px;overflow-x:auto;padding-bottom:8px;margin-bottom:40px;scroll-snap-type:x mandatory;scroll-behavior:smooth;}
+.featured-card{min-width:320px;flex:1;scroll-snap-align:start;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s,border-color .3s;position:relative;overflow:hidden;opacity:0;animation:cardFadeIn .5s ease forwards;}
+.featured-card:nth-child(1){animation-delay:.1s;}
+.featured-card:nth-child(2){animation-delay:.2s;}
+.featured-card:nth-child(3){animation-delay:.3s;}
+.featured-card .accent-bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:18px 18px 0 0;}
+.featured-card:nth-child(1) .accent-bar{background:linear-gradient(90deg,#7c6aef,#a594fd);}
+.featured-card:nth-child(2) .accent-bar{background:linear-gradient(90deg,#4facfe,#00f2fe);}
+.featured-card:nth-child(3) .accent-bar{background:linear-gradient(90deg,#f093fb,#f5576c);}
+.featured-card:hover{transform:translateY(-6px);box-shadow:0 16px 48px rgba(0,0,0,0.4);border-color:rgba(124,106,239,0.25);}
+.featured-card:nth-child(1):hover{border-color:rgba(124,106,239,0.35);box-shadow:0 16px 48px rgba(124,106,239,0.12);}
+.featured-card:nth-child(2):hover{border-color:rgba(79,172,254,0.35);box-shadow:0 16px 48px rgba(79,172,254,0.12);}
+.featured-card:nth-child(3):hover{border-color:rgba(240,147,251,0.35);box-shadow:0 16px 48px rgba(240,147,251,0.12);}
+.fc-icon-wrap{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:4px;color:#fff;flex-shrink:0;}
+.fc-icon-wrap.purple{background:linear-gradient(135deg,#7c6aef,#a594fd);}
+.fc-icon-wrap.blue{background:linear-gradient(135deg,#4facfe,#00f2fe);}
+.fc-icon-wrap.pink{background:linear-gradient(135deg,#f093fb,#f5576c);}
+.fc-name{font-size:16px;font-weight:600;}
+.fc-desc{font-size:13.5px;color:var(--text-secondary);line-height:1.55;}
+.fc-meta{display:flex;align-items:center;gap:10px;margin-top:auto;font-size:12px;color:var(--text-secondary);flex-wrap:wrap;}
+.fc-stars{display:flex;align-items:center;gap:2px;}
+.fc-stars .star-icon{width:14px;height:14px;}
+.fc-stars .star-icon.filled{color:#fbbf24;}
+.fc-stars .star-icon.empty{color:rgba(255,255,255,0.12);}
+.fc-stars .rating-num{margin-left:3px;font-weight:600;color:var(--text);}
+.fc-dl{display:flex;align-items:center;gap:3px;}
+.fc-price{padding:3px 10px;border-radius:8px;font-weight:600;font-size:11px;}
+.fc-price.free{background:rgba(67,233,123,0.1);color:var(--green);}
+.fc-price.paid{background:rgba(248,160,76,0.1);color:var(--orange);}
+.wasm-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--accent-light);background:rgba(124,106,239,0.08);border:1px solid rgba(124,106,239,0.15);border-radius:6px;padding:2px 8px;font-weight:600;letter-spacing:0.3px;}
+
+/* ── Installed Grid ── */
+.installed-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:40px;}
+.installed-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 18px;display:flex;align-items:center;gap:12px;transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s,border-color .25s;cursor:default;opacity:0;animation:cardFadeIn .5s ease forwards;}
+.installed-card:nth-child(1){animation-delay:.15s;}
+.installed-card:nth-child(2){animation-delay:.25s;}
+.installed-card:nth-child(3){animation-delay:.35s;}
+.installed-card:nth-child(4){animation-delay:.45s;}
+.installed-card:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,0.25);border-color:rgba(255,255,255,0.1);}
+.ic-icon-wrap{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,0.05);color:var(--accent-light);}
+.ic-info{flex:1;min-width:0;}
+.ic-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ic-detail{font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;}
+.ic-detail .dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 6px rgba(67,233,123,0.5);}
+.ic-detail .version{color:var(--text-secondary);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;}
+.ic-detail .perm-tag{color:var(--blue);background:rgba(79,172,254,0.08);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle .slider{position:absolute;inset:0;background:rgba(255,255,255,0.08);border-radius:11px;cursor:pointer;transition:background .25s;}
+.toggle .slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .25s cubic-bezier(.22,1,.36,1);}
+.toggle input:checked+.slider{background:var(--green);}
+.toggle input:checked+.slider::before{transform:translateX(18px);}
+
+/* ── Popular Grid ── */
+.popular-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+.popular-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s,border-color .3s;position:relative;opacity:0;animation:cardFadeIn .5s ease forwards;}
+.popular-card:nth-child(1){animation-delay:.2s;}
+.popular-card:nth-child(2){animation-delay:.28s;}
+.popular-card:nth-child(3){animation-delay:.36s;}
+.popular-card:nth-child(4){animation-delay:.44s;}
+.popular-card:nth-child(5){animation-delay:.52s;}
+.popular-card:nth-child(6){animation-delay:.6s;}
+.popular-card:hover{transform:translateY(-4px);box-shadow:0 14px 40px rgba(0,0,0,0.3);border-color:rgba(124,106,239,0.2);}
+.pc-top{display:flex;align-items:flex-start;gap:14px;}
+.pc-icon-wrap{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;}
+.pc-name{font-size:15px;font-weight:600;}
+.pc-desc{font-size:12.5px;color:var(--text-secondary);margin-top:2px;line-height:1.5;}
+.pc-bottom{display:flex;align-items:center;gap:10px;margin-top:auto;font-size:12px;color:var(--text-secondary);flex-wrap:wrap;}
+.pc-stars{display:flex;align-items:center;gap:2px;}
+.pc-stars .star-icon{width:13px;height:13px;}
+.pc-stars .star-icon.filled{color:#fbbf24;}
+.pc-stars .star-icon.empty{color:rgba(255,255,255,0.1);}
+.pc-stars .rating-num{margin-left:3px;font-weight:600;color:var(--text);}
+.pc-dl{display:flex;align-items:center;gap:3px;}
+.install-btn{margin-left:auto;height:32px;padding:0 18px;border-radius:10px;border:1px solid var(--accent);background:transparent;color:var(--accent-light);font-size:12.5px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:5px;position:relative;overflow:hidden;}
+.install-btn:hover{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;border-color:transparent;box-shadow:0 4px 16px rgba(124,106,239,0.35);}
+.install-btn .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,0.3);transform:scale(0);animation:ripple .5s ease-out;}
+@keyframes ripple{to{transform:scale(4);opacity:0;}}
+@keyframes cardFadeIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-title"><span class="icon-wrap"><i data-lucide="puzzle" style="width:20px;height:20px"></i></span> 插件市场</div>
+  <div class="topbar-search">
+    <span class="s-icon"><i data-lucide="search" style="width:16px;height:16px"></i></span>
+    <input type="text" placeholder="搜索插件...">
+  </div>
+  <div class="pills">
+    <div class="pill active">全部</div><div class="pill">效率</div><div class="pill">开发</div><div class="pill">翻译</div><div class="pill">生活</div><div class="pill">IoT</div>
+  </div>
+  <a href="index.html" class="back-link"><i data-lucide="arrow-left" style="width:14px;height:14px"></i> 返回总览</a>
+</div>
+<div class="main">
+  <div class="section-title"><span>精选插件</span><span class="badge">推荐</span></div>
+  <div class="featured-row" id="featuredRow"></div>
+  <div class="section-title" style="margin-top:8px;"><span>已安装</span><span class="badge green">4</span></div>
+  <div class="installed-grid" id="installedGrid"></div>
+  <div class="section-title" style="margin-top:40px;"><span>热门插件</span></div>
+  <div class="popular-grid" id="popularGrid"></div>
+</div>
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal" id="pluginModal"></div>
+</div>
+<!-- Modal + Script -->
+<style>
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity .3s ease;}
+.modal-overlay.hidden{opacity:0;pointer-events:none;}
+.modal{background:var(--surface-solid);border:1px solid var(--border);border-radius:20px;width:560px;max-width:92vw;max-height:85vh;overflow-y:auto;box-shadow:0 32px 80px rgba(0,0,0,0.6);animation:modalIn .35s cubic-bezier(.22,1,.36,1);}
+@keyframes modalIn{from{transform:translateY(24px) scale(0.96);opacity:0;}to{transform:translateY(0) scale(1);opacity:1;}}
+.modal-header{padding:28px 28px 0;display:flex;align-items:center;gap:16px;position:relative;}
+.mh-icon-wrap{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;background:linear-gradient(135deg,#7c6aef,#a594fd);}
+.mh-info{flex:1;}
+.mh-name{font-size:21px;font-weight:700;}
+.mh-dev{font-size:13px;color:var(--text-secondary);margin-top:3px;}
+.modal-close{position:absolute;top:24px;right:24px;width:32px;height:32px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.modal-close:hover{background:rgba(255,255,255,0.08);color:var(--text);}
+.modal-screenshots{display:flex;gap:12px;padding:22px 28px;overflow-x:auto;}
+.modal-screenshots .ss{width:160px;height:100px;border-radius:12px;flex-shrink:0;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:11px;position:relative;overflow:hidden;}
+.modal-screenshots .ss::before{content:'';position:absolute;inset:0;opacity:0.5;}
+.modal-screenshots .ss:nth-child(1)::before{background:linear-gradient(135deg,rgba(124,106,239,0.2),rgba(79,172,254,0.15));}
+.modal-screenshots .ss:nth-child(2)::before{background:linear-gradient(135deg,rgba(79,172,254,0.2),rgba(67,233,123,0.15));}
+.modal-screenshots .ss:nth-child(3)::before{background:linear-gradient(135deg,rgba(240,147,251,0.2),rgba(248,160,76,0.15));}
+.modal-screenshots .ss::after{content:'';position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h1v1H0z' fill='rgba(255,255,255,0.03)'/%3E%3C/svg%3E");background-size:20px 20px;opacity:0.6;}
+.modal-body{padding:0 28px 20px;}
+.mb-section{margin-bottom:20px;}
+.mb-label{font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.6px;}
+.mb-desc{font-size:14px;color:var(--text);line-height:1.75;}
+.perm-list{display:flex;flex-direction:column;gap:8px;}
+.perm-item{display:flex;align-items:center;gap:10px;font-size:13px;padding:10px 14px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border);}
+.perm-item .perm-icon{display:flex;color:var(--text-secondary);}
+.perm-item .perm-name{flex:1;color:var(--text);}
+.perm-item .perm-status{font-weight:600;font-size:12px;display:flex;align-items:center;gap:4px;}
+.perm-item .perm-status.allowed{color:var(--green);}
+.perm-item .perm-status.denied{color:#e05555;}
+.modal-install-btn{width:100%;height:46px;border-radius:14px;border:none;font-size:15px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;transition:all .25s;box-shadow:0 4px 20px rgba(124,106,239,0.3);margin:4px 0 20px;}
+.modal-install-btn:hover{box-shadow:0 6px 28px rgba(124,106,239,0.45);transform:translateY(-1px);}
+.modal-meta{text-align:center;font-size:12px;color:var(--text-secondary);margin-bottom:20px;}
+.version-history{display:flex;flex-direction:column;gap:8px;}
+.version-entry{display:flex;align-items:center;gap:10px;font-size:13px;padding:10px 14px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border);}
+.version-entry .ve-icon{display:flex;color:var(--text-secondary);}
+.version-entry .ve-ver{font-weight:600;color:var(--accent-light);min-width:52px;}
+.version-entry .ve-date{color:var(--text-secondary);min-width:72px;}
+.version-entry .ve-note{color:var(--text-secondary);flex:1;}
+</style>
+
+<script>
+/* ── Icon helper ── */
+function lucideIcon(name,size=18){return `<i data-lucide="${name}" style="width:${size}px;height:${size}px"></i>`;}
+
+/* ── Star rating helper ── */
+function starsHTML(n,size=14){
+  const full=Math.floor(n);const hasHalf=n%1>=0.3;
+  let h='<span class="fc-stars" style="display:inline-flex;align-items:center;gap:1px;">';
+  for(let i=0;i<5;i++){
+    h+=`<span class="star-icon ${i<full||(i===full&&hasHalf)?'filled':'empty'}" style="display:inline-flex;width:${size}px;height:${size}px;color:${i<full||(i===full&&hasHalf)?'#fbbf24':'rgba(255,255,255,0.1)'}"><i data-lucide="star" style="width:${size}px;height:${size}px"></i></span>`;
+  }
+  h+=`<span class="rating-num" style="margin-left:4px;font-weight:600;color:var(--text);font-size:${size-1}px">${n}</span></span>`;
+  return h;
+}
+
+/* ── Data ── */
+const featured=[
+  {lucide:'globe',iconClass:'purple',name:'Web Search Pro',desc:'增强网页搜索，支持多引擎聚合',stars:4.8,installs:'12K',price:'免费',free:true},
+  {lucide:'code',iconClass:'blue',name:'Code Runner',desc:'在沙箱中安全执行代码片段',stars:4.9,installs:'8.5K',price:'免费',free:true},
+  {lucide:'file-text',iconClass:'pink',name:'Notion Sync',desc:'双向同步 Notion 笔记和知识库',stars:4.6,installs:'5.2K',price:'¥12/月',free:false}
+];
+const installed=[
+  {lucide:'cloud',name:'天气',version:'v2.1.0',perm:'网络'},
+  {lucide:'calculator',name:'计算器',version:'v1.0.0',perm:'无'},
+  {lucide:'languages',name:'翻译',version:'v3.2.1',perm:'网络'},
+  {lucide:'search',name:'Web Search',version:'v1.5.0',perm:'网络'}
+];
+const popular=[
+  {lucide:'bar-chart-3',bg:'linear-gradient(135deg,#4facfe,#00f2fe)',name:'数据分析',desc:'CSV/Excel 数据可视化分析',stars:4.7,installs:'3.1K',price:'免费',free:true},
+  {lucide:'palette',bg:'linear-gradient(135deg,#f093fb,#f5576c)',name:'DALL-E 绘图',desc:'AI 图像生成 (需云端)',stars:4.5,installs:'6.8K',price:'¥5/月',free:false},
+  {lucide:'mail',bg:'linear-gradient(135deg,#43e97b,#38f9d7)',name:'邮件助手',desc:'智能邮件撰写和管理',stars:4.4,installs:'2.3K',price:'免费',free:true},
+  {lucide:'calendar',bg:'linear-gradient(135deg,#f8a04c,#f7ce68)',name:'日历集成',desc:'同步 Google/Apple 日历',stars:4.6,installs:'4.1K',price:'免费',free:true},
+  {lucide:'key',bg:'linear-gradient(135deg,#7c6aef,#a594fd)',name:'密码管理',desc:'安全密码生成和存储',stars:4.8,installs:'7.2K',price:'免费',free:true},
+  {lucide:'music',bg:'linear-gradient(135deg,#f093fb,#c471f5)',name:'音乐控制',desc:'控制 Spotify/Apple Music',stars:4.3,installs:'1.8K',price:'免费',free:true}
+];
+
+/* ── Render Featured ── */
+const featuredRow=document.getElementById('featuredRow');
+featured.forEach((p,i)=>{
+  const card=document.createElement('div');
+  card.className='featured-card';
+  card.onclick=()=>openModal(p);
+  card.innerHTML=`
+    <div class="accent-bar"></div>
+    <div class="fc-icon-wrap ${p.iconClass}">${lucideIcon(p.lucide,22)}</div>
+    <div class="fc-name">${p.name}</div>
+    <div class="fc-desc">${p.desc}</div>
+    <div class="fc-meta">
+      ${starsHTML(p.stars,14)}
+      <span class="fc-dl">${lucideIcon('download',12)} ${p.installs}</span>
+      <span class="fc-price ${p.free?'free':'paid'}">${p.price}</span>
+      <span class="wasm-badge">${lucideIcon('shield',10)} WASM 沙箱</span>
+    </div>`;
+  featuredRow.appendChild(card);
+});
+
+/* ── Render Installed ── */
+const installedGrid=document.getElementById('installedGrid');
+installed.forEach(p=>{
+  const card=document.createElement('div');
+  card.className='installed-card';
+  card.innerHTML=`
+    <div class="ic-icon-wrap">${lucideIcon(p.lucide,18)}</div>
+    <div class="ic-info">
+      <div class="ic-name">${p.name}</div>
+      <div class="ic-detail">
+        <span class="dot"></span>
+        <span class="version">${p.version}</span>
+        <span class="perm-tag">${p.perm}</span>
+      </div>
+    </div>
+    <label class="toggle"><input type="checkbox" checked><span class="slider"></span></label>`;
+  installedGrid.appendChild(card);
+});
+
+/* ── Render Popular ── */
+const popularGrid=document.getElementById('popularGrid');
+popular.forEach(p=>{
+  const card=document.createElement('div');
+  card.className='popular-card';
+  card.onclick=(e)=>{if(!e.target.closest('.install-btn'))openModal(p);};
+  card.innerHTML=`
+    <div class="pc-top">
+      <div class="pc-icon-wrap" style="background:${p.bg}">${lucideIcon(p.lucide,20)}</div>
+      <div>
+        <div class="pc-name">${p.name}</div>
+        <div class="pc-desc">${p.desc}</div>
+      </div>
+    </div>
+    <div class="pc-bottom">
+      ${starsHTML(p.stars,13)}
+      <span class="pc-dl">${lucideIcon('download',12)} ${p.installs}</span>
+      <span class="fc-price ${p.free?'free':'paid'}" style="font-size:11px">${p.price}</span>
+      <button class="install-btn" onclick="event.stopPropagation();rippleBtn(event);">安装</button>
+    </div>`;
+  popularGrid.appendChild(card);
+});
+
+/* ── Ripple effect ── */
+function rippleBtn(e){
+  const btn=e.currentTarget;
+  const circle=document.createElement('span');
+  circle.className='ripple';
+  const rect=btn.getBoundingClientRect();
+  const size=Math.max(rect.width,rect.height);
+  circle.style.width=circle.style.height=size+'px';
+  circle.style.left=(e.clientX-rect.left-size/2)+'px';
+  circle.style.top=(e.clientY-rect.top-size/2)+'px';
+  btn.appendChild(circle);
+  setTimeout(()=>circle.remove(),500);
+  btn.textContent='已安装';
+  btn.style.borderColor='var(--green)';btn.style.color='var(--green)';btn.style.background='rgba(67,233,123,0.08)';
+  btn.style.pointerEvents='none';
+}
+
+/* ── Modal ── */
+const overlay=document.getElementById('modalOverlay');
+const modal=document.getElementById('pluginModal');
+
+function openModal(p){
+  overlay.classList.remove('hidden');
+  document.body.style.overflow='hidden';
+  const iconBg=p.iconClass==='purple'?'linear-gradient(135deg,#7c6aef,#a594fd)':p.iconClass==='blue'?'linear-gradient(135deg,#4facfe,#00f2fe)':p.iconClass==='pink'?'linear-gradient(135deg,#f093fb,#f5576c)':p.bg||'linear-gradient(135deg,#7c6aef,#a594fd)';
+  modal.innerHTML=`
+    <div class="modal-header">
+      <div class="mh-icon-wrap" style="background:${iconBg}">${lucideIcon(p.lucide||'globe',26)}</div>
+      <div class="mh-info">
+        <div class="mh-name">${p.name}</div>
+        <div class="mh-dev">由 Prometheus Labs 开发 · ${p.installs} 安装 · ${starsHTML(p.stars,13)}</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">${lucideIcon('x',16)}</button>
+    </div>
+    <div class="modal-screenshots">
+      <div class="ss"><span style="position:relative;z-index:1">截图预览 1</span></div>
+      <div class="ss"><span style="position:relative;z-index:1">截图预览 2</span></div>
+      <div class="ss"><span style="position:relative;z-index:1">截图预览 3</span></div>
+    </div>
+    <div class="modal-body">
+      <div class="mb-section">
+        <div class="mb-label">描述</div>
+        <div class="mb-desc">${p.desc}。该插件运行在 WASM 沙箱环境中，确保安全隔离。支持自定义配置，可与其他插件协同工作。提供丰富的 API 接口，方便开发者扩展功能。</div>
+      </div>
+      <div class="mb-section">
+        <div class="mb-label">权限</div>
+        <div class="perm-list">
+          <div class="perm-item"><span class="perm-icon">${lucideIcon('globe',16)}</span><span class="perm-name">网络访问</span><span class="perm-status allowed">${lucideIcon('check',14)} 允许</span></div>
+          <div class="perm-item"><span class="perm-icon">${lucideIcon('file-text',16)}</span><span class="perm-name">文件读取</span><span class="perm-status denied">${lucideIcon('x',14)} 拒绝</span></div>
+          <div class="perm-item"><span class="perm-icon">${lucideIcon('key',16)}</span><span class="perm-name">系统 API</span><span class="perm-status denied">${lucideIcon('x',14)} 拒绝</span></div>
+        </div>
+      </div>
+      <button class="modal-install-btn">安装</button>
+      <div class="modal-meta">${p.free?'<span style="color:var(--green);font-weight:600;">免费</span>':'<span style="color:var(--orange);font-weight:600;">'+p.price+'</span>'} · WASM 沙箱 · 大小 1.2 MB</div>
+      <div class="mb-section">
+        <div class="mb-label">版本历史</div>
+        <div class="version-history">
+          <div class="version-entry"><span class="ve-icon">${lucideIcon('clock',14)}</span><span class="ve-ver">v2.1.0</span><span class="ve-date">2026-02</span><span class="ve-note">新增多引擎聚合搜索</span></div>
+          <div class="version-entry"><span class="ve-icon">${lucideIcon('clock',14)}</span><span class="ve-ver">v2.0.0</span><span class="ve-date">2026-01</span><span class="ve-note">重构核心搜索引擎，性能提升 40%</span></div>
+        </div>
+      </div>
+    </div>`;
+  lucide.createIcons({attrs:{class:'lucide-icon'}});
+}
+
+function closeModal(){
+  overlay.classList.add('hidden');
+  document.body.style.overflow='';
+}
+overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+/* ── Category pill toggle ── */
+document.querySelectorAll('.pill').forEach(pill=>{
+  pill.addEventListener('click',()=>{
+    document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active');
+  });
+});
+
+/* ── Featured auto-scroll hint ── */
+(function(){
+  const row=document.getElementById('featuredRow');
+  setTimeout(()=>{row.scrollTo({left:60,behavior:'smooth'});setTimeout(()=>row.scrollTo({left:0,behavior:'smooth'}),600);},1200);
+})();
+
+/* ── Init Lucide icons ── */
+lucide.createIcons({attrs:{class:'lucide-icon'}});
+
+/* ── Open default modal ── */
+openModal(featured[0]);
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+[metadata]
+name = "金融交易"
+category = "financial"
+sensitivity = 2
+
+[[keywords]]
+terms = [
+    "交易流水", "账户余额", "贷款", "征信",
+    "信用评分", "授信额度", "逾期记录", "还款计划",
+    "资金流向", "转账记录", "开户行", "结算账户",
+    "理财产品", "基金净值", "持仓明细", "盈亏报表",
+]
+
+[[keywords]]
+terms = [
+    "transaction record", "account balance", "credit score",
+    "credit limit", "overdue record", "repayment plan",
+    "fund flow", "transfer record", "settlement account",
+]

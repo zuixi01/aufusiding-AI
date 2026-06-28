@@ -1,0 +1,28 @@
+[package]
+name = "prometheus-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Prometheus AI 智能助手 CLI"
+
+[[bin]]
+name = "prometheus"
+path = "src/main.rs"
+
+[dependencies]
+prometheus-core = { path = "../core" }
+prometheus-plugin-sdk = { path = "../plugins/sdk" }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+chrono = { workspace = true }
+uuid = { workspace = true }
+rustyline = { version = "15", features = ["derive"] }
+colored = "3"
+tabled = "0.17"
+toml = "0.8"
+dirs = "6"
+indicatif = "0.17"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }

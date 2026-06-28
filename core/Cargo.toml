@@ -1,0 +1,49 @@
+[package]
+name = "prometheus-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Prometheus AI 助手核心引擎"
+
+[features]
+default = []
+audio-capture = ["cpal"]
+mdns-discovery = []
+ssdp-discovery = []
+ble-discovery = []
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+rusqlite = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking", "multipart"] }
+wasmi = "0.38"
+ring = "0.17"
+base64 = "0.22"
+tracing-appender = "0.2"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+petgraph = "0.6"
+cron = "0.12"
+aes-gcm = "0.10"
+regex = "1"
+aho-corasick = "1"
+toml = "0.8"
+walkdir = "2"
+linked-hash-map = "0.5"
+ordered-float = "4"
+cpal = { version = "0.15", optional = true }
+tempfile = "3"
+zeroize = "1"
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+futures-util = "0.3"
+
+[dev-dependencies]
+httpmock = "0.7"

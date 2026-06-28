@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light" data-mode="home">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Prometheus AI</title>
+<link rel="stylesheet" href="/fonts/inter.css">
+<link rel="stylesheet" href="/vendor/phosphor/style.css">
+<style>
+/* ========== RESET ========== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-family:'Inter',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+body{overflow:hidden;height:100dvh;width:100vw;transition:background var(--duration-slow) var(--ease-default),color var(--duration-slow) var(--ease-default)}
+
+/* ========== DESIGN TOKENS ========== */
+:root,:root[data-theme="light"]{
+  --bg-primary:#FDF6EC;--bg-secondary:#FAF3E8;--bg-card:#E8DCC8;
+  --accent-gold:#D4A853;--accent-terracotta:#C4704B;--accent-dawn:#F0C27A;
+  --color-sage:#8B9E7E;--color-ember:#E8734A;--color-dusk:#7B6B8A;--color-clay:#B8856C;
+  --text-primary:#3D3229;--text-secondary:#6B5B4E;--text-tertiary:#9E8E80;
+  --shadow-sm:0 2px 8px rgba(61,50,41,0.08);--shadow-md:0 4px 16px rgba(61,50,41,0.10);
+  --shadow-lg:0 8px 32px rgba(61,50,41,0.14);--shadow-glow:0 0 24px var(--mode-glow);
+  --glass-bg:rgba(232,220,200,0.45);--glass-border:rgba(212,168,83,0.18);
+}
+[data-theme="dark"]{
+  --bg-primary:#1A1410;--bg-secondary:#231D17;--bg-card:#2E261F;
+  --accent-gold:#E8B95A;--accent-terracotta:#D4805B;--accent-dawn:#F5CC8A;
+  --color-sage:#9DB08E;--color-ember:#F08A5E;--color-dusk:#9B8BAA;--color-clay:#5A4A3E;
+  --text-primary:#E8DCC8;--text-secondary:#B8A898;--text-tertiary:#7E6E60;
+  --shadow-sm:0 2px 8px rgba(0,0,0,0.25);--shadow-md:0 4px 16px rgba(0,0,0,0.30);
+  --shadow-lg:0 8px 32px rgba(0,0,0,0.40);--shadow-glow:0 0 32px var(--mode-glow);
+  --glass-bg:rgba(46,38,31,0.65);--glass-border:rgba(232,185,90,0.12);
+}
+[data-mode="home"]{--mode-accent:#D4A853;--mode-glow:rgba(212,168,83,0.15)}
+[data-mode="work"]{--mode-accent:#7B8E6B;--mode-glow:rgba(123,142,107,0.12)}
+[data-mode="sleep"]{--mode-accent:#4A3E5C;--mode-glow:rgba(74,62,92,0.08)}
+[data-mode="driving"]{--mode-accent:#E8734A;--mode-glow:rgba(232,115,74,0.18)}
+[data-mode="focus"]{--mode-accent:#8B7355;--mode-glow:rgba(139,115,85,0.10)}
+
+/* ========== SPACING & TYPOGRAPHY ========== */
+:root{
+  --space-xxs:4px;--space-xs:8px;--space-sm:12px;--space-md:16px;
+  --space-lg:24px;--space-xl:32px;--space-2xl:48px;--space-3xl:64px;
+  --radius-xs:4px;--radius-sm:8px;--radius-md:12px;--radius-lg:16px;--radius-xl:24px;--radius-full:9999px;
+  --duration-instant:100ms;--duration-fast:200ms;--duration-normal:350ms;--duration-slow:500ms;--duration-ambient:1200ms;
+  --ease-default:cubic-bezier(0.25,0.1,0.25,1.0);--ease-spring:cubic-bezier(0.34,1.56,0.64,1.0);
+  --ease-out:cubic-bezier(0,0,0.58,1.0);--ease-ambient:cubic-bezier(0.16,0.68,0.43,0.99);
+}
+body{background:var(--bg-primary);color:var(--text-primary)}
+
+/* ========== GLOBAL LAYOUT ========== */
+.app-container{position:relative;width:100%;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+.screen{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity var(--duration-slow) var(--ease-default);display:flex;flex-direction:column;overflow-y:auto;padding-top:48px;padding-bottom:80px}
+.screen.active{opacity:1;pointer-events:auto}
+.screen-content{flex:1;padding:var(--space-md);max-width:600px;margin:0 auto;width:100%}
+
+/* ========== STATUS BAR ========== */
+.status-bar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 var(--space-md);z-index:100;background:var(--bg-primary);transition:background var(--duration-slow) var(--ease-default)}
+.status-bar .time{font-size:14px;font-weight:600;color:var(--text-primary)}
+.status-bar .indicators{display:flex;gap:var(--space-xs);align-items:center}
+.status-bar .indicators i{width:16px;height:16px;color:var(--text-secondary)}
+.mode-badge{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--mode-accent);background:rgba(212,168,83,0.12);padding:2px 8px;border-radius:var(--radius-full)}
+.theme-toggle{background:none;border:none;cursor:pointer;color:var(--text-secondary);padding:4px}
+
+/* ========== DOCK ========== */
+.dock{position:fixed;bottom:0;left:0;right:0;height:72px;display:flex;align-items:center;justify-content:center;gap:var(--space-xl);z-index:100;background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--glass-border);transition:transform var(--duration-slow) var(--ease-default),opacity var(--duration-slow) var(--ease-default)}
+.dock-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--text-tertiary);transition:color var(--duration-fast) var(--ease-default);-webkit-tap-highlight-color:transparent}
+.dock-item.active{color:var(--mode-accent)}
+.dock-item i{width:24px;height:24px}
+.dock-item span{font-size:10px;font-weight:500}
+
+/* ========== ROBOT AVATAR (Logo Style) ========== */
+.robot-container{display:flex;flex-direction:column;align-items:center;position:relative;z-index:2}
+.orbit-wrapper{position:relative;display:flex;align-items:center;justify-content:center;width:360px;height:360px}
+.robot{width:120px;height:150px;position:relative;animation:breathe 4s var(--ease-ambient) infinite}
+.robot-svg{width:100%;height:100%}
+.robot-ceramic{fill:url(#ceramicGrad)}
+[data-theme="dark"] .robot-ceramic{fill:url(#ceramicGradDark)}
+.robot-eye-glow{fill:var(--mode-accent);opacity:0.6;transition:fill var(--duration-slow)}
+.robot-eye-core{fill:var(--mode-accent);filter:url(#eyeGlow);transition:fill var(--duration-slow)}
+.robot-flame{opacity:0.85;transition:opacity var(--duration-slow)}
+.robot-flame-inner{fill:var(--mode-accent);opacity:0.3}
+.robot-flame-core{fill:#fff;opacity:0.7}
+.robot-highlight{fill:#fff;opacity:0.35}
+.robot-mouth-line{stroke:var(--text-tertiary);stroke-width:1.5;opacity:0.5;fill:none;transition:d var(--duration-slow)}
+.robot-particle{fill:var(--mode-accent);opacity:0.6}
+.status-text{font-size:16px;font-weight:300;color:var(--text-secondary);margin-top:var(--space-sm);text-align:center}
+
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+@keyframes blink{0%,100%{transform:scaleY(1)}50%{transform:scaleY(0.1)}}
+@keyframes flameFlicker{0%,100%{opacity:0.85;transform:scaleY(1)}50%{opacity:0.75;transform:scaleY(0.96)}}
+.blinking .robot-eye-glow,.blinking .robot-eye-core{animation:blink 150ms ease-in-out}
+.robot-flame-body{animation:flameFlicker 3s var(--ease-ambient) infinite}
+
+/* ========== ORBIT ICONS ========== */
+.orbit-container{position:absolute;inset:0;z-index:1}
+.orbit-icon{position:absolute;width:56px;height:56px;border-radius:var(--radius-lg);background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:transform var(--duration-fast) var(--ease-spring),box-shadow var(--duration-fast);box-shadow:var(--shadow-sm);-webkit-tap-highlight-color:transparent}
+.orbit-icon:hover{transform:scale(1.12)!important;box-shadow:var(--shadow-md)}
+.orbit-icon:active{transform:scale(0.95)!important}
+.orbit-icon i{width:20px;height:20px;color:var(--mode-accent)}
+.orbit-icon span{font-size:8px;color:var(--text-secondary);white-space:nowrap}
+
+/* ========== CARDS ========== */
+.card{background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:var(--radius-xl);padding:var(--space-lg);box-shadow:var(--shadow-sm);transition:transform var(--duration-fast) var(--ease-default),box-shadow var(--duration-fast)}
+.card-interactive:active{transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-md)}
+.card-title{font-size:18px;font-weight:500;color:var(--text-primary)}
+.card-subtitle{font-size:13px;color:var(--text-tertiary)}
+
+/* ========== DETAIL SCREEN HEADER ========== */
+.detail-header{display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-lg)}
+.back-btn{width:36px;height:36px;border-radius:var(--radius-full);background:var(--glass-bg);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-primary)}
+.detail-title{font-size:24px;font-weight:500}
+
+/* ========== PROGRESS BAR ========== */
+.progress-bar{height:6px;background:var(--bg-card);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;background:var(--mode-accent);transition:width var(--duration-normal) var(--ease-out)}
+
+/* ========== STAT GRID ========== */
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-sm)}
+.stat-card{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:center}
+.stat-value{font-size:24px;font-weight:600;color:var(--mode-accent)}
+.stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-tertiary);margin-top:2px}
+
+/* ========== TAGS / BADGES ========== */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600}
+.badge-sage{background:rgba(139,158,126,0.15);color:var(--color-sage)}
+.badge-ember{background:rgba(232,115,74,0.15);color:var(--color-ember)}
+.badge-dusk{background:rgba(123,107,138,0.15);color:var(--color-dusk)}
+.badge-gold{background:rgba(212,168,83,0.15);color:var(--accent-gold)}
+
+/* ========== DEVICE GRID (IoT) ========== */
+.device-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-sm)}
+.device-tile{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:var(--space-md);min-height:100px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;transition:transform var(--duration-fast),box-shadow var(--duration-fast)}
+.device-tile:active{transform:scale(0.97)}
+.device-tile-header{display:flex;justify-content:space-between;align-items:flex-start}
+.device-icon{width:36px;height:36px;border-radius:var(--radius-sm);background:rgba(212,168,83,0.1);display:flex;align-items:center;justify-content:center;color:var(--mode-accent)}
+.device-status{width:8px;height:8px;border-radius:50%}
+.device-status.online{background:var(--color-sage)}
+.device-status.offline{background:var(--text-tertiary)}
+.device-name{font-size:13px;font-weight:500;color:var(--text-primary);margin-top:var(--space-xs)}
+.device-value{font-size:18px;font-weight:600;color:var(--mode-accent)}
+
+/* ========== TABS ========== */
+.tabs{display:flex;gap:var(--space-xs);margin-bottom:var(--space-md);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab{padding:6px 14px;border-radius:var(--radius-full);font-size:13px;font-weight:500;color:var(--text-tertiary);background:transparent;border:1px solid transparent;cursor:pointer;white-space:nowrap;transition:all var(--duration-fast)}
+.tab.active{color:var(--mode-accent);background:rgba(212,168,83,0.1);border-color:var(--glass-border)}
+
+/* ========== TOGGLE ========== */
+.toggle{width:44px;height:24px;border-radius:12px;background:var(--bg-card);position:relative;cursor:pointer;transition:background var(--duration-fast)}
+.toggle.on{background:var(--mode-accent)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform var(--duration-fast) var(--ease-spring);box-shadow:var(--shadow-sm)}
+.toggle.on::after{transform:translateX(20px)}
+
+/* ========== RING CHART (Security) ========== */
+.ring-chart{width:120px;height:120px;position:relative;margin:0 auto}
+.ring-chart svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring-chart .label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-chart .grade{font-size:34px;font-weight:300;color:var(--mode-accent)}
+.ring-chart .score{font-size:11px;color:var(--text-tertiary)}
+
+/* ========== WAVEFORM ========== */
+.waveform{display:flex;align-items:center;justify-content:center;gap:3px;height:48px}
+.wave-bar{width:4px;border-radius:2px;background:var(--mode-accent);animation:wave 1.2s ease-in-out infinite}
+@keyframes wave{0%,100%{height:8px;opacity:0.4}50%{height:32px;opacity:1}}
+
+/* ========== VOICE FULL SCREEN ========== */
+.voice-fullscreen{background:var(--bg-primary);z-index:50}
+.voice-robot{width:200px;height:200px;margin:var(--space-3xl) auto var(--space-lg)}
+.voice-bubbles{display:flex;flex-wrap:wrap;gap:var(--space-xs);justify-content:center;padding:0 var(--space-md);margin-bottom:var(--space-lg)}
+.voice-bubble{padding:8px 16px;border-radius:var(--radius-full);background:var(--glass-bg);border:1px solid var(--glass-border);font-size:13px;color:var(--text-secondary);cursor:pointer}
+.ptt-btn{width:72px;height:72px;border-radius:50%;background:var(--mode-accent);border:none;color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto;cursor:pointer;box-shadow:0 0 24px rgba(212,168,83,0.3);transition:transform var(--duration-fast) var(--ease-spring)}
+.ptt-btn:active{transform:scale(0.92)}
+
+/* ========== CONTROL CENTER ========== */
+.control-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.4);opacity:0;pointer-events:none;transition:opacity var(--duration-normal)}
+.control-overlay.open{opacity:1;pointer-events:auto}
+.control-panel{position:fixed;top:0;left:0;right:0;max-height:85vh;background:var(--bg-primary);border-radius:0 0 var(--radius-xl) var(--radius-xl);transform:translateY(-100%);transition:transform var(--duration-slow) var(--ease-out);overflow-y:auto;padding:var(--space-2xl) var(--space-md) var(--space-lg);z-index:201}
+.control-overlay.open .control-panel{transform:translateY(0)}
+.mode-switcher{display:flex;gap:var(--space-sm);margin-bottom:var(--space-lg);overflow-x:auto}
+.mode-btn{flex:1;min-width:60px;padding:var(--space-sm) var(--space-xs);border-radius:var(--radius-md);background:var(--glass-bg);border:2px solid transparent;text-align:center;cursor:pointer;transition:all var(--duration-fast)}
+.mode-btn.active{border-color:var(--mode-accent);background:rgba(212,168,83,0.1)}
+.mode-btn-icon{font-size:24px;display:block;margin-bottom:4px}
+.mode-btn-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary)}
+.slider-control{display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md)}
+.slider-control label{font-size:13px;color:var(--text-secondary);min-width:60px}
+.slider-control input[type="range"]{flex:1;accent-color:var(--mode-accent);height:4px}
+.slider-control .val{font-size:13px;font-weight:600;color:var(--mode-accent);min-width:36px;text-align:right}
+.media-player{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:var(--space-md);display:flex;align-items:center;gap:var(--space-md)}
+.media-art{width:48px;height:48px;border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--accent-gold),var(--accent-terracotta))}
+.media-info{flex:1}
+.media-title{font-size:14px;font-weight:500;color:var(--text-primary)}
+.media-artist{font-size:12px;color:var(--text-tertiary)}
+.media-controls{display:flex;gap:var(--space-sm);align-items:center}
+.media-controls button{background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px}
+
+/* ========== REDUCED MOTION ========== */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}
+}
+
+/* ========== LIST ITEMS ========== */
+.ph-duotone{--ph-duotone-opacity:0.3;vertical-align:middle;line-height:1}
+.dock-item .ph-duotone,.orbit-icon .ph-duotone{display:block;margin:0 auto}
+.list-icon .ph-duotone,.device-icon .ph-duotone{display:flex}
+.back-btn .ph-duotone{display:flex}
+
+/* ========== SCREEN EXPAND ANIMATION ========== */
+@keyframes screenExpand{
+  0%{clip-path:circle(28px at var(--expand-x,50%) var(--expand-y,50%));opacity:0.8}
+  100%{clip-path:circle(150% at var(--expand-x,50%) var(--expand-y,50%));opacity:1}
+}
+@keyframes screenCollapse{
+  0%{clip-path:circle(150% at var(--expand-x,50%) var(--expand-y,50%));opacity:1}
+  100%{clip-path:circle(0px at var(--expand-x,50%) var(--expand-y,50%));opacity:0}
+}
+.screen.expanding{animation:screenExpand 400ms cubic-bezier(0.4,0,0.2,1) forwards;pointer-events:auto;opacity:1}
+.screen.collapsing{animation:screenCollapse 350ms cubic-bezier(0.4,0,0.2,1) forwards}
+
+/* ========== SLEEP MODE ENHANCED ========== */
+[data-mode="sleep"] .dock{transform:translateY(100%);opacity:0}
+[data-mode="sleep"] .orbit-wrapper .orbit-container{display:none}
+[data-mode="sleep"] .status-bar{opacity:0.3}
+[data-mode="sleep"] .robot-eye-glow{rx:5;ry:1.5;opacity:0.4}
+[data-mode="sleep"] .robot-eye-core{rx:3;ry:0.8;opacity:0.3}
+[data-mode="sleep"] .robot{animation:breathe 6s var(--ease-ambient) infinite}
+[data-mode="sleep"] .robot-flame-body{opacity:0.3}
+[data-mode="sleep"] .robot-ceramic{filter:brightness(0.7)}
+.sleep-time{font-size:72px;font-weight:200;letter-spacing:-0.02em;text-align:center;color:var(--text-primary);margin-top:var(--space-3xl)}
+.sleep-alarm{font-size:14px;color:var(--text-tertiary);text-align:center;margin-top:var(--space-xs);display:flex;align-items:center;justify-content:center;gap:6px}
+
+/* ========== FOCUS MODE ========== */
+[data-mode="focus"] .orbit-container{opacity:0.3;pointer-events:none}
+[data-mode="focus"] .dock{opacity:0.5}
+.focus-overlay{display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-lg);padding:var(--space-xl)}
+.focus-timer{font-size:64px;font-weight:200;letter-spacing:-0.02em;color:var(--mode-accent);font-variant-numeric:tabular-nums}
+.focus-task{font-size:18px;font-weight:400;color:var(--text-secondary);text-align:center}
+.focus-pause-btn{width:56px;height:56px;border-radius:50%;background:var(--glass-bg);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--mode-accent);margin-top:var(--space-md)}
+.focus-hint{font-size:12px;color:var(--text-tertiary)}
+
+/* ========== WORK MODE ========== */
+[data-mode="work"] .robot{width:80px!important;height:80px!important;position:fixed;bottom:88px;right:16px;z-index:90}
+[data-mode="work"] .orbit-wrapper .orbit-container{display:none}
+.work-overlay{display:none;position:absolute;inset:0;flex-direction:column;padding:var(--space-md);padding-top:0;overflow-y:auto}
+.work-calendar{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:var(--space-md);margin-bottom:var(--space-md)}
+.work-calendar-header{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:var(--space-sm);display:flex;align-items:center;gap:8px}
+.work-event{display:flex;gap:var(--space-sm);padding:var(--space-xs) 0;border-bottom:1px solid var(--glass-border)}
+.work-event:last-child{border-bottom:none}
+.work-event-time{font-size:12px;font-weight:600;color:var(--mode-accent);min-width:50px}
+.work-event-title{font-size:13px;color:var(--text-primary)}
+.work-tasks{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:var(--space-md)}
+.work-tasks-header{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:var(--space-sm);display:flex;align-items:center;gap:8px}
+
+/* ========== DRIVING MODE ENHANCED ========== */
+[data-mode="driving"] .orbit-icon{width:64px;height:64px}
+[data-mode="driving"] .orbit-icon i{width:28px;height:28px;font-size:28px}
+[data-mode="driving"] .orbit-icon span{font-size:10px;font-weight:600}
+[data-mode="driving"] .dock-item i{font-size:28px}
+[data-mode="driving"] .dock-item span{font-size:12px;font-weight:600}
+
+/* ========== MODE TRANSITION ========== */
+@keyframes modeTransition{
+  0%{opacity:1;transform:scale(1)}
+  40%{opacity:0;transform:scale(0.95)}
+  60%{opacity:0;transform:scale(1.02)}
+  100%{opacity:1;transform:scale(1)}
+}
+.mode-transitioning{animation:modeTransition 700ms var(--ease-default)}
+
+/* ========== HOVER STATES (Desktop) ========== */
+@media(hover:hover){
+  .orbit-icon:hover{transform:scale(1.15)!important;box-shadow:var(--shadow-md),var(--shadow-glow)}
+  .orbit-icon:hover::after{content:attr(data-tooltip);position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--text-secondary);background:var(--bg-card);padding:2px 8px;border-radius:var(--radius-xs);white-space:nowrap;pointer-events:none}
+  .card-interactive:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+  .device-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+  .voice-bubble:hover{background:var(--bg-card);color:var(--text-primary)}
+  .scene-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm)}
+  .tab:hover:not(.active){color:var(--text-secondary);background:rgba(212,168,83,0.05)}
+  .dock-item:hover{color:var(--text-secondary)}
+  .back-btn:hover{background:var(--bg-card)}
+  .ptt-btn:hover{transform:scale(1.05);box-shadow:0 0 32px rgba(212,168,83,0.4)}
+  .list-item:hover{background:rgba(212,168,83,0.03);border-radius:var(--radius-sm)}
+  .mode-btn:hover:not(.active){background:rgba(212,168,83,0.05);border-color:var(--glass-border)}
+}
+
+/* ========== RESPONSIVE ========== */
+@media(min-width:768px){
+  .screen-content{max-width:720px}
+  .device-grid{grid-template-columns:repeat(3,1fr)}
+  .stat-grid{grid-template-columns:repeat(4,1fr)}
+  .dock{left:50%;right:auto;transform:translateX(-50%);bottom:var(--space-md);width:auto;padding:0 var(--space-xl);border-radius:var(--radius-full);border:1px solid var(--glass-border)}
+  .orbit-wrapper{width:480px;height:480px}
+  .robot{width:160px;height:200px}
+}
+@media(min-width:1024px){
+  .screen-content{max-width:960px}
+  .device-grid{grid-template-columns:repeat(4,1fr)}
+}
+
+/* ========== DESKTOP 1440px ========== */
+@media(min-width:1440px){
+  .screen-content{max-width:1100px}
+  .stat-grid{grid-template-columns:repeat(4,1fr)}
+  .device-grid{grid-template-columns:repeat(4,1fr)}
+  .scene-grid{grid-template-columns:repeat(4,1fr)}
+  .orbit-wrapper{width:540px;height:540px}
+  .robot{width:180px;height:225px}
+}
+.list-item{display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm) 0;border-bottom:1px solid var(--glass-border)}
+.list-item:last-child{border-bottom:none}
+.list-icon{width:40px;height:40px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.list-content{flex:1;min-width:0}
+.list-title{font-size:14px;font-weight:500;color:var(--text-primary)}
+.list-desc{font-size:12px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-right{display:flex;align-items:center;gap:var(--space-xs);flex-shrink:0}
+
+/* ========== SECTION SPACING ========== */
+.section{margin-bottom:var(--space-lg)}
+.section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-tertiary);margin-bottom:var(--space-sm)}
+
+/* ========== TASK CARD ========== */
+.task-card{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:var(--space-md);margin-bottom:var(--space-sm);border-left:4px solid var(--mode-accent)}
+.task-card .task-name{font-size:14px;font-weight:500;margin-bottom:var(--space-xxs)}
+.task-card .task-meta{font-size:12px;color:var(--text-tertiary);display:flex;gap:var(--space-sm);margin-bottom:var(--space-xs)}
+
+/* ========== SCENE CARDS ========== */
+.scene-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-sm)}
+.scene-card{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:center;cursor:pointer;transition:transform var(--duration-fast)}
+.scene-card:active{transform:scale(0.96)}
+.scene-card .scene-icon{font-size:28px;margin-bottom:var(--space-xxs)}
+.scene-card .scene-name{font-size:12px;font-weight:500;color:var(--text-secondary)}
+
+/* ========== AUTOMATION RULE ========== */
+.rule-item{display:flex;align-items:center;justify-content:space-between;padding:var(--space-sm) 0;border-bottom:1px solid var(--glass-border)}
+.rule-info{flex:1}
+.rule-name{font-size:14px;font-weight:500;color:var(--text-primary)}
+.rule-desc{font-size:12px;color:var(--text-tertiary)}
+
+/* ========== DAG NODES ========== */
+.dag-container{position:relative;min-height:200px;margin-bottom:var(--space-lg)}
+.dag-node{position:absolute;padding:8px 14px;border-radius:var(--radius-sm);background:var(--glass-bg);border:1px solid var(--glass-border);font-size:12px;font-weight:500;white-space:nowrap}
+.dag-node.active{border-color:var(--mode-accent);box-shadow:0 0 12px var(--mode-glow)}
+.dag-line{position:absolute;height:2px;background:var(--glass-border);transform-origin:left center}
+
+/* ========== RATIO BAR ========== */
+.ratio-bar{height:24px;border-radius:12px;overflow:hidden;display:flex;margin-bottom:var(--space-xs)}
+.ratio-segment{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff}
+
+/* ========== CHAT UI ========== */
+.chat-messages{flex:1;overflow-y:auto;padding:var(--space-md);display:flex;flex-direction:column;gap:var(--space-sm)}
+.chat-msg{max-width:80%;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-lg);font-size:14px;line-height:1.5;word-break:break-word}
+.chat-msg.user{align-self:flex-end;background:var(--mode-accent);color:#fff;border-bottom-right-radius:var(--radius-xs)}
+.chat-msg.assistant{align-self:flex-start;background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text-primary);border-bottom-left-radius:var(--radius-xs)}
+.chat-msg.system{align-self:center;font-size:12px;color:var(--text-tertiary);background:none}
+.chat-input-bar{display:flex;gap:var(--space-xs);padding:var(--space-sm) var(--space-md);background:var(--bg-secondary);border-top:1px solid var(--glass-border)}
+.chat-input-bar input{flex:1;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-full);border:1px solid var(--glass-border);background:var(--bg-primary);color:var(--text-primary);font-size:14px;outline:none}
+.chat-input-bar input:focus{border-color:var(--mode-accent)}
+.chat-input-bar button{width:40px;height:40px;border-radius:var(--radius-full);background:var(--mode-accent);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.chat-input-bar button:disabled{opacity:0.5;cursor:not-allowed}
+.device-tile[data-clickable]{cursor:pointer}
+.device-tile[data-clickable]:active{transform:scale(0.96)}
+.search-input{width:100%;padding:var(--space-sm) var(--space-md);padding-left:36px;border-radius:var(--radius-full);border:1px solid var(--glass-border);background:var(--bg-primary);color:var(--text-primary);font-size:14px;outline:none}
+.search-input:focus{border-color:var(--mode-accent)}
+.search-wrapper{position:relative}
+.search-wrapper i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-tertiary);font-size:16px}
+
+/* ========== SETUP SCREEN ========== */
+#screen-setup{z-index:300;background:var(--bg-primary);padding-top:0}
+#screen-setup .screen-content{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100dvh;text-align:center;gap:var(--space-lg)}
+.setup-logo{width:120px;height:120px;filter:drop-shadow(0 0 24px var(--mode-accent));margin-bottom:var(--space-md)}
+.setup-title{font-size:28px;font-weight:300;color:var(--text-primary)}
+.setup-desc{font-size:15px;color:var(--text-secondary);max-width:360px;line-height:1.6}
+.setup-btn{padding:12px 32px;border-radius:var(--radius-full);background:var(--mode-accent);color:#fff;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:transform var(--duration-fast) var(--ease-spring),box-shadow var(--duration-fast)}
+.setup-btn:hover{transform:scale(1.04);box-shadow:0 0 20px rgba(212,168,83,0.3)}
+.setup-btn:active{transform:scale(0.97)}
+.setup-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.setup-btn-secondary{background:var(--glass-bg);color:var(--text-primary);border:1px solid var(--glass-border)}
+.setup-steps{display:flex;gap:var(--space-xs);margin-bottom:var(--space-md)}
+.setup-step-dot{width:8px;height:8px;border-radius:50%;background:var(--bg-card);transition:background var(--duration-fast)}
+.setup-step-dot.active{background:var(--mode-accent)}
+.setup-step-dot.done{background:var(--color-sage)}
+.setup-status-icon{font-size:48px;color:var(--mode-accent)}
+.setup-progress{width:280px;height:8px;background:var(--bg-card);border-radius:4px;overflow:hidden}
+.setup-progress-fill{height:100%;background:var(--mode-accent);border-radius:4px;transition:width 0.3s var(--ease-out);width:0%}
+.setup-check{display:flex;align-items:center;gap:var(--space-sm);font-size:14px;color:var(--text-secondary)}
+.setup-check.ok{color:var(--color-sage)}
+.setup-check.pending{color:var(--text-tertiary)}
+.setup-spinner{width:16px;height:16px;border:2px solid var(--bg-card);border-top-color:var(--mode-accent);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="app-container">
+
+<!-- STATUS BAR -->
+<div class="status-bar" role="banner">
+  <span class="time" id="clock">9:41</span>
+  <div class="indicators">
+    <span class="mode-badge" id="modeBadge">HOME</span>
+    <button class="theme-toggle" id="themeToggle" aria-label="切换主题"><i class="ph-duotone ph-sun" style="font-size:16px"></i></button>
+    <button class="theme-toggle" id="controlToggle" aria-label="控制中心"><i class="ph-duotone ph-sliders-horizontal" style="font-size:16px"></i></button>
+  </div>
+</div>
+
+<!-- ===== SCREEN: SETUP (首次引导) ===== -->
+<section class="screen" id="screen-setup" aria-label="首次设置">
+  <div class="screen-content">
+    <div class="setup-steps" id="setupSteps">
+      <div class="setup-step-dot active"></div>
+      <div class="setup-step-dot"></div>
+      <div class="setup-step-dot"></div>
+      <div class="setup-step-dot"></div>
+    </div>
+    <div id="setup-step-1">
+      <img src="/logo.png" alt="Prometheus AI" class="setup-logo">
+      <h1 class="setup-title">欢迎使用 Prometheus AI</h1>
+      <p class="setup-desc">让我们花一分钟配置你的本地 AI 引擎，所有数据都留在你的设备上。</p>
+      <button class="setup-btn" onclick="setupNext(2)">开始配置</button>
+    </div>
+    <div id="setup-step-2" style="display:none">
+      <div class="setup-status-icon"><i class="ph-duotone ph-terminal"></i></div>
+      <h1 class="setup-title">安装 Ollama</h1>
+      <p class="setup-desc" id="ollamaStatusText">正在检测 Ollama...</p>
+      <div id="ollamaActions" style="display:none">
+        <button class="setup-btn" id="btnInstallOllama" onclick="doInstallOllama()">一键安装 Ollama</button>
+      </div>
+      <div id="ollamaOk" style="display:none">
+        <div class="setup-check ok"><i class="ph-duotone ph-check-circle" style="font-size:20px"></i> Ollama 已就绪</div>
+        <button class="setup-btn" onclick="setupNext(3)" style="margin-top:16px">下一步</button>
+      </div>
+    </div>
+    <div id="setup-step-3" style="display:none">
+      <div class="setup-status-icon"><i class="ph-duotone ph-download-simple"></i></div>
+      <h1 class="setup-title">下载 AI 模型</h1>
+      <p class="setup-desc" id="modelStatusText">准备下载对话和嵌入模型</p>
+      <div style="display:flex;flex-direction:column;gap:12px;width:280px;margin-top:8px">
+        <div class="setup-check" id="chatModelCheck"><span class="setup-spinner"></span> qwen2.5:1.5b (~1GB)</div>
+        <div class="setup-check" id="embedModelCheck"><span class="setup-spinner"></span> all-minilm (~23MB)</div>
+      </div>
+      <div class="setup-progress" style="margin-top:16px"><div class="setup-progress-fill" id="modelProgress"></div></div>
+      <button class="setup-btn" id="btnPullModels" onclick="doPullModels()">开始下载</button>
+      <button class="setup-btn" id="btnModelNext" onclick="setupNext(4)" style="display:none;margin-top:8px">下一步</button>
+    </div>
+    <div id="setup-step-4" style="display:none">
+      <div class="setup-status-icon"><i class="ph-duotone ph-check-circle" style="color:var(--color-sage)"></i></div>
+      <h1 class="setup-title">一切就绪</h1>
+      <p class="setup-desc">本地 AI 引擎已配置完成，开始探索吧。</p>
+      <button class="setup-btn" onclick="finishSetup()">进入 Prometheus</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 1: HOME ===== -->
+<section class="screen active" id="screen-home" aria-label="主屏">
+  <div class="screen-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100dvh - 128px)">
+    <div class="orbit-wrapper" id="robotMain">
+      <div class="orbit-container" id="orbitContainer"></div>
+      <div class="robot-container">
+        <div class="robot" id="robotAvatar">
+          <img src="/logo.png" alt="Prometheus AI" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 20px var(--mode-accent))">
+          <!-- Hidden SVG defs for voice screen -->
+          <svg style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="ceramicGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff"/><stop offset="30%" stop-color="#f8fafc"/>
+              <stop offset="70%" stop-color="#e2e8f0"/><stop offset="100%" stop-color="#cbd5e1"/>
+            </linearGradient>
+            <linearGradient id="ceramicGradDark" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#5A4A3E"/><stop offset="30%" stop-color="#4A3E34"/>
+              <stop offset="70%" stop-color="#3D3229"/><stop offset="100%" stop-color="#2E261F"/>
+            </linearGradient>
+            <radialGradient id="flameGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="var(--mode-accent)" stop-opacity="0.4"/>
+              <stop offset="70%" stop-color="var(--mode-accent)" stop-opacity="0.2"/>
+              <stop offset="100%" stop-color="var(--mode-accent)" stop-opacity="0"/>
+            </radialGradient>
+            <filter id="eyeGlow" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="flameSoft" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b1"/>
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="b2"/>
+              <feMerge><feMergeNode in="b1"/><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+        </svg>
+      </div>
+      <p class="status-text" id="statusText">你好，一切就绪</p>
+      </div>
+    </div>
+    <!-- Sleep mode overlay -->
+    <div id="sleepOverlay" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center">
+      <div class="sleep-time" id="sleepTime">23:00</div>
+      <div class="sleep-alarm"><i class="ph-duotone ph-alarm" style="font-size:16px"></i> 明日闹钟 07:30</div>
+    </div>
+    <!-- Focus mode overlay -->
+    <div class="focus-overlay" id="focusOverlay">
+      <div class="focus-timer" id="focusTimer">25:00</div>
+      <div class="focus-task">完成 Q1 数据分析报告</div>
+      <button class="focus-pause-btn" id="focusPauseBtn"><i class="ph-duotone ph-pause" style="font-size:24px"></i></button>
+      <div class="focus-hint">长按 3 秒退出专注模式</div>
+    </div>
+    <!-- Work mode overlay -->
+    <div class="work-overlay" id="workOverlay">
+      <div class="work-calendar">
+        <div class="work-calendar-header"><i class="ph-duotone ph-calendar" style="font-size:18px;color:var(--mode-accent)"></i> 今日日程</div>
+        <div class="work-event"><span class="work-event-time">09:00</span><span class="work-event-title">晨会 · 产品团队</span></div>
+        <div class="work-event"><span class="work-event-time">11:00</span><span class="work-event-title">代码评审 · 后端 API</span></div>
+        <div class="work-event"><span class="work-event-time">14:00</span><span class="work-event-title">设计评审 · UI 原型</span></div>
+        <div class="work-event"><span class="work-event-time">16:30</span><span class="work-event-title">1:1 · 技术负责人</span></div>
+      </div>
+      <div class="work-tasks">
+        <div class="work-tasks-header"><i class="ph-duotone ph-list-checks" style="font-size:18px;color:var(--mode-accent)"></i> 待办事项</div>
+        <div class="task-card" style="border-left-color:var(--color-ember)"><div class="task-name">Q1 数据分析报告</div><div class="task-meta"><span><i class="ph-duotone ph-warning-circle" style="font-size:12px;color:var(--color-ember)"></i> 高优先</span><span>截止今天</span></div><div class="progress-bar"><div class="progress-fill" style="width:65%;background:var(--color-ember)"></div></div></div>
+        <div class="task-card" style="border-left-color:var(--mode-accent)"><div class="task-name">API 文档更新</div><div class="task-meta"><span><i class="ph-duotone ph-clock" style="font-size:12px;color:var(--mode-accent)"></i> 中优先</span><span>截止明天</span></div><div class="progress-bar"><div class="progress-fill" style="width:30%"></div></div></div>
+        <div class="task-card" style="border-left-color:var(--color-sage)"><div class="task-name">周报提交</div><div class="task-meta"><span><i class="ph-duotone ph-check-circle" style="font-size:12px;color:var(--color-sage)"></i> 已完成</span></div><div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--color-sage)"></div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 2: AGENT CLUSTER ===== -->
+<section class="screen" id="screen-agent" aria-label="Agent 集群">
+  <div class="screen-content">
+    <div class="detail-header"><button class="back-btn" onclick="navigateTo('home')"><i class="ph-duotone ph-arrow-left" style="font-size:18px"></i></button><h1 class="detail-title"><i class="ph-duotone ph-robot" style="font-size:22px;color:var(--mode-accent);margin-right:8px"></i>Agent 集群</h1></div>
+    <div class="stat-grid section">
+      <div class="stat-card"><div class="stat-value">12</div><div class="stat-label">活跃 Agent</div></div>
+      <div class="stat-card"><div class="stat-value">847</div><div class="stat-label">今日任务</div></div>
+      <div class="stat-card"><div class="stat-value">99.2%</div><div class="stat-label">成功率</div></div>
+      <div class="stat-card"><div class="stat-value">1.2s</div><div class="stat-label">平均延迟</div></div>
+    </div>
+    <div class="section"><div class="section-title">任务 DAG</div>
+      <div class="dag-container">
+        <div class="dag-node active" style="left:10%;top:10%">数据采集</div>
+        <div class="dag-node" style="left:45%;top:5%">NLP 分析</div>
+        <div class="dag-node active" style="left:40%;top:45%">意图识别</div>
+        <div class="dag-node" style="left:10%;top:55%">知识检索</div>
+        <div class="dag-node" style="left:55%;top:80%">响应生成</div>
+      </div>
+    </div>
+    <div class="section"><div class="section-title">活跃 Agent</div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(139,158,126,0.15)"><i class="ph-duotone ph-robot" style="font-size:20px;color:var(--color-sage)"></i></div><div class="list-content"><div class="list-title">调度 Agent</div><div class="list-desc">正在分配 3 个子任务</div></div><div class="list-right"><span class="badge badge-sage">运行中</span></div></div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(123,107,138,0.15)"><i class="ph-duotone ph-brain" style="font-size:20px;color:var(--color-dusk)"></i></div><div class="list-content"><div class="list-title">推理 Agent</div><div class="list-desc">思考中…分析用户意图</div></div><div class="list-right"><span class="badge badge-dusk">思考中</span></div></div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(212,168,83,0.15)"><i class="ph-duotone ph-magnifying-glass" style="font-size:20px;color:var(--accent-gold)"></i></div><div class="list-content"><div class="list-title">检索 Agent</div><div class="list-desc">已完成知识库查询</div></div><div class="list-right"><span class="badge badge-gold">完成</span></div></div>
+    </div>
+    <div class="section"><div class="section-title">任务进度</div>
+      <div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>日程规划</span><span style="color:var(--mode-accent)">78%</span></div><div class="progress-bar"><div class="progress-fill" style="width:78%"></div></div></div>
+      <div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>邮件摘要</span><span style="color:var(--mode-accent)">100%</span></div><div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div></div>
+      <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>数据分析</span><span style="color:var(--mode-accent)">45%</span></div><div class="progress-bar"><div class="progress-fill" style="width:45%"></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 3: VOICE ===== -->
+<section class="screen" id="screen-voice" aria-label="语音交互">
+  <div class="screen-content">
+    <div class="detail-header"><button class="back-btn" onclick="navigateTo('home')"><i class="ph-duotone ph-arrow-left" style="font-size:18px"></i></button><h1 class="detail-title"><i class="ph-duotone ph-microphone" style="font-size:22px;color:var(--mode-accent);margin-right:8px"></i>语音交互</h1></div>
+    <div class="card section" style="text-align:center">
+      <div class="waveform" style="margin-bottom:var(--space-md)">
+        <div class="wave-bar" style="animation-delay:0s"></div><div class="wave-bar" style="animation-delay:0.15s"></div><div class="wave-bar" style="animation-delay:0.3s"></div>
+        <div class="wave-bar" style="animation-delay:0.45s"></div><div class="wave-bar" style="animation-delay:0.6s"></div><div class="wave-bar" style="animation-delay:0.75s"></div>
+        <div class="wave-bar" style="animation-delay:0.9s"></div><div class="wave-bar" style="animation-delay:1.05s"></div><div class="wave-bar" style="animation-delay:0.2s"></div>
+        <div class="wave-bar" style="animation-delay:0.5s"></div><div class="wave-bar" style="animation-delay:0.7s"></div><div class="wave-bar" style="animation-delay:0.35s"></div>
+      </div>
+      <p style="font-size:14px;color:var(--text-secondary)">正在聆听…</p>
+    </div>
+    <div class="section"><div class="section-title">声纹档案</div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(212,168,83,0.15)"><i class="ph-duotone ph-user" style="font-size:20px;color:var(--accent-gold)"></i></div><div class="list-content"><div class="list-title">用户 A</div><div class="list-desc">主要用户 · 已验证</div></div><div class="list-right"><span class="badge badge-sage">活跃</span></div></div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(184,133,108,0.15)"><i class="ph-duotone ph-user" style="font-size:20px;color:var(--color-clay)"></i></div><div class="list-content"><div class="list-title">用户 B</div><div class="list-desc">家庭成员 · 已验证</div></div><div class="list-right"><span class="badge badge-gold">已注册</span></div></div>
+    </div>
+    <div class="stat-grid section">
+      <div class="stat-card"><div class="stat-value">156</div><div class="stat-label">今日对话</div></div>
+      <div class="stat-card"><div class="stat-value">98%</div><div class="stat-label">识别率</div></div>
+      <div class="stat-card"><div class="stat-value">0.3s</div><div class="stat-label">响应延迟</div></div>
+      <div class="stat-card"><div class="stat-value">2</div><div class="stat-label">声纹数</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 4: IoT ===== -->
+<section class="screen" id="screen-iot" aria-label="普罗万物">
+  <div class="screen-content">
+    <div class="detail-header"><button class="back-btn" onclick="navigateTo('home')"><i class="ph-duotone ph-arrow-left" style="font-size:18px"></i></button><h1 class="detail-title"><i class="ph-duotone ph-house" style="font-size:22px;color:var(--mode-accent);margin-right:8px"></i>普罗万物</h1></div>
+    <div class="stat-grid section">
+      <div class="stat-card"><div class="stat-value">24</div><div class="stat-label">总设备</div></div>
+      <div class="stat-card"><div class="stat-value">21</div><div class="stat-label">在线</div></div>
+      <div class="stat-card"><div class="stat-value">3</div><div class="stat-label">离线</div></div>
+      <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">自动化</div></div>
+    </div>
+    <div class="section"><div class="section-title">设备</div>
+      <div class="device-grid">
+        <div class="device-tile"><div class="device-tile-header"><div class="device-icon"><i class="ph-duotone ph-lamp" style="font-size:20px"></i></div><div class="device-status online"></div></div><div class="device-name">客厅灯</div><div class="device-value">80%</div></div>
+        <div class="device-tile"><div class="device-tile-header"><div class="device-icon"><i class="ph-duotone ph-thermometer" style="font-size:20px"></i></div><div class="device-status online"></div></div><div class="device-name">空调</div><div class="device-value">24°C</div></div>
+        <div class="device-tile"><div class="device-tile-header"><div class="device-icon"><i class="ph-duotone ph-lock" style="font-size:20px"></i></div><div class="device-status online"></div></div><div class="device-name">门锁</div><div class="device-value">已锁</div></div>
+        <div class="device-tile"><div class="device-tile-header"><div class="device-icon"><i class="ph-duotone ph-camera" style="font-size:20px"></i></div><div class="device-status online"></div></div><div class="device-name">摄像头</div><div class="device-value">录制中</div></div>
+        <div class="device-tile"><div class="device-tile-header"><div class="device-icon"><i class="ph-duotone ph-blinds" style="font-size:20px"></i></div><div class="device-status online"></div></div><div class="device-name">窗帘</div><div class="device-value">60%</div></div>
+        <div class="device-tile"><div class="device-tile-header"><div class="device-icon"><i class="ph-duotone ph-wind" style="font-size:20px"></i></div><div class="device-status offline"></div></div><div class="device-name">空气净化器</div><div class="device-value">离线</div></div>
+      </div>
+    </div>
+    <div class="section"><div class="section-title">场景</div>
+      <div class="scene-grid">
+        <div class="scene-card"><div class="scene-icon"><i class="ph-duotone ph-house" style="font-size:28px;color:var(--color-sage)"></i></div><div class="scene-name">回家模式</div></div>
+        <div class="scene-card"><div class="scene-icon"><i class="ph-duotone ph-moon" style="font-size:28px;color:var(--color-dusk)"></i></div><div class="scene-name">睡眠模式</div></div>
+        <div class="scene-card"><div class="scene-icon"><i class="ph-duotone ph-door-open" style="font-size:28px;color:var(--accent-terracotta)"></i></div><div class="scene-name">离家模式</div></div>
+      </div>
+    </div>
+    <div class="section"><div class="section-title">自动化规则</div>
+      <div class="rule-item"><div class="rule-info"><div class="rule-name">日落自动开灯</div><div class="rule-desc">当日落时 → 打开客厅灯 80%</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="rule-item"><div class="rule-info"><div class="rule-name">离家安防</div><div class="rule-desc">无人在家 → 锁门 + 开启监控</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="rule-item"><div class="rule-info"><div class="rule-name">睡眠节能</div><div class="rule-desc">23:00 → 关灯 + 空调 26°C</div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 5: MEMORY ===== -->
+<section class="screen" id="screen-memory" aria-label="记忆系统">
+  <div class="screen-content">
+    <div class="detail-header"><button class="back-btn" onclick="navigateTo('home')"><i class="ph-duotone ph-arrow-left" style="font-size:18px"></i></button><h1 class="detail-title"><i class="ph-duotone ph-brain" style="font-size:22px;color:var(--mode-accent);margin-right:8px"></i>记忆系统</h1></div>
+    <div class="section"><div class="section-title">记忆架构</div>
+      <div style="display:flex;flex-direction:column;gap:var(--space-sm)">
+        <div class="card" style="border-left:4px solid var(--color-ember)"><div style="font-size:14px;font-weight:500">工作记忆</div><div style="font-size:12px;color:var(--text-tertiary)">当前上下文 · 7±2 项</div><div style="display:flex;gap:6px;margin-top:8px"><span class="badge badge-ember">会议日程</span><span class="badge badge-ember">购物清单</span><span class="badge badge-ember">天气</span></div></div>
+        <div class="card" style="border-left:4px solid var(--accent-gold)"><div style="font-size:14px;font-weight:500">情景记忆</div><div style="font-size:12px;color:var(--text-tertiary)">个人经历 · 1,247 条</div><div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:62%;background:var(--accent-gold)"></div></div></div>
+        <div class="card" style="border-left:4px solid var(--color-sage)"><div style="font-size:14px;font-weight:500">知识记忆</div><div style="font-size:12px;color:var(--text-tertiary)">事实与技能 · 8,432 条</div><div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:85%;background:var(--color-sage)"></div></div></div>
+      </div>
+    </div>
+    <div class="section"><div class="section-title">语义搜索</div>
+      <div class="search-wrapper"><i class="ph-duotone ph-magnifying-glass"></i><input type="text" class="search-input" id="memorySearchInput" placeholder="搜索记忆…"></div>
+      <div id="memorySearchResults"></div>
+    </div>
+    <div class="section"><div class="section-title">最近记忆</div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(232,115,74,0.1)"><i class="ph-duotone ph-calendar" style="font-size:18px;color:var(--color-ember)"></i></div><div class="list-content"><div class="list-title">明天下午 2 点团队会议</div><div class="list-desc">3 分钟前 · 工作记忆</div></div></div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(212,168,83,0.1)"><i class="ph-duotone ph-map-pin" style="font-size:18px;color:var(--accent-gold)"></i></div><div class="list-content"><div class="list-title">上周去了新开的咖啡店</div><div class="list-desc">2 小时前 · 情景记忆</div></div></div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(139,158,126,0.1)"><i class="ph-duotone ph-book-open" style="font-size:18px;color:var(--color-sage)"></i></div><div class="list-content"><div class="list-title">用户偏好：深色模式 + 爵士乐</div><div class="list-desc">1 天前 · 知识记忆</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 6: SECURITY ===== -->
+<section class="screen" id="screen-security" aria-label="安全隐私">
+  <div class="screen-content">
+    <div class="detail-header"><button class="back-btn" onclick="navigateTo('home')"><i class="ph-duotone ph-arrow-left" style="font-size:18px"></i></button><h1 class="detail-title"><i class="ph-duotone ph-shield-check" style="font-size:22px;color:var(--mode-accent);margin-right:8px"></i>安全隐私</h1></div>
+    <div class="card section" style="text-align:center">
+      <div class="ring-chart"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg-card)" stroke-width="8"/><circle cx="60" cy="60" r="52" fill="none" stroke="var(--color-sage)" stroke-width="8" stroke-dasharray="295" stroke-dashoffset="30" stroke-linecap="round"/></svg><div class="label"><div class="grade">A</div><div class="score">92/100</div></div></div>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:var(--space-sm)">安全等级：优秀</p>
+    </div>
+    <div class="stat-grid section">
+      <div class="stat-card"><div class="stat-value">1.2M</div><div class="stat-label">脱敏数据</div></div>
+      <div class="stat-card"><div class="stat-value">0</div><div class="stat-label">泄露事件</div></div>
+      <div class="stat-card"><div class="stat-value">256</div><div class="stat-label">加密位数</div></div>
+      <div class="stat-card"><div class="stat-value">GDPR</div><div class="stat-label">合规标准</div></div>
+    </div>
+    <div class="section"><div class="section-title">GDPR 操作</div>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--space-xs)">
+        <button id="btnExportData" style="padding:8px 16px;border-radius:var(--radius-sm);background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text-primary);font-size:13px;cursor:pointer"><i class="ph-duotone ph-download-simple" style="font-size:14px"></i> 导出数据</button>
+        <button id="btnDeleteData" style="padding:8px 16px;border-radius:var(--radius-sm);background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--color-ember);font-size:13px;cursor:pointer"><i class="ph-duotone ph-trash" style="font-size:14px"></i> 删除数据</button>
+        <button id="btnRevokeConsent" style="padding:8px 16px;border-radius:var(--radius-sm);background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text-primary);font-size:13px;cursor:pointer"><i class="ph-duotone ph-lock" style="font-size:14px"></i> 撤销同意</button>
+      </div>
+    </div>
+    <div class="section"><div class="section-title">审计日志</div>
+      <div class="list-item"><div class="list-content"><div class="list-title">数据访问 — 记忆模块</div><div class="list-desc">今天 14:23 · 正常</div></div><div class="list-right"><span class="badge badge-sage">通过</span></div></div>
+      <div class="list-item"><div class="list-content"><div class="list-title">API 调用 — OpenAI</div><div class="list-desc">今天 14:20 · 已脱敏</div></div><div class="list-right"><span class="badge badge-sage">通过</span></div></div>
+      <div class="list-item"><div class="list-content"><div class="list-title">异常登录尝试</div><div class="list-desc">昨天 03:12 · 已拦截</div></div><div class="list-right"><span class="badge badge-ember">拦截</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 7: PLUGINS ===== -->
+<section class="screen" id="screen-plugins" aria-label="插件系统">
+  <div class="screen-content">
+    <div class="detail-header"><button class="back-btn" onclick="navigateTo('home')"><i class="ph-duotone ph-arrow-left" style="font-size:18px"></i></button><h1 class="detail-title"><i class="ph-duotone ph-puzzle-piece" style="font-size:22px;color:var(--mode-accent);margin-right:8px"></i>插件系统</h1></div>
+    <div class="stat-grid section">
+      <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">已安装</div></div>
+      <div class="stat-card"><div class="stat-value">6</div><div class="stat-label">运行中</div></div>
+      <div class="stat-card"><div class="stat-value">12MB</div><div class="stat-label">内存占用</div></div>
+      <div class="stat-card"><div class="stat-value">WASM</div><div class="stat-label">沙箱</div></div>
+    </div>
+    <div class="section"><div class="section-title">已安装插件</div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(139,158,126,0.15)"><i class="ph-duotone ph-calendar" style="font-size:18px;color:var(--color-sage)"></i></div><div class="list-content"><div class="list-title">日历同步</div><div class="list-desc">v2.1.0 · 1.2MB · CPU 0.3%</div></div><div class="list-right"><span class="badge badge-sage">运行</span></div></div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(212,168,83,0.15)"><i class="ph-duotone ph-music-notes" style="font-size:18px;color:var(--accent-gold)"></i></div><div class="list-content"><div class="list-title">音乐控制</div><div class="list-desc">v1.5.2 · 0.8MB · CPU 0.1%</div></div><div class="list-right"><span class="badge badge-sage">运行</span></div></div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(123,107,138,0.15)"><i class="ph-duotone ph-translate" style="font-size:18px;color:var(--color-dusk)"></i></div><div class="list-content"><div class="list-title">翻译引擎</div><div class="list-desc">v3.0.1 · 4.5MB · CPU 1.2%</div></div><div class="list-right"><span class="badge badge-dusk">暂停</span></div></div>
+    </div>
+    <div class="section"><div class="section-title">插件市场</div>
+      <div class="card card-interactive" style="display:flex;align-items:center;gap:var(--space-md);cursor:pointer"><i class="ph-duotone ph-storefront" style="font-size:24px;color:var(--mode-accent)"></i><div><div style="font-size:14px;font-weight:500">浏览插件市场</div><div style="font-size:12px;color:var(--text-tertiary)">120+ 可用插件</div></div><i class="ph-duotone ph-caret-right" style="font-size:18px;color:var(--text-tertiary)"></i></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 8: TOOLCHAIN ===== -->
+<section class="screen" id="screen-tools" aria-label="工具链">
+  <div class="screen-content">
+    <div class="detail-header"><button class="back-btn" onclick="navigateTo('home')"><i class="ph-duotone ph-arrow-left" style="font-size:18px"></i></button><h1 class="detail-title"><i class="ph-duotone ph-toolbox" style="font-size:22px;color:var(--mode-accent);margin-right:8px"></i>工具链</h1></div>
+    <div class="stat-grid section">
+      <div class="stat-card"><div class="stat-value">2,847</div><div class="stat-label">今日调用</div></div>
+      <div class="stat-card"><div class="stat-value">15</div><div class="stat-label">可用工具</div></div>
+      <div class="stat-card"><div class="stat-value">99.8%</div><div class="stat-label">成功率</div></div>
+      <div class="stat-card"><div class="stat-value">0.4s</div><div class="stat-label">平均耗时</div></div>
+    </div>
+    <div class="section"><div class="section-title">工具列表</div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(139,158,126,0.15)"><i class="ph-duotone ph-globe" style="font-size:18px;color:var(--color-sage)"></i></div><div class="list-content"><div class="list-title">Web 搜索</div><div class="list-desc">调用 892 次 · 平均 1.2s</div></div><div class="list-right"><span class="badge badge-sage">健康</span></div></div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(212,168,83,0.15)"><i class="ph-duotone ph-code" style="font-size:18px;color:var(--accent-gold)"></i></div><div class="list-content"><div class="list-title">代码执行</div><div class="list-desc">调用 456 次 · 平均 0.8s</div></div><div class="list-right"><span class="badge badge-sage">健康</span></div></div>
+      <div class="list-item"><div class="list-icon" style="background:rgba(232,115,74,0.15)"><i class="ph-duotone ph-database" style="font-size:18px;color:var(--color-ember)"></i></div><div class="list-content"><div class="list-title">数据库查询</div><div class="list-desc">调用 234 次 · 平均 0.3s</div></div><div class="list-right"><span class="badge badge-ember">警告</span></div></div>
+    </div>
+    <div class="section"><div class="section-title">最近调用</div>
+      <div class="task-card"><div class="task-name">Web 搜索: "天气预报"</div><div class="task-meta"><span>0.9s</span><span>成功</span><span>14:25</span></div></div>
+      <div class="task-card"><div class="task-name">代码执行: Python 脚本</div><div class="task-meta"><span>2.1s</span><span>成功</span><span>14:22</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 9: ROUTING ===== -->
+<section class="screen" id="screen-routing" aria-label="智能路由">
+  <div class="screen-content">
+    <div class="detail-header"><button class="back-btn" onclick="navigateTo('home')"><i class="ph-duotone ph-arrow-left" style="font-size:18px"></i></button><h1 class="detail-title"><i class="ph-duotone ph-signpost" style="font-size:22px;color:var(--mode-accent);margin-right:8px"></i>智能路由</h1></div>
+    <div class="section"><div class="section-title">本地 / 云端比例</div>
+      <div class="ratio-bar"><div class="ratio-segment" style="width:65%;background:var(--color-sage)">本地 65%</div><div class="ratio-segment" style="width:35%;background:var(--accent-gold)">云端 35%</div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-tertiary)"><span>隐私优先</span><span>性能优先</span></div>
+    </div>
+    <div class="stat-grid section">
+      <div class="stat-card"><div class="stat-value">$2.4</div><div class="stat-label">今日成本</div></div>
+      <div class="stat-card"><div class="stat-value">45ms</div><div class="stat-label">本地延迟</div></div>
+      <div class="stat-card"><div class="stat-value">320ms</div><div class="stat-label">云端延迟</div></div>
+      <div class="stat-card"><div class="stat-value">$68</div><div class="stat-label">月度成本</div></div>
+    </div>
+    <div class="section"><div class="section-title">路由规则</div>
+      <div class="list-item"><div class="list-content"><div class="list-title">隐私数据 → 本地处理</div><div class="list-desc">优先级: 高 · 匹配率 100%</div></div><div class="list-right"><span class="badge badge-sage">活跃</span></div></div>
+      <div class="list-item"><div class="list-content"><div class="list-title">复杂推理 → 云端 GPT-4</div><div class="list-desc">优先级: 中 · 匹配率 23%</div></div><div class="list-right"><span class="badge badge-gold">活跃</span></div></div>
+      <div class="list-item"><div class="list-content"><div class="list-title">简单问答 → 本地 LLM</div><div class="list-desc">优先级: 低 · 匹配率 77%</div></div><div class="list-right"><span class="badge badge-sage">活跃</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 10: CHAT CONVERSATION ===== -->
+<section class="screen voice-fullscreen" id="screen-voice-conv" aria-label="智能对话">
+  <div class="screen-content" style="display:flex;flex-direction:column;height:calc(100dvh - 64px)">
+    <div class="detail-header" style="flex-shrink:0;padding:var(--space-sm) var(--space-md)">
+      <button class="back-btn" onclick="navigateTo('home')"><i class="ph-duotone ph-arrow-left" style="font-size:18px"></i></button>
+      <h1 class="detail-title" style="font-size:18px"><i class="ph-duotone ph-chat-circle-dots" style="font-size:20px;color:var(--mode-accent);margin-right:8px"></i>智能对话</h1>
+      <span id="chatModelBadge" style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:var(--radius-full);background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text-tertiary)">qwen2.5-7b</span>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg system">Prometheus AI 已就绪，请输入消息开始对话</div>
+    </div>
+    <div class="voice-bubbles" style="padding:0 var(--space-md) var(--space-xs)">
+      <div class="voice-bubble">明天天气怎么样？</div>
+      <div class="voice-bubble">帮我设个闹钟</div>
+      <div class="voice-bubble">播放音乐</div>
+    </div>
+    <div class="chat-input-bar">
+      <input type="text" id="chatInput" placeholder="输入消息…" autocomplete="off">
+      <button id="chatSendBtn" aria-label="发送"><i class="ph-duotone ph-paper-plane-tilt" style="font-size:18px"></i></button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREEN 11: TASK CENTER ===== -->
+<section class="screen" id="screen-tasks" aria-label="任务中心">
+  <div class="screen-content">
+    <div class="detail-header"><button class="back-btn" onclick="navigateTo('home')"><i class="ph-duotone ph-arrow-left" style="font-size:18px"></i></button><h1 class="detail-title">任务中心</h1></div>
+    <div class="tabs">
+      <div class="tab active">全部</div><div class="tab">进行中</div><div class="tab">已完成</div><div class="tab">失败</div>
+    </div>
+    <div class="task-card" style="border-left-color:var(--color-ember)"><div class="task-name">日程智能规划</div><div class="task-meta"><span><i class="ph-duotone ph-warning-circle" style="font-size:14px;color:var(--color-ember)"></i> 高优先</span><span>Agent: 调度</span></div><div class="progress-bar"><div class="progress-fill" style="width:78%;background:var(--color-ember)"></div></div></div>
+    <div class="task-card" style="border-left-color:var(--color-sage)"><div class="task-name">邮件自动摘要</div><div class="task-meta"><span><i class="ph-duotone ph-check-circle" style="font-size:14px;color:var(--color-sage)"></i> 已完成</span><span>Agent: NLP</span></div><div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--color-sage)"></div></div></div>
+    <div class="task-card" style="border-left-color:var(--accent-gold)"><div class="task-name">智能家居场景优化</div><div class="task-meta"><span><i class="ph-duotone ph-clock" style="font-size:14px;color:var(--accent-gold)"></i> 中优先</span><span>Agent: IoT</span></div><div class="progress-bar"><div class="progress-fill" style="width:45%"></div></div></div>
+    <div class="task-card" style="border-left-color:var(--color-dusk)"><div class="task-name">知识图谱更新</div><div class="task-meta"><span><i class="ph-duotone ph-minus-circle" style="font-size:14px;color:var(--color-dusk)"></i> 低优先</span><span>Agent: 知识</span></div><div class="progress-bar"><div class="progress-fill" style="width:30%;background:var(--color-dusk)"></div></div></div>
+    <div class="task-card" style="border-left-color:var(--color-sage)"><div class="task-name">安全扫描报告</div><div class="task-meta"><span><i class="ph-duotone ph-check-circle" style="font-size:14px;color:var(--color-sage)"></i> 已完成</span><span>Agent: 安全</span></div><div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--color-sage)"></div></div></div>
+  </div>
+</section>
+
+<!-- DOCK -->
+<nav class="dock" role="navigation" aria-label="主导航">
+  <div class="dock-item active" onclick="navigateTo('home')" data-screen="home"><i class="ph-duotone ph-house" style="font-size:22px"></i><span>主页</span></div>
+  <div class="dock-item" onclick="navigateTo('voice-conv')" data-screen="voice-conv"><i class="ph-duotone ph-chat-circle-dots" style="font-size:22px"></i><span>对话</span></div>
+  <div class="dock-item" onclick="navigateTo('iot')" data-screen="iot"><i class="ph-duotone ph-house-line" style="font-size:22px"></i><span>设备</span></div>
+  <div class="dock-item" onclick="navigateTo('tasks')" data-screen="tasks"><i class="ph-duotone ph-list-checks" style="font-size:22px"></i><span>任务</span></div>
+  <div class="dock-item" onclick="navigateTo('memory')" data-screen="memory"><i class="ph-duotone ph-brain" style="font-size:22px"></i><span>记忆</span></div>
+</nav>
+
+<!-- CONTROL CENTER OVERLAY -->
+<div class="control-overlay" id="controlOverlay" onclick="if(event.target===this)toggleControl()">
+  <div class="control-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-lg)"><h2 style="font-size:20px;font-weight:500">控制中心</h2><button onclick="toggleControl()" style="background:none;border:none;cursor:pointer;color:var(--text-primary)"><i class="ph-duotone ph-x" style="font-size:20px"></i></button></div>
+    <div class="section"><div class="section-title">模式</div>
+      <div class="mode-switcher">
+        <div class="mode-btn active" onclick="switchMode('home')"><span class="mode-btn-icon"><i class="ph-duotone ph-house" style="font-size:24px"></i></span><span class="mode-btn-label">Home</span></div>
+        <div class="mode-btn" onclick="switchMode('work')"><span class="mode-btn-icon"><i class="ph-duotone ph-briefcase" style="font-size:24px"></i></span><span class="mode-btn-label">Work</span></div>
+        <div class="mode-btn" onclick="switchMode('sleep')"><span class="mode-btn-icon"><i class="ph-duotone ph-moon" style="font-size:24px"></i></span><span class="mode-btn-label">Sleep</span></div>
+        <div class="mode-btn" onclick="switchMode('driving')"><span class="mode-btn-icon"><i class="ph-duotone ph-car" style="font-size:24px"></i></span><span class="mode-btn-label">Drive</span></div>
+        <div class="mode-btn" onclick="switchMode('focus')"><span class="mode-btn-icon"><i class="ph-duotone ph-crosshair" style="font-size:24px"></i></span><span class="mode-btn-label">Focus</span></div>
+      </div>
+    </div>
+    <div class="section"><div class="section-title">快捷控制</div>
+      <div class="slider-control"><label>亮度</label><input type="range" min="0" max="100" value="80" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="val">80%</span></div>
+      <div class="slider-control"><label>温度</label><input type="range" min="16" max="30" value="24" oninput="this.nextElementSibling.textContent=this.value+'°C'"><span class="val">24°C</span></div>
+      <div class="slider-control"><label>音量</label><input type="range" min="0" max="100" value="60" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="val">60%</span></div>
+    </div>
+    <div class="section"><div class="section-title">媒体</div>
+      <div class="media-player">
+        <div class="media-art"></div>
+        <div class="media-info"><div class="media-title">Ambient Flow</div><div class="media-artist">Prometheus Radio</div></div>
+        <div class="media-controls"><button><i class="ph-duotone ph-skip-back" style="font-size:18px"></i></button><button><i class="ph-duotone ph-play" style="font-size:20px"></i></button><button><i class="ph-duotone ph-skip-forward" style="font-size:18px"></i></button></div>
+      </div>
+    </div>
+    <div class="section"><div class="section-title">场景快捷</div>
+      <div class="scene-grid">
+        <div class="scene-card"><div class="scene-icon"><i class="ph-duotone ph-film-strip" style="font-size:28px;color:var(--color-dusk)"></i></div><div class="scene-name">影院</div></div>
+        <div class="scene-card"><div class="scene-icon"><i class="ph-duotone ph-fork-knife" style="font-size:28px;color:var(--accent-terracotta)"></i></div><div class="scene-name">晚餐</div></div>
+        <div class="scene-card"><div class="scene-icon"><i class="ph-duotone ph-book-open" style="font-size:28px;color:var(--accent-gold)"></i></div><div class="scene-name">阅读</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app-container -->
+
+<script>
+// ========== APP STATE ==========
+const state = { screen: 'home', mode: 'home', theme: 'light', focusInterval: null, focusSeconds: 1500 };
+
+// ========== CLOCK ==========
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('clock').textContent = `${h}:${m}`;
+  const st = document.getElementById('sleepTime');
+  if (st) st.textContent = `${h}:${m}`;
+}
+updateClock();
+setInterval(updateClock, 10000);
+
+// ========== NAVIGATION WITH EXPAND ANIMATION ==========
+function navigateTo(screenId, originEl) {
+  if (state.screen === screenId) return;
+  const prev = document.getElementById('screen-' + state.screen);
+  const next = document.getElementById('screen-' + screenId);
+  if (!next) return;
+
+  // Calculate expand origin
+  if (originEl) {
+    const rect = originEl.getBoundingClientRect();
+    const x = ((rect.left + rect.width / 2) / window.innerWidth * 100).toFixed(1) + '%';
+    const y = ((rect.top + rect.height / 2) / window.innerHeight * 100).toFixed(1) + '%';
+    next.style.setProperty('--expand-x', x);
+    next.style.setProperty('--expand-y', y);
+  } else {
+    next.style.setProperty('--expand-x', '50%');
+    next.style.setProperty('--expand-y', '50%');
+  }
+
+  // Animate
+  if (screenId !== 'home') {
+    next.classList.remove('active');
+    next.classList.add('expanding');
+    next.addEventListener('animationend', function handler() {
+      next.classList.remove('expanding');
+      next.classList.add('active');
+      next.removeEventListener('animationend', handler);
+    });
+    if (prev) prev.classList.remove('active');
+  } else {
+    // Collapse back to home
+    if (prev && prev.id !== 'screen-home') {
+      prev.classList.add('collapsing');
+      prev.addEventListener('animationend', function handler() {
+        prev.classList.remove('collapsing', 'active');
+        prev.removeEventListener('animationend', handler);
+      });
+    }
+    next.classList.add('active');
+  }
+
+  state.screen = screenId;
+  document.querySelectorAll('.dock-item').forEach(d => {
+    d.classList.toggle('active', d.dataset.screen === screenId);
+  });
+}
+
+// ========== THEME ==========
+document.getElementById('themeToggle').addEventListener('click', () => {
+  state.theme = state.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', state.theme);
+  const icon = document.querySelector('#themeToggle i');
+  if (icon) { icon.className = state.theme === 'light' ? 'ph-duotone ph-sun' : 'ph-duotone ph-moon'; }
+});
+
+// ========== MODE SWITCH ==========
+function switchMode(mode) {
+  const homeScreen = document.getElementById('screen-home');
+  if (homeScreen) {
+    homeScreen.classList.add('mode-transitioning');
+    homeScreen.addEventListener('animationend', function handler() {
+      homeScreen.classList.remove('mode-transitioning');
+      homeScreen.removeEventListener('animationend', handler);
+    });
+  }
+
+  state.mode = mode;
+  document.documentElement.setAttribute('data-mode', mode);
+  document.getElementById('modeBadge').textContent = mode.toUpperCase();
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.querySelector(`.mode-btn[onclick="switchMode('${mode}')"]`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  // Hide all mode overlays first
+  document.getElementById('sleepOverlay').style.display = 'none';
+  document.getElementById('focusOverlay').style.display = 'none';
+  document.getElementById('workOverlay').style.display = 'none';
+  document.getElementById('robotMain').style.display = 'flex';
+
+  // Show mode-specific overlay
+  if (mode === 'sleep') {
+    document.getElementById('sleepOverlay').style.display = 'flex';
+    document.getElementById('robotMain').style.display = 'none';
+  } else if (mode === 'focus') {
+    document.getElementById('focusOverlay').style.display = 'flex';
+    document.getElementById('robotMain').style.display = 'none';
+    startFocusTimer();
+  } else if (mode === 'work') {
+    document.getElementById('workOverlay').style.display = 'flex';
+  } else {
+    stopFocusTimer();
+  }
+
+  if (mode !== 'focus') stopFocusTimer();
+
+  // Status text
+  const texts = { home: '你好，一切就绪', work: '', sleep: '', driving: '安全驾驶', focus: '' };
+  document.getElementById('statusText').textContent = texts[mode] || '';
+
+  // Mouth expression (SVG viewBox 0 0 160 200, mouth at y≈62)
+  const mouths = { home: 'M68,62 Q80,68 92,62', work: 'M68,63 L92,63', sleep: 'M70,63 Q80,60 90,63', driving: 'M68,60 Q80,67 92,60', focus: 'M70,63 L90,63' };
+  const mp = document.getElementById('mouthPath');
+  if (mp) mp.setAttribute('d', mouths[mode] || mouths.home);
+}
+
+// ========== FOCUS TIMER ==========
+function startFocusTimer() {
+  stopFocusTimer();
+  state.focusSeconds = 1500; // 25 min
+  updateFocusDisplay();
+  state.focusInterval = setInterval(() => {
+    state.focusSeconds--;
+    if (state.focusSeconds <= 0) { stopFocusTimer(); return; }
+    updateFocusDisplay();
+  }, 1000);
+}
+function stopFocusTimer() {
+  if (state.focusInterval) { clearInterval(state.focusInterval); state.focusInterval = null; }
+}
+function updateFocusDisplay() {
+  const el = document.getElementById('focusTimer');
+  if (!el) return;
+  const m = String(Math.floor(state.focusSeconds / 60)).padStart(2, '0');
+  const s = String(state.focusSeconds % 60).padStart(2, '0');
+  el.textContent = `${m}:${s}`;
+}
+document.getElementById('focusPauseBtn').addEventListener('click', () => {
+  if (state.focusInterval) { stopFocusTimer(); }
+  else { state.focusInterval = setInterval(() => { state.focusSeconds--; if (state.focusSeconds <= 0) { stopFocusTimer(); return; } updateFocusDisplay(); }, 1000); }
+});
+
+// ========== CONTROL CENTER ==========
+function toggleControl() {
+  document.getElementById('controlOverlay').classList.toggle('open');
+}
+document.getElementById('controlToggle').addEventListener('click', toggleControl);
+
+// ========== ORBIT ICONS ==========
+const apps = [
+  { icon: 'robot', label: 'Agent', screen: 'agent' },
+  { icon: 'microphone', label: '语音', screen: 'voice' },
+  { icon: 'house', label: 'IoT', screen: 'iot' },
+  { icon: 'brain', label: '记忆', screen: 'memory' },
+  { icon: 'shield-check', label: '安全', screen: 'security' },
+  { icon: 'puzzle-piece', label: '插件', screen: 'plugins' },
+  { icon: 'toolbox', label: '工具', screen: 'tools' },
+  { icon: 'signpost', label: '路由', screen: 'routing' }
+];
+const orbitEl = document.getElementById('orbitContainer');
+const rx = 150, ry = 150;
+let orbitAngle = 0;
+
+function createOrbitIcons() {
+  orbitEl.innerHTML = '';
+  apps.forEach((app, i) => {
+    const el = document.createElement('div');
+    el.className = 'orbit-icon';
+    el.dataset.tooltip = app.label;
+    el.innerHTML = `<i class="ph-duotone ph-${app.icon}" style="font-size:20px"></i><span>${app.label}</span>`;
+    el.addEventListener('click', function() { navigateTo(app.screen, this); });
+    el.dataset.idx = i;
+    orbitEl.appendChild(el);
+  });
+}
+
+function updateOrbit() {
+  const icons = orbitEl.querySelectorAll('.orbit-icon');
+  const cx = orbitEl.offsetWidth / 2 - 28;
+  const cy = orbitEl.offsetHeight / 2 - 28;
+  icons.forEach((el, i) => {
+    const angle = orbitAngle + (i / apps.length) * Math.PI * 2;
+    const x = cx + rx * Math.cos(angle);
+    const y = cy + ry * Math.sin(angle);
+    const depth = (Math.sin(angle) + 1) / 2;
+    const s = 0.8 + 0.2 * depth;
+    const o = 0.6 + 0.4 * depth;
+    el.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+    el.style.opacity = o;
+    el.style.zIndex = Math.round(depth * 10);
+  });
+  orbitAngle += 0.002;
+  requestAnimationFrame(updateOrbit);
+}
+
+createOrbitIcons();
+updateOrbit();
+
+// ========== BLINK ==========
+function blink() {
+  const avatar = document.getElementById('robotAvatar');
+  if (avatar && state.mode !== 'sleep') {
+    avatar.classList.add('blinking');
+    setTimeout(() => avatar.classList.remove('blinking'), 200);
+  }
+  setTimeout(blink, 4000 + Math.random() * 3000);
+}
+setTimeout(blink, 2000);
+
+// ========== TAB CLICKS ==========
+document.querySelectorAll('.tabs').forEach(tabGroup => {
+  tabGroup.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabGroup.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+});
+
+// ========== INIT COMPLETE ==========
+
+// ========== FIX ORBIT CLICK — pause rotation on click ==========
+orbitEl.addEventListener('click', function(e) {
+  // Temporarily stop orbit rotation so click target is stable
+}, true);
+
+// ========== CHAT ENGINE (works with or without Tauri) ==========
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const chatSendBtn = document.getElementById('chatSendBtn');
+
+function appendChatMsg(role, text) {
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.textContent = text;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+async function sendChatMessage(msg) {
+  if (!msg.trim()) return;
+  appendChatMsg('user', msg);
+  chatInput.value = '';
+  chatSendBtn.disabled = true;
+  try {
+    let reply;
+    if (window.__TAURI__) {
+      reply = await window.__TAURI__.core.invoke('send_message', { message: msg });
+    } else {
+      reply = '【演示模式】收到: ' + msg + '\n\n这是本地演示响应。连接 Tauri 后端后将获得真实 AI 回复。';
+    }
+    appendChatMsg('assistant', reply);
+  } catch (e) {
+    appendChatMsg('assistant', '发送失败: ' + e);
+  }
+  chatSendBtn.disabled = false;
+  chatInput.focus();
+}
+
+chatSendBtn.addEventListener('click', () => sendChatMessage(chatInput.value));
+chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(chatInput.value); } });
+
+// Voice bubbles → send as chat
+document.querySelectorAll('.voice-bubble').forEach(bubble => {
+  bubble.addEventListener('click', () => {
+    const msg = bubble.textContent.trim();
+    navigateTo('voice-conv');
+    setTimeout(() => sendChatMessage(msg), 300);
+  });
+});
+
+// ========== DEVICE TILES — click to control ==========
+document.querySelectorAll('.device-tile').forEach(tile => {
+  tile.setAttribute('data-clickable', '');
+  tile.addEventListener('click', async () => {
+    const name = tile.querySelector('.device-name')?.textContent || 'device';
+    const statusEl = tile.querySelector('.device-status');
+    if (statusEl) {
+      const isOn = statusEl.textContent === '已开启';
+      statusEl.textContent = isOn ? '已关闭' : '已开启';
+      statusEl.style.color = isOn ? 'var(--text-tertiary)' : 'var(--color-sage)';
+    }
+    if (window.__TAURI__) {
+      try { await window.__TAURI__.core.invoke('control_device', { deviceId: name, command: 'toggle', params: '{}' }); } catch(e) {}
+    }
+  });
+});
+
+// ========== SCENE CARDS — click to activate ==========
+document.querySelectorAll('.scene-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.scene-card').forEach(c => c.style.borderColor = 'var(--glass-border)');
+    card.style.borderColor = 'var(--mode-accent)';
+    card.style.boxShadow = 'var(--shadow-glow)';
+    setTimeout(() => { card.style.boxShadow = ''; }, 1500);
+  });
+});
+
+// ========== GDPR BUTTONS ==========
+document.getElementById('btnExportData')?.addEventListener('click', async () => {
+  const btn = document.getElementById('btnExportData');
+  btn.textContent = '导出中…';
+  try {
+    let data;
+    if (window.__TAURI__) { data = await window.__TAURI__.core.invoke('export_data'); }
+    else { data = '{"demo": "export data"}'; }
+    btn.textContent = '已导出 ✓';
+    console.log('[Prometheus] Exported:', data);
+  } catch(e) { btn.textContent = '导出失败'; }
+  setTimeout(() => { btn.innerHTML = '<i class="ph-duotone ph-download-simple" style="font-size:14px"></i> 导出数据'; }, 2000);
+});
+
+document.getElementById('btnDeleteData')?.addEventListener('click', async () => {
+  if (!confirm('确定要删除所有数据吗？此操作不可撤销。')) return;
+  const btn = document.getElementById('btnDeleteData');
+  btn.textContent = '删除中…';
+  try {
+    if (window.__TAURI__) { await window.__TAURI__.core.invoke('delete_data'); }
+    btn.textContent = '已删除 ✓';
+  } catch(e) { btn.textContent = '删除失败'; }
+  setTimeout(() => { btn.innerHTML = '<i class="ph-duotone ph-trash" style="font-size:14px"></i> 删除数据'; }, 2000);
+});
+
+document.getElementById('btnRevokeConsent')?.addEventListener('click', () => {
+  const btn = document.getElementById('btnRevokeConsent');
+  btn.textContent = '已撤销 ✓';
+  setTimeout(() => { btn.innerHTML = '<i class="ph-duotone ph-lock" style="font-size:14px"></i> 撤销同意'; }, 2000);
+});
+
+// ========== MEMORY SEARCH ==========
+const memorySearchInput = document.getElementById('memorySearchInput');
+const memorySearchResults = document.getElementById('memorySearchResults');
+let searchTimeout;
+memorySearchInput?.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(async () => {
+    const q = memorySearchInput.value.trim();
+    if (!q) { memorySearchResults.innerHTML = ''; return; }
+    try {
+      let results;
+      if (window.__TAURI__) { results = await window.__TAURI__.core.invoke('search_knowledge', { query: q, topK: 5 }); }
+      else { results = [{ source: '演示', content: '搜索 "' + q + '" 的结果将在连接后端后显示' }]; }
+      memorySearchResults.innerHTML = results.map(r =>
+        '<div class="list-item" style="margin-top:8px"><div class="list-content"><div class="list-title">' + (r.source||'') + '</div><div class="list-desc">' + (r.content||'') + '</div></div></div>'
+      ).join('');
+    } catch(e) { memorySearchResults.innerHTML = '<p style="color:var(--text-tertiary);font-size:13px">搜索失败</p>'; }
+  }, 500);
+});
+
+// ========== IoT SCAN on navigate ==========
+const _origNav = navigateTo;
+navigateTo = function(screenId, originEl) {
+  _origNav(screenId, originEl);
+  if (screenId === 'iot' && window.__TAURI__) {
+    window.__TAURI__.core.invoke('scan_devices').then(devices => {
+      console.log('[Prometheus] Scanned devices:', devices);
+    }).catch(() => {});
+  }
+};
+
+// ========== SETUP FLOW ==========
+let setupCurrentStep = 1;
+
+function setupUpdateDots(step) {
+  const dots = document.querySelectorAll('#setupSteps .setup-step-dot');
+  dots.forEach((d, i) => {
+    d.classList.remove('active', 'done');
+    if (i + 1 < step) d.classList.add('done');
+    else if (i + 1 === step) d.classList.add('active');
+  });
+}
+
+function setupNext(step) {
+  document.getElementById('setup-step-' + setupCurrentStep).style.display = 'none';
+  document.getElementById('setup-step-' + step).style.display = '';
+  setupCurrentStep = step;
+  setupUpdateDots(step);
+  if (step === 2) checkOllama();
+}
+
+async function checkOllama() {
+  const txt = document.getElementById('ollamaStatusText');
+  const actions = document.getElementById('ollamaActions');
+  const ok = document.getElementById('ollamaOk');
+  txt.textContent = '正在检测 Ollama...';
+  actions.style.display = 'none';
+  ok.style.display = 'none';
+  try {
+    const status = await window.__TAURI__.core.invoke('check_setup_status');
+    if (status.ollama_running) {
+      txt.textContent = 'Ollama 服务正在运行';
+      ok.style.display = '';
+    } else if (status.ollama_installed) {
+      txt.textContent = 'Ollama 已安装但未运行，请先启动 ollama serve';
+      actions.style.display = '';
+      document.getElementById('btnInstallOllama').textContent = '重新检测';
+      document.getElementById('btnInstallOllama').onclick = checkOllama;
+    } else {
+      txt.textContent = '未检测到 Ollama，点击下方按钮安装';
+      actions.style.display = '';
+    }
+  } catch(e) {
+    txt.textContent = '检测失败: ' + e;
+    actions.style.display = '';
+  }
+}
+
+async function doInstallOllama() {
+  const btn = document.getElementById('btnInstallOllama');
+  btn.disabled = true;
+  btn.textContent = '正在安装...';
+  document.getElementById('ollamaStatusText').textContent = '正在下载并安装 Ollama，请稍候...';
+  try {
+    await window.__TAURI__.core.invoke('install_ollama');
+    checkOllama();
+  } catch(e) {
+    document.getElementById('ollamaStatusText').textContent = '安装失败: ' + e;
+    btn.disabled = false;
+    btn.textContent = '重试安装';
+  }
+}
+
+async function doPullModels() {
+  const btn = document.getElementById('btnPullModels');
+  btn.disabled = true;
+  btn.textContent = '下载中...';
+  const progress = document.getElementById('modelProgress');
+  const chatCheck = document.getElementById('chatModelCheck');
+  const embedCheck = document.getElementById('embedModelCheck');
+  const statusText = document.getElementById('modelStatusText');
+
+  try {
+    statusText.textContent = '正在下载对话模型...';
+    progress.style.width = '10%';
+    await window.__TAURI__.core.invoke('pull_model', { model: 'qwen2.5:1.5b' });
+    chatCheck.innerHTML = '<i class="ph-duotone ph-check-circle" style="font-size:18px;color:var(--color-sage)"></i> qwen2.5:1.5b';
+    chatCheck.classList.add('ok');
+    progress.style.width = '60%';
+
+    statusText.textContent = '正在下载嵌入模型...';
+    await window.__TAURI__.core.invoke('pull_model', { model: 'all-minilm' });
+    embedCheck.innerHTML = '<i class="ph-duotone ph-check-circle" style="font-size:18px;color:var(--color-sage)"></i> all-minilm';
+    embedCheck.classList.add('ok');
+    progress.style.width = '100%';
+
+    statusText.textContent = '所有模型下载完成';
+    btn.style.display = 'none';
+    document.getElementById('btnModelNext').style.display = '';
+  } catch(e) {
+    statusText.textContent = '下载失败: ' + e;
+    btn.disabled = false;
+    btn.textContent = '重试下载';
+  }
+}
+
+async function finishSetup() {
+  try {
+    await window.__TAURI__.core.invoke('complete_setup');
+  } catch(e) { console.warn('complete_setup error:', e); }
+  document.getElementById('screen-setup').classList.remove('active');
+  document.getElementById('screen-home').classList.add('active');
+  state.screen = 'home';
+}
+
+(async function initSetupCheck() {
+  if (!window.__TAURI__) return;
+  try {
+    const status = await window.__TAURI__.core.invoke('check_setup_status');
+    if (!status.setup_complete) {
+      document.getElementById('screen-home').classList.remove('active');
+      document.getElementById('screen-setup').classList.add('active');
+      state.screen = 'setup';
+    }
+  } catch(e) { console.warn('setup check failed:', e); }
+})();
+</script>
+</body>
+</html>
