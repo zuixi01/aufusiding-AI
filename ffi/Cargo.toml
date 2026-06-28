@@ -11,7 +11,7 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 prometheus-core = { path = "../core" }
 uniffi = "0.28"
-uniffi_bindgen = "0.28"
+uniffi_bindgen = "0.31"
 camino = "1"
 anyhow = { workspace = true }
 tokio = { workspace = true }
