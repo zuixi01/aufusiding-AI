@@ -52,7 +52,7 @@ jobs:
         working-directory: apps/desktop
         run: npm run build
       - run: cargo check --workspace --all-targets --locked
-      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo clippy --workspace --all-targets --keep-going --locked -- -D warnings
       - run: cargo test --workspace --all-targets --locked
       - run: cargo test --workspace --doc --locked
 

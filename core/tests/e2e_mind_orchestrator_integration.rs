@@ -119,7 +119,7 @@ async fn e2e_new_domain_detected_as_knowledge_gap() {
 
     // 新领域应被好奇心引擎检测
     let mind = orch.mind().unwrap();
-    assert!(mind.curiosity().gaps().len() > 0 || !turn.knowledge_gaps.is_empty());
+    assert!(!mind.curiosity().gaps().is_empty() || !turn.knowledge_gaps.is_empty());
 }
 
 #[tokio::test]
