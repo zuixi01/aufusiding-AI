@@ -22,7 +22,7 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 rustyline = { version = "18", features = ["derive"] }
 colored = "3"
-tabled = "0.17"
+tabled = "0.22"
 toml = "0.8"
 dirs = "6"
 indicatif = "0.18"
