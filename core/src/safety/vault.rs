@@ -2,8 +2,8 @@
 //!
 //! 加密存储敏感信息（密码、API 密钥、私钥等），支持生物识别解锁。
 
-use aes_gcm::aead::{Aead, KeyInit, OsRng};
-use aes_gcm::{Aes256Gcm, Nonce};
+use aes_gcm::aead::{Aead, Generate, KeyInit, Nonce};
+use aes_gcm::Aes256Gcm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -39,8 +39,8 @@ impl SecureVault {
     }
 
     fn cipher(&self) -> anyhow::Result<Aes256Gcm> {
-        let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&self.master_key);
-        Ok(Aes256Gcm::new(key))
+        Aes256Gcm::new_from_slice(&self.master_key)
+            .map_err(|_| anyhow::anyhow!("master key must be 32 bytes"))
     }
 
     /// 存储敏感数据
@@ -51,16 +51,13 @@ impl SecureVault {
         entry_type: &str,
     ) -> anyhow::Result<Uuid> {
         let cipher = self.cipher()?;
-        let nonce_bytes = aes_gcm::aead::rand_core::RngCore::next_u64(&mut OsRng);
-        let mut nonce_buf = [0u8; 12];
-        nonce_buf[..8].copy_from_slice(&nonce_bytes.to_le_bytes());
-        let nonce = Nonce::from_slice(&nonce_buf);
+        let nonce = Nonce::<Aes256Gcm>::generate();
 
         let ciphertext = cipher
-            .encrypt(nonce, data)
+            .encrypt(&nonce, data)
             .map_err(|e| anyhow::anyhow!("encryption failed: {e}"))?;
 
-        let mut encrypted_data = nonce_buf.to_vec();
+        let mut encrypted_data = nonce.to_vec();
         encrypted_data.extend_from_slice(&ciphertext);
 
         let id = Uuid::new_v4();
@@ -82,11 +79,15 @@ impl SecureVault {
             .ok_or_else(|| anyhow::anyhow!("entry not found: {id}"))?;
 
         let cipher = self.cipher()?;
+        if entry.encrypted_data.len() < 12 {
+            anyhow::bail!("encrypted data too short");
+        }
         let (nonce_bytes, ciphertext) = entry.encrypted_data.split_at(12);
-        let nonce = Nonce::from_slice(nonce_bytes);
+        let nonce = Nonce::<Aes256Gcm>::try_from(nonce_bytes)
+            .map_err(|_| anyhow::anyhow!("nonce must be 12 bytes"))?;
 
         cipher
-            .decrypt(nonce, ciphertext)
+            .decrypt(&nonce, ciphertext)
             .map_err(|e| anyhow::anyhow!("decryption failed: {e}"))
     }
 
@@ -115,6 +116,50 @@ mod tests {
 
     fn test_key() -> Vec<u8> {
         vec![0xAB; 32]
+    }
+
+    #[tokio::test]
+    async fn invalid_key_length_and_truncated_payload_return_errors() {
+        for length in [0, 16, 31, 33] {
+            let mut vault = SecureVault::new(vec![0; length]);
+            assert!(vault.store("invalid", b"secret", "pw").await.is_err());
+        }
+        let mut vault = SecureVault::new(test_key());
+        let id = vault.store("truncated", b"secret", "pw").await.unwrap();
+        for length in [0, 11, 12, 27] {
+            vault.entries.get_mut(&id).unwrap().encrypted_data = vec![0; length];
+            assert!(vault.retrieve(id).await.is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn retrieves_legacy_nonce_prefix_and_rejects_modified_tag() {
+        let mut vault = SecureVault::new((0..32).collect());
+        let id = Uuid::new_v4();
+        // Independent AES-256-GCM fixture using the old 8-random-byte + 4-zero nonce.
+        vault.entries.insert(
+            id,
+            VaultEntry {
+                id,
+                name: "legacy".into(),
+                encrypted_data: vec![
+                    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x00, 0x00, 0x00, 0x00, 0x45,
+                    0x61, 0x31, 0x05, 0x11, 0x7a, 0x66, 0x50, 0xe3, 0x98, 0x90, 0xe3, 0x43, 0xe7,
+                    0x59, 0x86, 0xcf, 0xa4, 0x35, 0x98, 0x70, 0xa0, 0xcf, 0xe8, 0xa8, 0x5b, 0x5e,
+                    0xa8, 0xf3, 0xc3, 0x0b, 0x1a, 0x42, 0x99, 0x9d,
+                ],
+                entry_type: "pw".into(),
+            },
+        );
+        assert_eq!(vault.retrieve(id).await.unwrap(), b"legacy-vault-secret");
+        *vault
+            .entries
+            .get_mut(&id)
+            .unwrap()
+            .encrypted_data
+            .last_mut()
+            .unwrap() ^= 1;
+        assert!(vault.retrieve(id).await.is_err());
     }
 
     #[tokio::test]

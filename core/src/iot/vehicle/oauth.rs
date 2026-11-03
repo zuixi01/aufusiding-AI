@@ -308,6 +308,16 @@ mod tests {
     }
 
     #[test]
+    fn pkce_matches_rfc7636_appendix_b() {
+        let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+        let digest = ring::digest::digest(&ring::digest::SHA256, verifier.as_bytes());
+        assert_eq!(
+            base64_url_encode(digest.as_ref()),
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        );
+    }
+
+    #[test]
     fn pkce_generates_unique_pairs() {
         let a = generate_pkce();
         let b = generate_pkce();

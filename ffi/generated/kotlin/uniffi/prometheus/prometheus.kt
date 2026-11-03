@@ -99,6 +99,43 @@ internal open class ForeignBytes : Structure() {
 
     class ByValue : ForeignBytes(), Structure.ByValue
 }
+
+// Converter for `&[u8]` / `[ByRef] bytes` arguments.
+//
+// Only `lower` is valid — zero-copy byte buffers only flow foreign -> Rust,
+// and only in argument position. `lift`, `read`, `write`, and
+// `allocationSize` have no sound implementation here and all panic at
+// runtime. The `FfiConverter` interface is implemented so that the
+// compiler enforces the full method set (rather than relying on eyeball).
+//
+// The provided `ByteBuffer` MUST be direct — only direct buffers have a
+// stable native address that JNA can expose via `getDirectBufferPointer`.
+// The returned `ForeignBytes.ByValue` is only valid for the duration of
+// the FFI call; the Rust side treats it as a borrow.
+internal object FfiConverterByRefBytes : FfiConverter<java.nio.ByteBuffer, ForeignBytes.ByValue> {
+    override fun lower(value: java.nio.ByteBuffer): ForeignBytes.ByValue {
+        require(value.isDirect) { "UniFFI zero-copy &[u8] requires a direct ByteBuffer. Use ByteBuffer.allocateDirect()." }
+        val remaining = value.remaining()
+        val fb = ForeignBytes.ByValue()
+        fb.len = remaining
+        // Zero-length direct buffers: skip getDirectBufferPointer (platform-variable behavior)
+        // and pass null. The Rust side treats (null, 0) as &[].
+        fb.data = if (remaining == 0) null else com.sun.jna.Native.getDirectBufferPointer(value)
+        return fb
+    }
+
+    override fun lift(value: ForeignBytes.ByValue): java.nio.ByteBuffer =
+        error("ByRef bytes cannot be lifted: zero-copy &[u8] only flows foreign->Rust")
+
+    override fun read(buf: java.nio.ByteBuffer): java.nio.ByteBuffer =
+        error("ByRef bytes cannot be read from a buffer: zero-copy &[u8] is only supported in argument position, not nested in records/options/etc.")
+
+    override fun write(value: java.nio.ByteBuffer, buf: java.nio.ByteBuffer): Unit =
+        error("ByRef bytes cannot be written to a buffer: zero-copy &[u8] is only supported in argument position, not nested in records/options/etc.")
+
+    override fun allocationSize(value: java.nio.ByteBuffer): ULong =
+        error("ByRef bytes have no RustBuffer allocation size: zero-copy &[u8] is only supported in argument position, not nested in records/options/etc.")
+}
 /**
  * The FfiConverter interface handles converter types to and from the FFI
  *
@@ -636,6 +673,8 @@ internal object IntegrityCheckingUniffiLib {
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
+
+    internal fun ensureInitialized() = Unit
     external fun uniffi_prometheus_ffi_checksum_method_enginehandle_add_knowledge(
     ): Int
     external fun uniffi_prometheus_ffi_checksum_method_enginehandle_add_working_memory(
@@ -720,186 +759,188 @@ internal object UniffiLib {
         Native.register(UniffiLib::class.java, findLibraryName(componentName = "prometheus"))
         
     }
-    external fun uniffi_prometheus_ffi_fn_clone_enginehandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Long
-external fun uniffi_prometheus_ffi_fn_free_enginehandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Unit
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_add_knowledge(`ptr`: Long,`source`: RustBuffer.ByValue,`content`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): Int
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_add_working_memory(`ptr`: Long,`content`: RustBuffer.ByValue,`importance`: Double,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_anonymize_text(`ptr`: Long,`text`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_control_device(`ptr`: Long,`deviceId`: RustBuffer.ByValue,`command`: RustBuffer.ByValue,`params`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_delete_user_data(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_episodic_count(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Int
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_export_user_data(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_screen_context(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_setting(`ptr`: Long,`key`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_sync_status(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_working_memory(`ptr`: Long,`maxItems`: Int,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_is_paused(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_is_shutdown(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_knowledge_count(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Int
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_list_personas(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_pause(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_record_consent(`ptr`: Long,`purpose`: RustBuffer.ByValue,`granted`: Byte,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_resume(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_scan_iot_devices(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_search_episodes(`ptr`: Long,`query`: RustBuffer.ByValue,`topK`: Int,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_search_knowledge(`ptr`: Long,`query`: RustBuffer.ByValue,`topK`: Int,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_send_message(`ptr`: Long,`message`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(`ptr`: Long,`model`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_set_setting(`ptr`: Long,`key`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_shutdown(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_switch_persona(`ptr`: Long,`personaId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun uniffi_prometheus_ffi_fn_method_enginehandle_working_memory_count(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Int
-external fun uniffi_prometheus_ffi_fn_clone_prometheusapi(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Long
-external fun uniffi_prometheus_ffi_fn_free_prometheusapi(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Unit
-external fun uniffi_prometheus_ffi_fn_constructor_prometheusapi_new(uniffi_out_err: UniffiRustCallStatus, 
-): Long
-external fun uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Long
-external fun uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun ffi_prometheus_ffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun ffi_prometheus_ffi_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun ffi_prometheus_ffi_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): Unit
-external fun ffi_prometheus_ffi_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun ffi_prometheus_ffi_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_u8(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_u8(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Int
-external fun ffi_prometheus_ffi_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_i8(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_i8(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
-external fun ffi_prometheus_ffi_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_u16(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_u16(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Int
-external fun ffi_prometheus_ffi_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_i16(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_i16(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Short
-external fun ffi_prometheus_ffi_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_u32(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_u32(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Int
-external fun ffi_prometheus_ffi_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_i32(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_i32(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Int
-external fun ffi_prometheus_ffi_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_u64(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_u64(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Long
-external fun ffi_prometheus_ffi_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_i64(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_i64(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Long
-external fun ffi_prometheus_ffi_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_f32(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_f32(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Float
-external fun ffi_prometheus_ffi_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_f64(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_f64(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Double
-external fun ffi_prometheus_ffi_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_rust_buffer(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_rust_buffer(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): RustBuffer.ByValue
-external fun ffi_prometheus_ffi_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_cancel_void(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_free_void(`handle`: Long,
-): Unit
-external fun ffi_prometheus_ffi_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Unit
 
-    
+    internal fun ensureInitialized() = Unit
+    external fun uniffi_prometheus_ffi_fn_clone_enginehandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun uniffi_prometheus_ffi_fn_free_enginehandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_add_knowledge(`ptr`: Long,`source`: RustBuffer.ByValue,`content`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_add_working_memory(`ptr`: Long,`content`: RustBuffer.ByValue,`importance`: Double,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_anonymize_text(`ptr`: Long,`text`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_control_device(`ptr`: Long,`deviceId`: RustBuffer.ByValue,`command`: RustBuffer.ByValue,`params`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_delete_user_data(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_episodic_count(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_export_user_data(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_screen_context(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_setting(`ptr`: Long,`key`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_sync_status(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_working_memory(`ptr`: Long,`maxItems`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_is_paused(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_is_shutdown(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_knowledge_count(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_list_personas(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_pause(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_record_consent(`ptr`: Long,`purpose`: RustBuffer.ByValue,`granted`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_resume(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_scan_iot_devices(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_search_episodes(`ptr`: Long,`query`: RustBuffer.ByValue,`topK`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_search_knowledge(`ptr`: Long,`query`: RustBuffer.ByValue,`topK`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_send_message(`ptr`: Long,`message`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(`ptr`: Long,`model`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_set_setting(`ptr`: Long,`key`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_shutdown(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_switch_persona(`ptr`: Long,`personaId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_prometheus_ffi_fn_method_enginehandle_working_memory_count(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
+    external fun uniffi_prometheus_ffi_fn_clone_prometheusapi(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun uniffi_prometheus_ffi_fn_free_prometheusapi(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_prometheus_ffi_fn_constructor_prometheusapi_new(uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun ffi_prometheus_ffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun ffi_prometheus_ffi_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun ffi_prometheus_ffi_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun ffi_prometheus_ffi_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun ffi_prometheus_ffi_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_u8(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_u8(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
+    external fun ffi_prometheus_ffi_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_i8(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_i8(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun ffi_prometheus_ffi_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_u16(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_u16(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
+    external fun ffi_prometheus_ffi_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_i16(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_i16(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Short
+    external fun ffi_prometheus_ffi_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_u32(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_u32(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
+    external fun ffi_prometheus_ffi_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_i32(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_i32(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
+    external fun ffi_prometheus_ffi_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_u64(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_u64(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun ffi_prometheus_ffi_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_i64(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_i64(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun ffi_prometheus_ffi_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_f32(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_f32(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Float
+    external fun ffi_prometheus_ffi_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_f64(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_f64(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Double
+    external fun ffi_prometheus_ffi_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_rust_buffer(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_rust_buffer(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun ffi_prometheus_ffi_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_cancel_void(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_free_void(`handle`: Long,
+    ): Unit
+    external fun ffi_prometheus_ffi_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+
+        
 }
 
 private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
@@ -913,103 +954,103 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_add_knowledge() != 64143) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_add_knowledge() and 0xFFFF) != 64143) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_add_working_memory() != 8707) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_add_working_memory() and 0xFFFF) != 8707) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_anonymize_text() != 50993) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_anonymize_text() and 0xFFFF) != 50993) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_control_device() != 17125) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_control_device() and 0xFFFF) != 17125) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_delete_user_data() != 57840) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_delete_user_data() and 0xFFFF) != 57840) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_episodic_count() != 4418) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_episodic_count() and 0xFFFF) != 4418) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_export_user_data() != 45739) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_export_user_data() and 0xFFFF) != 45739) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_active_model() != 29579) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_active_model() and 0xFFFF) != 29579) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_conversation() != 6161) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_conversation() and 0xFFFF) != 6161) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_screen_context() != 64173) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_screen_context() and 0xFFFF) != 64173) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_setting() != 6684) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_setting() and 0xFFFF) != 6684) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_sync_status() != 63215) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_sync_status() and 0xFFFF) != 63215) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_working_memory() != 26466) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_working_memory() and 0xFFFF) != 47105) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_is_paused() != 29685) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_is_paused() and 0xFFFF) != 29685) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_is_shutdown() != 18815) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_is_shutdown() and 0xFFFF) != 18815) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_knowledge_count() != 52806) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_knowledge_count() and 0xFFFF) != 52806) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_list_personas() != 53143) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_list_personas() and 0xFFFF) != 52879) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_pause() != 23441) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_pause() and 0xFFFF) != 23441) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_record_consent() != 12384) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_record_consent() and 0xFFFF) != 12384) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_resume() != 17141) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_resume() and 0xFFFF) != 17141) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_scan_iot_devices() != 16542) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_scan_iot_devices() and 0xFFFF) != 51504) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_search_episodes() != 31545) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_search_episodes() and 0xFFFF) != 47033) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_search_knowledge() != 33639) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_search_knowledge() and 0xFFFF) != 34741) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_send_message() != 7162) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_send_message() and 0xFFFF) != 7162) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_set_active_model() != 35213) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_set_active_model() and 0xFFFF) != 35213) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_set_setting() != 55326) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_set_setting() and 0xFFFF) != 55326) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_shutdown() != 8067) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_shutdown() and 0xFFFF) != 8067) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_switch_persona() != 14185) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_switch_persona() and 0xFFFF) != 14185) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_working_memory_count() != 36021) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_enginehandle_working_memory_count() and 0xFFFF) != 36021) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_create_engine() != 51206) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_create_engine() and 0xFFFF) != 51206) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_list_model_info() != 44575) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_list_model_info() and 0xFFFF) != 64389) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_list_models() != 60933) {
+    if ((lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_list_models() and 0xFFFF) != 61660) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_constructor_prometheusapi_new() != 62426) {
+    if ((lib.uniffi_prometheus_ffi_checksum_constructor_prometheusapi_new() and 0xFFFF) != 62426) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1018,10 +1059,10 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
  * @suppress
  */
 public fun uniffiEnsureInitialized() {
-    IntegrityCheckingUniffiLib
-    // UniffiLib() initialized as objects are used, but we still need to explicitly
-    // reference it so initialization across crates works as expected.
-    UniffiLib
+    // Call arbitrary methods on IntegrityCheckingUniffiLib and UniffiLib to ensure that
+    // their init blocks run. This ensures initialization across crates works as expected.
+    IntegrityCheckingUniffiLib.ensureInitialized()
+    UniffiLib.ensureInitialized()
 }
 
 // Async support
@@ -1531,6 +1572,11 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     private val wasDestroyed = AtomicBoolean(false)
     private val callCounter = AtomicLong(1)
 
+    /**
+     * Whether the current object has been destroyed and its reference is gone in the Rust side.
+     */
+    val uniffiIsDestroyed: Boolean get() = wasDestroyed.get()
+
     override fun destroy() {
         // Only allow a single call to this method.
         // TODO: maybe we should log a warning if called more than once?
@@ -1602,7 +1648,9 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_add_knowledge(
         it,
-        FfiConverterString.lower(`source`),FfiConverterString.lower(`content`),_status)
+        
+        FfiConverterString.lower(`source`),
+        FfiConverterString.lower(`content`),_status)
 }
     }
     )
@@ -1615,7 +1663,9 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_add_working_memory(
         it,
-        FfiConverterString.lower(`content`),FfiConverterDouble.lower(`importance`),_status)
+        
+        FfiConverterString.lower(`content`),
+        FfiConverterDouble.lower(`importance`),_status)
 }
     }
     )
@@ -1628,6 +1678,7 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_anonymize_text(
         it,
+        
         FfiConverterString.lower(`text`),_status)
 }
     }
@@ -1641,7 +1692,10 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_control_device(
         it,
-        FfiConverterString.lower(`deviceId`),FfiConverterString.lower(`command`),FfiConverterString.lower(`params`),_status)
+        
+        FfiConverterString.lower(`deviceId`),
+        FfiConverterString.lower(`command`),
+        FfiConverterString.lower(`params`),_status)
 }
     }
     )
@@ -1732,6 +1786,7 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_get_setting(
         it,
+        
         FfiConverterString.lower(`key`),_status)
 }
     }
@@ -1758,6 +1813,7 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_get_working_memory(
         it,
+        
         FfiConverterUInt.lower(`maxItems`),_status)
 }
     }
@@ -1836,7 +1892,9 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_record_consent(
         it,
-        FfiConverterString.lower(`purpose`),FfiConverterBoolean.lower(`granted`),_status)
+        
+        FfiConverterString.lower(`purpose`),
+        FfiConverterBoolean.lower(`granted`),_status)
 }
     }
     )
@@ -1875,7 +1933,9 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_search_episodes(
         it,
-        FfiConverterString.lower(`query`),FfiConverterUInt.lower(`topK`),_status)
+        
+        FfiConverterString.lower(`query`),
+        FfiConverterUInt.lower(`topK`),_status)
 }
     }
     )
@@ -1888,7 +1948,9 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_search_knowledge(
         it,
-        FfiConverterString.lower(`query`),FfiConverterUInt.lower(`topK`),_status)
+        
+        FfiConverterString.lower(`query`),
+        FfiConverterUInt.lower(`topK`),_status)
 }
     }
     )
@@ -1901,6 +1963,7 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_send_message(
         it,
+        
         FfiConverterString.lower(`message`),_status)
 }
     }
@@ -1914,6 +1977,7 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(
         it,
+        
         FfiConverterString.lower(`model`),_status)
 }
     }
@@ -1927,7 +1991,9 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_set_setting(
         it,
-        FfiConverterString.lower(`key`),FfiConverterString.lower(`value`),_status)
+        
+        FfiConverterString.lower(`key`),
+        FfiConverterString.lower(`value`),_status)
 }
     }
     )
@@ -1953,6 +2019,7 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_switch_persona(
         it,
+        
         FfiConverterString.lower(`personaId`),_status)
 }
     }
@@ -2156,6 +2223,11 @@ open class PrometheusApi: Disposable, AutoCloseable, PrometheusApiInterface
 
     private val wasDestroyed = AtomicBoolean(false)
     private val callCounter = AtomicLong(1)
+
+    /**
+     * Whether the current object has been destroyed and its reference is gone in the Rust side.
+     */
+    val uniffiIsDestroyed: Boolean get() = wasDestroyed.get()
 
     override fun destroy() {
         // Only allow a single call to this method.

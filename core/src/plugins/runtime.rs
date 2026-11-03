@@ -3,7 +3,7 @@
 //! 封装 wasmi，提供 WASM 模块的加载和执行能力。
 
 use std::path::Path;
-use wasmi::{Engine, Linker, Module, Store};
+use wasmi::{Config, Engine, Linker, Module, Store};
 
 /// WASM 运行时
 pub struct WasmRuntime {
@@ -13,12 +13,19 @@ pub struct WasmRuntime {
 impl WasmRuntime {
     /// 创建 WASM 运行时
     pub fn new() -> anyhow::Result<Self> {
-        let engine = Engine::default();
+        let mut config = Config::default();
+        // wasmi 2 默认启用 memory64，保持旧插件的 32 位内存模型。
+        config.wasm_memory64(false);
+        let engine = Engine::new(&config);
         Ok(Self { engine })
     }
 
     /// 从字节码加载 WASM 模块
     pub fn load_module_from_bytes(&self, bytes: &[u8]) -> anyhow::Result<WasmModule> {
+        // wasmi 2 也默认接受 WAT；此接口继续仅加载 WASM 二进制。
+        if !bytes.starts_with(b"\0asm") {
+            anyhow::bail!("无效的 WASM 二进制模块");
+        }
         let module = Module::new(&self.engine, bytes)?;
         Ok(WasmModule {
             module,
@@ -54,9 +61,7 @@ impl WasmModule {
     pub fn call(&self, function: &str, args: &[WasmValue]) -> anyhow::Result<WasmValue> {
         let mut store = Store::new(&self.engine, ());
         let linker = Linker::<()>::new(&self.engine);
-        let instance = linker
-            .instantiate(&mut store, &self.module)?
-            .start(&mut store)?;
+        let instance = linker.instantiate_and_start(&mut store, &self.module)?;
 
         let func = instance
             .get_func(&store, function)
@@ -110,6 +115,13 @@ impl WasmValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn module_from_wat(runtime: &WasmRuntime, wat: &str) -> WasmModule {
+        WasmModule {
+            module: Module::new(&runtime.engine, wat).unwrap(),
+            engine: runtime.engine.clone(),
+        }
+    }
 
     // WAT: (module (func (export "add") (param i32 i32) (result i32) local.get 0 local.get 1 i32.add))
     const ADD_WASM: &[u8] = &[
@@ -174,5 +186,129 @@ mod tests {
             .call(&module, "add", &[WasmValue::I32(-5), WasmValue::I32(3)])
             .unwrap();
         assert_eq!(result, WasmValue::I32(-2));
+    }
+
+    #[test]
+    fn binary_loader_rejects_wat_text() {
+        let runtime = WasmRuntime::new().unwrap();
+        assert!(runtime.load_module_from_bytes(b"(module)").is_err());
+    }
+
+    #[test]
+    fn binary_loader_keeps_memory64_disabled() {
+        // (module (memory i64 0))
+        let memory64 = b"\0asm\x01\0\0\0\x05\x03\x01\x04\0";
+        assert!(Module::new(&Engine::default(), memory64).is_ok());
+        let runtime = WasmRuntime::new().unwrap();
+        assert!(runtime.load_module_from_bytes(memory64).is_err());
+    }
+
+    #[test]
+    fn start_runs_for_each_fresh_instance() {
+        let runtime = WasmRuntime::new().unwrap();
+        let module = module_from_wat(
+            &runtime,
+            r#"(module
+                (global $counter (mut i32) (i32.const 0))
+                (func $initialize
+                    i32.const 40
+                    global.set $counter)
+                (start $initialize)
+                (func (export "next") (result i32)
+                    global.get $counter
+                    i32.const 1
+                    i32.add
+                    global.set $counter
+                    global.get $counter))"#,
+        );
+        for _ in 0..2 {
+            assert_eq!(
+                runtime.call(&module, "next", &[]).unwrap(),
+                WasmValue::I32(41)
+            );
+        }
+    }
+
+    #[test]
+    fn trapping_start_returns_an_error() {
+        let runtime = WasmRuntime::new().unwrap();
+        let module = module_from_wat(
+            &runtime,
+            r#"(module
+                (func $initialize unreachable)
+                (start $initialize)
+                (func (export "entry") (result i32) i32.const 1))"#,
+        );
+        assert!(runtime.call(&module, "entry", &[]).is_err());
+    }
+
+    #[test]
+    fn guest_memory_bounds_still_trap() {
+        let runtime = WasmRuntime::new().unwrap();
+        let module = module_from_wat(
+            &runtime,
+            r#"(module
+                (memory 1 1)
+                (func (export "load") (param i32) (result i32)
+                    local.get 0
+                    i32.load))"#,
+        );
+        assert_eq!(
+            runtime
+                .call(&module, "load", &[WasmValue::I32(65532)])
+                .unwrap(),
+            WasmValue::I32(0)
+        );
+        assert!(runtime
+            .call(&module, "load", &[WasmValue::I32(65533)])
+            .is_err());
+        assert!(runtime
+            .call(&module, "load", &[WasmValue::I32(-1)])
+            .is_err());
+    }
+
+    #[test]
+    fn numeric_abi_and_first_result_are_preserved() {
+        let runtime = WasmRuntime::new().unwrap();
+        let module = module_from_wat(
+            &runtime,
+            r#"(module
+                (func (export "float32") (param f32) (result f32) local.get 0)
+                (func (export "float64") (param f64) (result f64) local.get 0)
+                (func (export "pair") (param i64) (result i64 i32) local.get 0 i32.const 7)
+                (func (export "nothing")))"#,
+        );
+        assert_eq!(
+            runtime
+                .call(&module, "float32", &[WasmValue::F32(1.25)])
+                .unwrap(),
+            WasmValue::F32(1.25)
+        );
+        assert_eq!(
+            runtime
+                .call(&module, "float64", &[WasmValue::F64(-2.5)])
+                .unwrap(),
+            WasmValue::F64(-2.5)
+        );
+        assert_eq!(
+            runtime
+                .call(&module, "pair", &[WasmValue::I64(i64::MAX)])
+                .unwrap(),
+            WasmValue::I64(i64::MAX)
+        );
+        assert_eq!(
+            runtime.call(&module, "nothing", &[]).unwrap(),
+            WasmValue::I32(0)
+        );
+    }
+
+    #[test]
+    fn incorrect_argument_count_and_types_return_errors() {
+        let runtime = WasmRuntime::new().unwrap();
+        let module = runtime.load_module_from_bytes(ADD_WASM).unwrap();
+        assert!(runtime.call(&module, "add", &[]).is_err());
+        assert!(runtime
+            .call(&module, "add", &[WasmValue::F32(1.0), WasmValue::I32(2)])
+            .is_err());
     }
 }

@@ -169,6 +169,14 @@ mod tests {
         }
     }
 
+    #[test]
+    fn request_preserves_standard_base64_alphabet_and_padding() {
+        let mut snapshot = test_snapshot();
+        snapshot.data = vec![0xfb, 0xff];
+        let request = HttpOcrEngine::build_request(&snapshot);
+        assert_eq!(request.image_base64, "+/8=");
+    }
+
     #[tokio::test]
     async fn recognize_parses_response() {
         let server = MockServer::start();

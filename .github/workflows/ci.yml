@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.99.1
@@ -55,27 +55,27 @@ jobs:
       - name: Generate Swift and Kotlin bindings with the locked UniFFI version
         run: bash scripts/generate-bindings.sh "$RUNNER_TEMP/uniffi-bindings"
       - name: Save generated bindings for verification
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: uniffi-bindings-${{ github.sha }}
           path: ${{ runner.temp }}/uniffi-bindings
           if-no-files-found: error
           retention-days: 7
-      - name: Verify checked-in Swift and Kotlin bindings
-        run: diff -ru ffi/generated "$RUNNER_TEMP/uniffi-bindings"
       - run: cargo check --workspace --all-targets --keep-going --locked
       - run: cargo clippy --workspace --all-targets --keep-going --locked --features prometheus-core/audio-capture -- -D warnings
       - run: cargo test --workspace --all-targets --locked
       - name: Test audio configuration without hardware
         run: cargo test -p prometheus-core --lib --features audio-capture --locked ambient::cpal_audio
       - run: cargo test --workspace --doc --locked
+      - name: Verify checked-in Swift and Kotlin bindings
+        run: diff -ru ffi/generated "$RUNNER_TEMP/uniffi-bindings"
 
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.99.1
@@ -91,7 +91,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.99.1

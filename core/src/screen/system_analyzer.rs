@@ -253,6 +253,18 @@ mod tests {
         }
     }
 
+    #[test]
+    fn request_preserves_standard_base64_alphabet_and_padding() {
+        let analyzer = HttpScreenAnalyzer::new(HttpAnalyzerConfig {
+            base_url: "http://127.0.0.1".into(),
+            api_key: "test-key".into(),
+        });
+        let mut snapshot = test_snapshot();
+        snapshot.data = vec![0xfb, 0xff];
+        let request = analyzer.build_request(&snapshot, "extract_text");
+        assert_eq!(request.image_base64, "+/8=");
+    }
+
     #[tokio::test]
     async fn detect_elements_parses_response() {
         let server = MockServer::start();

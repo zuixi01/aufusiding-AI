@@ -161,16 +161,16 @@ impl TokenVault {
 
     /// 导出加密快照（AES-256-GCM）
     pub fn export_encrypted(&self) -> Vec<u8> {
-        use aes_gcm::aead::Aead;
-        use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
+        use aes_gcm::aead::{Aead, Nonce};
+        use aes_gcm::{Aes256Gcm, KeyInit};
         let cipher = Aes256Gcm::new_from_slice(&self.cipher_key).expect("invalid key");
         let mut nonce_bytes = [0u8; 12];
         ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut nonce_bytes)
             .expect("failed to generate nonce");
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::<Aes256Gcm>::from(nonce_bytes);
         let data = serde_json::to_vec(&self.forward).unwrap_or_default();
         let encrypted = cipher
-            .encrypt(nonce, data.as_ref())
+            .encrypt(&nonce, data.as_ref())
             .expect("encryption failed");
         let mut output = nonce_bytes.to_vec();
         output.extend(encrypted);
@@ -218,6 +218,27 @@ mod tests {
             text: text.to_string(),
             confidence: 0.95,
         }
+    }
+
+    #[test]
+    fn encrypted_export_preserves_nonce_and_postfix_tag_format() {
+        use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
+
+        let mut vault = TokenVault::new();
+        vault.tokenize(&make_entity("张三", PiiType::ChineseName));
+        let exported = vault.export_encrypted();
+        let serialized = serde_json::to_vec(&vault.forward).unwrap();
+        assert_eq!(exported.len(), 12 + serialized.len() + 16);
+
+        // Independent AES-GCM consumer verifies the existing 12-byte prefix and 16-byte tag.
+        let key = LessSafeKey::new(UnboundKey::new(&AES_256_GCM, &vault.cipher_key).unwrap());
+        let nonce = Nonce::try_assume_unique_for_key(&exported[..12]).unwrap();
+        let mut ciphertext = exported[12..].to_vec();
+        let plaintext = key
+            .open_in_place(nonce, Aad::empty(), &mut ciphertext)
+            .unwrap();
+        let restored: HashMap<String, String> = serde_json::from_slice(plaintext).unwrap();
+        assert_eq!(restored, vault.forward);
     }
 
     #[test]
