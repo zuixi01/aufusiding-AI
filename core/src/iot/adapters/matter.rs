@@ -225,11 +225,7 @@ impl MatterAdapter {
     }
 
     /// PASE 配对 (PIN 码)
-    pub async fn commission_pase(
-        &mut self,
-        device_id: &str,
-        setup_pin: u32,
-    ) -> anyhow::Result<()> {
+    pub async fn commission_pase(&mut self, device_id: &str, setup_pin: u32) -> anyhow::Result<()> {
         if let Some(entry) = self.nodes.get_mut(device_id) {
             entry.state = CommissioningState::PaseInProgress;
         }
@@ -321,9 +317,18 @@ mod tests {
 
     #[test]
     fn device_type_from_id() {
-        assert_eq!(MatterDeviceType::from_id(0x0100), MatterDeviceType::OnOffLight);
-        assert_eq!(MatterDeviceType::from_id(0x0301), MatterDeviceType::Thermostat);
-        assert_eq!(MatterDeviceType::from_id(0xFFFF), MatterDeviceType::Unknown(0xFFFF));
+        assert_eq!(
+            MatterDeviceType::from_id(0x0100),
+            MatterDeviceType::OnOffLight
+        );
+        assert_eq!(
+            MatterDeviceType::from_id(0x0301),
+            MatterDeviceType::Thermostat
+        );
+        assert_eq!(
+            MatterDeviceType::from_id(0xFFFF),
+            MatterDeviceType::Unknown(0xFFFF)
+        );
     }
 
     #[test]
@@ -365,6 +370,9 @@ mod tests {
     fn matter_endpoint_url_format() {
         let adapter = MatterAdapter::new("http://matter.local:5540", 1);
         let url = adapter.endpoint("/node/100/endpoint/1/cluster/6/attribute/0");
-        assert_eq!(url, "http://matter.local:5540/node/100/endpoint/1/cluster/6/attribute/0");
+        assert_eq!(
+            url,
+            "http://matter.local:5540/node/100/endpoint/1/cluster/6/attribute/0"
+        );
     }
 }

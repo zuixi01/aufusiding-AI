@@ -35,7 +35,11 @@ impl FileIndexer {
         }
 
         let mut count = 0;
-        for entry in walkdir::WalkDir::new(path).max_depth(5).into_iter().flatten() {
+        for entry in walkdir::WalkDir::new(path)
+            .max_depth(5)
+            .into_iter()
+            .flatten()
+        {
             let metadata = entry.metadata()?;
             let file_path = entry.path().to_path_buf();
             let name = entry.file_name().to_string_lossy().to_string();

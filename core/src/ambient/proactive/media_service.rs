@@ -90,33 +90,54 @@ impl MediaProvider for MockMediaProvider {
     }
 
     async fn play(&self, _track: &TrackInfo, device_id: &str) -> anyhow::Result<()> {
-        self.positions.lock().map_err(|_| anyhow::anyhow!("positions lock poisoned"))?.insert(device_id.to_string(), 0);
-        self.statuses.lock().map_err(|_| anyhow::anyhow!("statuses lock poisoned"))?.insert(device_id.to_string(), PlaybackStatus::Playing);
+        self.positions
+            .lock()
+            .map_err(|_| anyhow::anyhow!("positions lock poisoned"))?
+            .insert(device_id.to_string(), 0);
+        self.statuses
+            .lock()
+            .map_err(|_| anyhow::anyhow!("statuses lock poisoned"))?
+            .insert(device_id.to_string(), PlaybackStatus::Playing);
         Ok(())
     }
 
     async fn pause(&self, device_id: &str) -> anyhow::Result<()> {
-        self.statuses.lock().map_err(|_| anyhow::anyhow!("statuses lock poisoned"))?.insert(device_id.to_string(), PlaybackStatus::Paused);
+        self.statuses
+            .lock()
+            .map_err(|_| anyhow::anyhow!("statuses lock poisoned"))?
+            .insert(device_id.to_string(), PlaybackStatus::Paused);
         Ok(())
     }
 
     async fn resume(&self, device_id: &str) -> anyhow::Result<()> {
-        self.statuses.lock().map_err(|_| anyhow::anyhow!("statuses lock poisoned"))?.insert(device_id.to_string(), PlaybackStatus::Playing);
+        self.statuses
+            .lock()
+            .map_err(|_| anyhow::anyhow!("statuses lock poisoned"))?
+            .insert(device_id.to_string(), PlaybackStatus::Playing);
         Ok(())
     }
 
     async fn stop(&self, device_id: &str) -> anyhow::Result<()> {
-        self.statuses.lock().map_err(|_| anyhow::anyhow!("statuses lock poisoned"))?.insert(device_id.to_string(), PlaybackStatus::Stopped);
+        self.statuses
+            .lock()
+            .map_err(|_| anyhow::anyhow!("statuses lock poisoned"))?
+            .insert(device_id.to_string(), PlaybackStatus::Stopped);
         Ok(())
     }
 
     async fn seek(&self, device_id: &str, position_secs: u64) -> anyhow::Result<()> {
-        self.positions.lock().map_err(|_| anyhow::anyhow!("positions lock poisoned"))?.insert(device_id.to_string(), position_secs);
+        self.positions
+            .lock()
+            .map_err(|_| anyhow::anyhow!("positions lock poisoned"))?
+            .insert(device_id.to_string(), position_secs);
         Ok(())
     }
 
     async fn get_position(&self, device_id: &str) -> anyhow::Result<u64> {
-        let positions = self.positions.lock().map_err(|_| anyhow::anyhow!("positions lock poisoned"))?;
+        let positions = self
+            .positions
+            .lock()
+            .map_err(|_| anyhow::anyhow!("positions lock poisoned"))?;
         Ok(*positions.get(device_id).unwrap_or(&0))
     }
 
@@ -153,7 +174,9 @@ impl MediaService {
         track: TrackInfo,
         device_id: &str,
     ) -> anyhow::Result<Uuid> {
-        let provider = self.providers.get(provider_name)
+        let provider = self
+            .providers
+            .get(provider_name)
             .ok_or_else(|| anyhow::anyhow!("unknown provider: {}", provider_name))?;
         provider.play(&track, device_id).await?;
 
@@ -166,7 +189,10 @@ impl MediaService {
             device_id: device_id.to_string(),
             updated_at: Utc::now(),
         };
-        self.active_sessions.lock().map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?.insert(session_id, state);
+        self.active_sessions
+            .lock()
+            .map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?
+            .insert(session_id, state);
         Ok(session_id)
     }
 
@@ -175,7 +201,10 @@ impl MediaService {
         if let Some(provider) = self.providers.get(&provider_name) {
             provider.pause(&device_id).await?;
         }
-        let mut sessions = self.active_sessions.lock().map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
+        let mut sessions = self
+            .active_sessions
+            .lock()
+            .map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
         if let Some(s) = sessions.get_mut(session_id) {
             s.status = PlaybackStatus::Paused;
             s.updated_at = Utc::now();
@@ -188,7 +217,10 @@ impl MediaService {
         if let Some(provider) = self.providers.get(&provider_name) {
             provider.resume(&device_id).await?;
         }
-        let mut sessions = self.active_sessions.lock().map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
+        let mut sessions = self
+            .active_sessions
+            .lock()
+            .map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
         if let Some(s) = sessions.get_mut(session_id) {
             s.status = PlaybackStatus::Playing;
             s.updated_at = Utc::now();
@@ -202,9 +234,15 @@ impl MediaService {
             provider.stop(&device_id).await?;
         }
         // save position before removing
-        let mut sessions = self.active_sessions.lock().map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
+        let mut sessions = self
+            .active_sessions
+            .lock()
+            .map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
         if let Some(s) = sessions.remove(session_id) {
-            let mut saved = self.saved_positions.lock().map_err(|_| anyhow::anyhow!("saved_positions lock poisoned"))?;
+            let mut saved = self
+                .saved_positions
+                .lock()
+                .map_err(|_| anyhow::anyhow!("saved_positions lock poisoned"))?;
             saved.insert(s.track.title.clone(), s.position_secs);
         }
         Ok(())
@@ -215,7 +253,10 @@ impl MediaService {
         if let Some(provider) = self.providers.get(&provider_name) {
             provider.seek(&device_id, position_secs).await?;
         }
-        let mut sessions = self.active_sessions.lock().map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
+        let mut sessions = self
+            .active_sessions
+            .lock()
+            .map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
         if let Some(s) = sessions.get_mut(session_id) {
             s.position_secs = position_secs;
             s.updated_at = Utc::now();
@@ -230,7 +271,9 @@ impl MediaService {
         target_device: &str,
     ) -> anyhow::Result<()> {
         let (provider_name, old_device) = self.session_info(session_id)?;
-        let provider = self.providers.get(&provider_name)
+        let provider = self
+            .providers
+            .get(&provider_name)
             .ok_or_else(|| anyhow::anyhow!("unknown provider: {}", provider_name))?;
 
         // get current position
@@ -241,17 +284,25 @@ impl MediaService {
 
         // get track info
         let track = {
-            let sessions = self.active_sessions.lock().map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
-            sessions.get(session_id)
+            let sessions = self
+                .active_sessions
+                .lock()
+                .map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
+            sessions
+                .get(session_id)
                 .ok_or_else(|| anyhow::anyhow!("session not found: {}", session_id))?
-                .track.clone()
+                .track
+                .clone()
         };
 
         // play on new device
         provider.play(&track, target_device).await?;
         provider.seek(target_device, position).await?;
 
-        let mut sessions = self.active_sessions.lock().map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
+        let mut sessions = self
+            .active_sessions
+            .lock()
+            .map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
         if let Some(s) = sessions.get_mut(session_id) {
             s.device_id = target_device.to_string();
             s.position_secs = position;
@@ -262,21 +313,36 @@ impl MediaService {
     }
 
     pub fn get_saved_position(&self, track_title: &str) -> Option<u64> {
-        self.saved_positions.lock().unwrap_or_else(|e| e.into_inner()).get(track_title).copied()
+        self.saved_positions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(track_title)
+            .copied()
     }
 
     pub fn get_session(&self, session_id: &Uuid) -> Option<MediaState> {
-        self.active_sessions.lock().unwrap_or_else(|e| e.into_inner()).get(session_id).cloned()
+        self.active_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(session_id)
+            .cloned()
     }
 
     pub fn active_session_count(&self) -> usize {
-        self.active_sessions.lock().unwrap_or_else(|e| e.into_inner()).len()
+        self.active_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .len()
     }
 
     /// 语音摘要
     pub fn voice_summary(&self) -> String {
-        let sessions = self.active_sessions.lock().unwrap_or_else(|e| e.into_inner());
-        let playing: Vec<&MediaState> = sessions.values()
+        let sessions = self
+            .active_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let playing: Vec<&MediaState> = sessions
+            .values()
             .filter(|s| s.status == PlaybackStatus::Playing)
             .collect();
 
@@ -297,11 +363,18 @@ impl MediaService {
     }
 
     fn session_info(&self, session_id: &Uuid) -> anyhow::Result<(String, String)> {
-        let sessions = self.active_sessions.lock().map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
-        let state = sessions.get(session_id)
+        let sessions = self
+            .active_sessions
+            .lock()
+            .map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?;
+        let state = sessions
+            .get(session_id)
             .ok_or_else(|| anyhow::anyhow!("session not found: {}", session_id))?;
         // find which provider owns this - for simplicity use first provider
-        let provider_name = self.providers.keys().next()
+        let provider_name = self
+            .providers
+            .keys()
+            .next()
             .ok_or_else(|| anyhow::anyhow!("no providers registered"))?
             .clone();
         Ok((provider_name, state.device_id.clone()))
@@ -359,9 +432,15 @@ mod tests {
         let svc = setup();
         let sid = svc.play("mock", test_track(), "speaker-001").await.unwrap();
         svc.pause(&sid).await.unwrap();
-        assert_eq!(svc.get_session(&sid).unwrap().status, PlaybackStatus::Paused);
+        assert_eq!(
+            svc.get_session(&sid).unwrap().status,
+            PlaybackStatus::Paused
+        );
         svc.resume(&sid).await.unwrap();
-        assert_eq!(svc.get_session(&sid).unwrap().status, PlaybackStatus::Playing);
+        assert_eq!(
+            svc.get_session(&sid).unwrap().status,
+            PlaybackStatus::Playing
+        );
     }
 
     #[tokio::test]
@@ -397,14 +476,20 @@ mod tests {
     #[tokio::test]
     async fn transfer_unknown_session() {
         let svc = setup();
-        assert!(svc.transfer_to_device(&Uuid::new_v4(), "tv-001").await.is_err());
+        assert!(svc
+            .transfer_to_device(&Uuid::new_v4(), "tv-001")
+            .await
+            .is_err());
     }
 
     #[tokio::test]
     async fn multiple_concurrent_sessions() {
         let svc = setup();
         let s1 = svc.play("mock", test_track(), "speaker-001").await.unwrap();
-        let s2 = svc.play("mock", test_track2(), "speaker-002").await.unwrap();
+        let s2 = svc
+            .play("mock", test_track2(), "speaker-002")
+            .await
+            .unwrap();
         assert_eq!(svc.active_session_count(), 2);
         svc.stop(&s1).await.unwrap();
         assert_eq!(svc.active_session_count(), 1);

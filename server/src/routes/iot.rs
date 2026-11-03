@@ -141,42 +141,39 @@ pub async fn control_device(
     Json(req): Json<ControlRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     // 安全检查: 命令注入防护
-    CommandSanitizer::sanitize_device_id(&req.device_id)
-        .map_err(|e| {
-            state.audit_writer.send(SecurityEvent {
-                timestamp: chrono::Utc::now(),
-                event_type: SecurityEventType::CommandInjectionAttempt,
-                severity: Severity::High,
-                client_id: None,
-                details: serde_json::json!({"device_id": &req.device_id, "error": e.to_string()}),
-                action_taken: "blocked".into(),
-            });
-            ApiError::BadRequest("设备标识无效".into())
-        })?;
-    CommandSanitizer::sanitize_command(&req.command)
-        .map_err(|e| {
-            state.audit_writer.send(SecurityEvent {
-                timestamp: chrono::Utc::now(),
-                event_type: SecurityEventType::InvalidInput,
-                severity: Severity::Medium,
-                client_id: None,
-                details: serde_json::json!({"command": &req.command, "error": e.to_string()}),
-                action_taken: "blocked".into(),
-            });
-            ApiError::BadRequest("控制命令无效".into())
-        })?;
-    CommandSanitizer::sanitize_params(&req.params)
-        .map_err(|e| {
-            state.audit_writer.send(SecurityEvent {
-                timestamp: chrono::Utc::now(),
-                event_type: SecurityEventType::InvalidInput,
-                severity: Severity::Medium,
-                client_id: None,
-                details: serde_json::json!({"error": e.to_string()}),
-                action_taken: "blocked".into(),
-            });
-            ApiError::BadRequest("控制参数无效".into())
-        })?;
+    CommandSanitizer::sanitize_device_id(&req.device_id).map_err(|e| {
+        state.audit_writer.send(SecurityEvent {
+            timestamp: chrono::Utc::now(),
+            event_type: SecurityEventType::CommandInjectionAttempt,
+            severity: Severity::High,
+            client_id: None,
+            details: serde_json::json!({"device_id": &req.device_id, "error": e.to_string()}),
+            action_taken: "blocked".into(),
+        });
+        ApiError::BadRequest("设备标识无效".into())
+    })?;
+    CommandSanitizer::sanitize_command(&req.command).map_err(|e| {
+        state.audit_writer.send(SecurityEvent {
+            timestamp: chrono::Utc::now(),
+            event_type: SecurityEventType::InvalidInput,
+            severity: Severity::Medium,
+            client_id: None,
+            details: serde_json::json!({"command": &req.command, "error": e.to_string()}),
+            action_taken: "blocked".into(),
+        });
+        ApiError::BadRequest("控制命令无效".into())
+    })?;
+    CommandSanitizer::sanitize_params(&req.params).map_err(|e| {
+        state.audit_writer.send(SecurityEvent {
+            timestamp: chrono::Utc::now(),
+            event_type: SecurityEventType::InvalidInput,
+            severity: Severity::Medium,
+            client_id: None,
+            details: serde_json::json!({"error": e.to_string()}),
+            action_taken: "blocked".into(),
+        });
+        ApiError::BadRequest("控制参数无效".into())
+    })?;
 
     let controller = state.iot_controller.read().await;
     match controller

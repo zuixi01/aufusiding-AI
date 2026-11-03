@@ -155,15 +155,16 @@ impl GenericController {
         // 先尝试按 device_type 参数路由
         if let Some(device_type) = params.get("device_type").and_then(|v| v.as_str()) {
             if let Some(adapter) = self.find_adapter(device_type) {
-                return self
-                    .dispatch(adapter, device_id, command, &params)
-                    .await;
+                return self.dispatch(adapter, device_id, command, &params).await;
             }
         }
 
         // 回退：遍历所有适配器尝试执行
         for adapter in self.adapters.values() {
-            match self.dispatch(adapter.as_ref(), device_id, command, &params).await {
+            match self
+                .dispatch(adapter.as_ref(), device_id, command, &params)
+                .await
+            {
                 Ok(result) => return Ok(result),
                 Err(_) => continue,
             }

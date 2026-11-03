@@ -2,9 +2,11 @@
 //!
 //! 串联会话管理、历史存储、意图分类、路由决策与回复生成。
 
+use crate::agent::integration::{AgentOrchestrator, ComplexityAssessor, TaskRoute};
 use crate::inference::cache::PromptCache;
 use crate::memory::manager::MemoryManager;
 use crate::memory::profile::UserProfile;
+use crate::mind::integration::MindIntegration;
 use crate::persona::{Persona, PromptContextBuilder};
 use crate::privacy::consent::ConsentManager;
 use crate::providers::traits::{ChatMessage, ChatRequest, TokenUsage};
@@ -13,14 +15,12 @@ use crate::router::runtime::RoutingRuntime;
 use crate::router::steward::LocalSteward;
 use crate::router::strategy::{RouteDecision, RoutingConstraints};
 use crate::router::{IntentClassifier, RoutingStrategy};
+use crate::safety::classification::DataClassifier;
+use crate::safety::security_mode::{PolicyDecision, SecurityPolicyEnforcer};
 use crate::session::context::ContextCompressor;
 use crate::session::history::{HistoryStore, Message, Role};
 use crate::session::{Session, SessionManager};
 use crate::storage::UsageStore;
-use crate::agent::integration::{AgentOrchestrator, ComplexityAssessor, TaskRoute};
-use crate::safety::classification::DataClassifier;
-use crate::safety::security_mode::{PolicyDecision, SecurityPolicyEnforcer};
-use crate::mind::integration::MindIntegration;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -360,15 +360,16 @@ impl<B: ChatBackend> ChatOrchestrator<B> {
         };
         let classify_future = self.classifier.classify(input);
 
-        let (memory_context, classification_result) =
-            tokio::join!(memory_future, classify_future);
+        let (memory_context, classification_result) = tokio::join!(memory_future, classify_future);
         let classification = classification_result?;
 
         // Agent 集群路由：复杂任务走集群路径
         if let Some(ref agent_orch) = self.agent_orchestrator {
             let assessor = ComplexityAssessor::new();
-            if let TaskRoute::Complex { suggested_roles, reason } =
-                assessor.assess(&classification, input)
+            if let TaskRoute::Complex {
+                suggested_roles,
+                reason,
+            } = assessor.assess(&classification, input)
             {
                 let cluster_result = agent_orch
                     .execute(input, &suggested_roles)
@@ -448,7 +449,9 @@ impl<B: ChatBackend> ChatOrchestrator<B> {
                 PolicyDecision::ForceLocal(reason) => {
                     decision = crate::router::strategy::RouteDecision {
                         model: crate::router::ModelId::Qwen7B,
-                        target: crate::router::strategy::RouteTarget::Local("local-default".to_string()),
+                        target: crate::router::strategy::RouteTarget::Local(
+                            "local-default".to_string(),
+                        ),
                         reason: format!("安全策略强制本地: {}", reason),
                         quality_score: decision.quality_score,
                         estimated_cost: 0.0,
@@ -545,10 +548,7 @@ impl<B: ChatBackend> ChatOrchestrator<B> {
 
         // 认知集成层：PBRIC 循环 + 好奇心 + 经济皮层 + 进化追踪
         let mind_result = if let Some(ref mut mind) = self.mind {
-            let model_id = backend_reply
-                .model
-                .as_deref()
-                .unwrap_or("unknown");
+            let model_id = backend_reply.model.as_deref().unwrap_or("unknown");
             let cost = backend_reply
                 .token_usage
                 .as_ref()
@@ -1409,7 +1409,10 @@ mod tests {
         let mm = MemoryManager::new(&dir).unwrap();
         orchestrator.set_memory_manager(mm);
 
-        let session = orchestrator.create_session(Some("async-post")).await.unwrap();
+        let session = orchestrator
+            .create_session(Some("async-post"))
+            .await
+            .unwrap();
         let turn = orchestrator
             .send_message(session.id, "我在学习 Rust 语言")
             .await
@@ -1434,11 +1437,17 @@ mod tests {
 
         let session = orchestrator.create_session(Some("cache")).await.unwrap();
         // 第一次调用：缓存 miss，走 backend
-        let turn1 = orchestrator.send_message(session.id, "hello").await.unwrap();
+        let turn1 = orchestrator
+            .send_message(session.id, "hello")
+            .await
+            .unwrap();
         assert!(!turn1.route_attempts.iter().any(|a| a.contains("cache:hit")));
 
         // 第二次相同输入：缓存命中
-        let turn2 = orchestrator.send_message(session.id, "hello").await.unwrap();
+        let turn2 = orchestrator
+            .send_message(session.id, "hello")
+            .await
+            .unwrap();
         assert!(turn2.route_attempts.iter().any(|a| a.contains("cache:hit")));
         assert!(turn2.route_reason.contains("缓存命中"));
     }

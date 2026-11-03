@@ -42,9 +42,8 @@ impl SuggestionAnnouncer {
     pub fn should_announce(&mut self, suggestion: &ProactiveSuggestion) -> bool {
         let now = Utc::now();
         // 清理过期记录
-        self.recent.retain(|(_, ts)| {
-            (now - *ts).num_seconds() < self.cooldown_secs as i64
-        });
+        self.recent
+            .retain(|(_, ts)| (now - *ts).num_seconds() < self.cooldown_secs as i64);
         // 检查是否在冷却期内
         let key = &suggestion.description;
         if self.recent.iter().any(|(k, _)| k == key) {
@@ -68,8 +67,8 @@ impl SuggestionAnnouncer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iot::semantic::proactive::{ProactiveSuggestion, SuggestionCategory};
     use crate::iot::scenes::SceneAction;
+    use crate::iot::semantic::proactive::{ProactiveSuggestion, SuggestionCategory};
 
     fn make_suggestion(desc: &str, confidence: f64) -> ProactiveSuggestion {
         ProactiveSuggestion {

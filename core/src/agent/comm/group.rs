@@ -63,7 +63,8 @@ impl GroupManager {
         if !groups.contains_key(group_id) {
             return Err(GroupError::NotFound(group_id.to_string()));
         }
-        let envelope = AgentEnvelope::new(from, MessageTarget::Group(group_id.to_string()), payload);
+        let envelope =
+            AgentEnvelope::new(from, MessageTarget::Group(group_id.to_string()), payload);
         self.bus.send(envelope).await;
         Ok(())
     }

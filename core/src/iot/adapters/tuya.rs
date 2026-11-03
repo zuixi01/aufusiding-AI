@@ -223,11 +223,7 @@ impl TuyaAdapter {
         let message = format!("{}{}{}{}{}", client_id, access_token, t, nonce, sts);
         let key = hmac::Key::new(hmac::HMAC_SHA256, client_secret.as_bytes());
         let tag = hmac::sign(&key, message.as_bytes());
-        let sign: String = tag
-            .as_ref()
-            .iter()
-            .map(|b| format!("{:02X}", b))
-            .collect();
+        let sign: String = tag.as_ref().iter().map(|b| format!("{:02X}", b)).collect();
 
         vec![
             ("client_id", client_id.to_string()),
@@ -279,10 +275,7 @@ impl TuyaAdapter {
     }
 
     /// Get the status data-points for a device.
-    pub async fn get_device_status(
-        &self,
-        device_id: &str,
-    ) -> anyhow::Result<Vec<TuyaStatus>> {
+    pub async fn get_device_status(&self, device_id: &str) -> anyhow::Result<Vec<TuyaStatus>> {
         let token = self.ensure_token().await?;
         let path = format!("/v1.0/devices/{}/status", device_id);
         let url = self.endpoint(&path);
@@ -308,11 +301,7 @@ impl TuyaAdapter {
         }
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!(
-                "get_device_status failed ({}): {}",
-                status.as_u16(),
-                body
-            );
+            anyhow::bail!("get_device_status failed ({}): {}", status.as_u16(), body);
         }
 
         let parsed: TuyaResponse<Vec<TuyaStatus>> = resp.json().await?;
@@ -326,11 +315,7 @@ impl TuyaAdapter {
     }
 
     /// Send commands to a device.
-    pub async fn send_command(
-        &self,
-        device_id: &str,
-        commands: Vec<Value>,
-    ) -> anyhow::Result<()> {
+    pub async fn send_command(&self, device_id: &str, commands: Vec<Value>) -> anyhow::Result<()> {
         let token = self.ensure_token().await?;
         let path = format!("/v1.0/devices/{}/commands", device_id);
         let url = self.endpoint(&path);
@@ -360,11 +345,7 @@ impl TuyaAdapter {
         }
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!(
-                "send_command failed ({}): {}",
-                status.as_u16(),
-                body
-            );
+            anyhow::bail!("send_command failed ({}): {}", status.as_u16(), body);
         }
 
         let parsed: TuyaResponse<bool> = resp.json().await?;
@@ -385,19 +366,13 @@ impl TuyaAdapter {
 #[async_trait]
 impl DeviceController for TuyaAdapter {
     async fn turn_on(&self, device_id: &str) -> anyhow::Result<()> {
-        self.send_command(
-            device_id,
-            vec![json!({"code": "switch", "value": true})],
-        )
-        .await
+        self.send_command(device_id, vec![json!({"code": "switch", "value": true})])
+            .await
     }
 
     async fn turn_off(&self, device_id: &str) -> anyhow::Result<()> {
-        self.send_command(
-            device_id,
-            vec![json!({"code": "switch", "value": false})],
-        )
-        .await
+        self.send_command(device_id, vec![json!({"code": "switch", "value": false})])
+            .await
     }
 
     async fn set_property(
@@ -406,11 +381,8 @@ impl DeviceController for TuyaAdapter {
         property: &str,
         value: Value,
     ) -> anyhow::Result<()> {
-        self.send_command(
-            device_id,
-            vec![json!({"code": property, "value": value})],
-        )
-        .await
+        self.send_command(device_id, vec![json!({"code": property, "value": value})])
+            .await
     }
 
     async fn get_state(&self, device_id: &str) -> anyhow::Result<Value> {
@@ -522,12 +494,16 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path("/v1.0/token");
-            then.status(200).json_body(failure_body("invalid client_id"));
+            then.status(200)
+                .json_body(failure_body("invalid client_id"));
         });
         let adapter = TuyaAdapter::new(test_config()).with_base_url(&server.base_url());
         let result = adapter.get_token().await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("invalid client_id"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("invalid client_id"));
     }
 
     // 4. list_devices sends GET with auth headers
@@ -642,8 +618,7 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(POST).path("/v1.0/devices/dev001/commands");
-            then.status(200)
-                .json_body(failure_body("device offline"));
+            then.status(200).json_body(failure_body("device offline"));
         });
         let adapter = setup(&server);
         let result = adapter
@@ -737,17 +712,15 @@ mod tests {
         let message = format!("{}{}{}{}", client_id, t, nonce, sts);
         let key = hmac::Key::new(hmac::HMAC_SHA256, client_secret.as_bytes());
         let tag = hmac::sign(&key, message.as_bytes());
-        let expected: String = tag
-            .as_ref()
-            .iter()
-            .map(|b| format!("{:02X}", b))
-            .collect();
+        let expected: String = tag.as_ref().iter().map(|b| format!("{:02X}", b)).collect();
 
         assert_eq!(sig, expected);
         // Signature should be 64 hex chars (32 bytes)
         assert_eq!(sig.len(), 64);
         // All uppercase hex
-        assert!(sig.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_lowercase()));
+        assert!(sig
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_lowercase()));
     }
 
     // 16. sign_request with empty body
@@ -780,16 +753,12 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path("/v1.0/devices/nonexistent/status");
-            then.status(200)
-                .json_body(failure_body("device not found"));
+            then.status(200).json_body(failure_body("device not found"));
         });
         let adapter = setup(&server);
         let result = adapter.get_device_status("nonexistent").await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("device not found"));
+        assert!(result.unwrap_err().to_string().contains("device not found"));
     }
 
     // 19. supported_type returns "SmartHome"
@@ -805,16 +774,12 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(POST).path("/v1.0/devices/ghost/commands");
-            then.status(200)
-                .json_body(failure_body("device not found"));
+            then.status(200).json_body(failure_body("device not found"));
         });
         let adapter = setup(&server);
         let result = adapter.turn_on("ghost").await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("device not found"));
+        assert!(result.unwrap_err().to_string().contains("device not found"));
     }
 
     // 20b. turn_off for unknown device (API error) propagates error
@@ -823,31 +788,25 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(POST).path("/v1.0/devices/ghost/commands");
-            then.status(200)
-                .json_body(failure_body("device not found"));
+            then.status(200).json_body(failure_body("device not found"));
         });
         let adapter = setup(&server);
         let result = adapter.turn_off("ghost").await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("device not found"));
+        assert!(result.unwrap_err().to_string().contains("device not found"));
     }
 
     // Bonus: with_base_url trims trailing slash
     #[test]
     fn with_base_url_trims_trailing_slash() {
-        let adapter =
-            TuyaAdapter::new(test_config()).with_base_url("http://localhost:1234/");
+        let adapter = TuyaAdapter::new(test_config()).with_base_url("http://localhost:1234/");
         assert_eq!(adapter.base_url, "http://localhost:1234");
     }
 
     // Bonus: endpoint builds correct URL
     #[test]
     fn endpoint_builds_correct_url() {
-        let adapter =
-            TuyaAdapter::new(test_config()).with_base_url("http://localhost:5555");
+        let adapter = TuyaAdapter::new(test_config()).with_base_url("http://localhost:5555");
         let url = adapter.endpoint("/v1.0/devices/dev001/status");
         assert_eq!(url, "http://localhost:5555/v1.0/devices/dev001/status");
     }

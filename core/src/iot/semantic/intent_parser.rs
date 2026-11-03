@@ -67,34 +67,71 @@ impl DeviceIntentParser {
     /// 创建解析器，初始化所有关键字表
     pub fn new() -> Self {
         let action_on = vec![
-            "打开", "开启", "启动", "开始", "锁门", "开",
-            "turn on", "open", "start", "switch on",
-        ].into_iter().map(String::from).collect();
+            "打开",
+            "开启",
+            "启动",
+            "开始",
+            "锁门",
+            "开",
+            "turn on",
+            "open",
+            "start",
+            "switch on",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
 
         let action_off = vec![
-            "关闭", "关掉", "停止", "关",
-            "turn off", "close", "stop", "switch off", "shut",
-        ].into_iter().map(String::from).collect();
+            "关闭",
+            "关掉",
+            "停止",
+            "关",
+            "turn off",
+            "close",
+            "stop",
+            "switch off",
+            "shut",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
 
         let action_increase = vec![
-            "调高", "调亮", "增大", "加大", "升高", "提高",
-            "increase", "raise", "up", "louder", "brighter", "warmer",
-        ].into_iter().map(String::from).collect();
+            "调高", "调亮", "增大", "加大", "升高", "提高", "increase", "raise", "up", "louder",
+            "brighter", "warmer",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
 
         let action_decrease = vec![
-            "调低", "调暗", "减小", "降低", "减少",
-            "decrease", "lower", "down", "quieter", "dimmer", "cooler",
-        ].into_iter().map(String::from).collect();
+            "调低", "调暗", "减小", "降低", "减少", "decrease", "lower", "down", "quieter",
+            "dimmer", "cooler",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
 
         let action_set = vec![
-            "设置", "设为", "调到", "调整到",
-            "set to", "set", "change to",
-        ].into_iter().map(String::from).collect();
+            "设置",
+            "设为",
+            "调到",
+            "调整到",
+            "set to",
+            "set",
+            "change to",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
 
         let action_query = vec![
-            "查看", "查询", "状态", "多少", "什么",
-            "how", "what", "status", "check",
-        ].into_iter().map(String::from).collect();
+            "查看", "查询", "状态", "多少", "什么", "how", "what", "status", "check",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
         let mut device_type_keywords = HashMap::new();
         for (kw, dt) in [
             ("灯", DeviceType::Light),
@@ -137,11 +174,30 @@ impl DeviceIntentParser {
         }
 
         let room_keywords = vec![
-            "客厅", "卧室", "厨房", "书房", "浴室", "卫生间",
-            "阳台", "餐厅", "走廊", "玄关", "车库",
-            "living room", "bedroom", "kitchen", "study",
-            "bathroom", "balcony", "dining room", "hallway", "garage",
-        ].into_iter().map(String::from).collect();
+            "客厅",
+            "卧室",
+            "厨房",
+            "书房",
+            "浴室",
+            "卫生间",
+            "阳台",
+            "餐厅",
+            "走廊",
+            "玄关",
+            "车库",
+            "living room",
+            "bedroom",
+            "kitchen",
+            "study",
+            "bathroom",
+            "balcony",
+            "dining room",
+            "hallway",
+            "garage",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
         let mut property_keywords = HashMap::new();
         for (kw, prop) in [
             ("亮度", "brightness"),
@@ -163,10 +219,18 @@ impl DeviceIntentParser {
 
         let mut modifier_values = HashMap::new();
         for (kw, val) in [
-            ("一点", 10), ("一些", 10), ("一下", 10),
-            ("slightly", 10), ("a bit", 10), ("a little", 10),
-            ("很多", 30), ("大幅", 30), ("a lot", 30), ("much", 30),
-            ("一半", 50), ("half", 50),
+            ("一点", 10),
+            ("一些", 10),
+            ("一下", 10),
+            ("slightly", 10),
+            ("a bit", 10),
+            ("a little", 10),
+            ("很多", 30),
+            ("大幅", 30),
+            ("a lot", 30),
+            ("much", 30),
+            ("一半", 50),
+            ("half", 50),
         ] {
             modifier_values.insert(kw.to_string(), val);
         }
@@ -199,9 +263,13 @@ impl DeviceIntentParser {
             Some(a) => a,
             None => {
                 // 检查是否至少有设备引用，若有则默认 GetState
-                let has_device = self.device_type_keywords.keys()
+                let has_device = self
+                    .device_type_keywords
+                    .keys()
                     .any(|k| lower.contains(k.to_lowercase().as_str()));
-                let has_room = self.room_keywords.iter()
+                let has_room = self
+                    .room_keywords
+                    .iter()
                     .any(|r| lower.contains(r.to_lowercase().as_str()));
                 if has_device || has_room {
                     ActionType::GetState
@@ -289,7 +357,10 @@ impl DeviceIntentParser {
     /// 提取动作类型（最长关键字优先匹配）
     fn extract_action(&self, text: &str) -> Option<ActionType> {
         // 检查 set 类动作（含属性关键字 + 数值时优先）
-        let has_property = self.property_keywords.keys().any(|k| text.contains(k.as_str()));
+        let has_property = self
+            .property_keywords
+            .keys()
+            .any(|k| text.contains(k.as_str()));
         let has_number = self.extract_numeric_value(text).is_some();
 
         if has_property && has_number {
@@ -343,7 +414,9 @@ impl DeviceIntentParser {
         }
 
         // c. 检查裸设备类型关键字
-        let has_device_type = self.device_type_keywords.keys()
+        let has_device_type = self
+            .device_type_keywords
+            .keys()
             .any(|kw| lower.contains(kw.to_lowercase().as_str()));
 
         if has_device_type {
@@ -422,9 +495,7 @@ impl DeviceIntentParser {
     fn extract_modifier(&self, text: &str) -> Option<i64> {
         let mut best: Option<(usize, i64)> = None;
         for (kw, val) in &self.modifier_values {
-            if text.contains(kw.as_str())
-                && best.as_ref().is_none_or(|b| kw.len() > b.0)
-            {
+            if text.contains(kw.as_str()) && best.as_ref().is_none_or(|b| kw.len() > b.0) {
                 best = Some((kw.len(), *val));
             }
         }
@@ -434,20 +505,32 @@ impl DeviceIntentParser {
     /// 提取颜色关键字
     fn extract_color(&self, text: &str) -> Option<String> {
         let color_map = [
-            ("红色", "red"), ("红", "red"), ("red", "red"),
-            ("蓝色", "blue"), ("蓝", "blue"), ("blue", "blue"),
-            ("绿色", "green"), ("绿", "green"), ("green", "green"),
-            ("黄色", "yellow"), ("黄", "yellow"), ("yellow", "yellow"),
-            ("白色", "white"), ("白", "white"), ("white", "white"),
-            ("紫色", "purple"), ("紫", "purple"), ("purple", "purple"),
-            ("橙色", "orange"), ("橙", "orange"), ("orange", "orange"),
+            ("红色", "red"),
+            ("红", "red"),
+            ("red", "red"),
+            ("蓝色", "blue"),
+            ("蓝", "blue"),
+            ("blue", "blue"),
+            ("绿色", "green"),
+            ("绿", "green"),
+            ("green", "green"),
+            ("黄色", "yellow"),
+            ("黄", "yellow"),
+            ("yellow", "yellow"),
+            ("白色", "white"),
+            ("白", "white"),
+            ("white", "white"),
+            ("紫色", "purple"),
+            ("紫", "purple"),
+            ("purple", "purple"),
+            ("橙色", "orange"),
+            ("橙", "orange"),
+            ("orange", "orange"),
         ];
         // 最长匹配
         let mut best: Option<(usize, &str)> = None;
         for (kw, color) in &color_map {
-            if text.contains(kw)
-                && best.as_ref().is_none_or(|b| kw.len() > b.0)
-            {
+            if text.contains(kw) && best.as_ref().is_none_or(|b| kw.len() > b.0) {
                 best = Some((kw.len(), color));
             }
         }
@@ -458,9 +541,7 @@ impl DeviceIntentParser {
     fn find_property_in_text(&self, text: &str) -> Option<String> {
         let mut best: Option<(usize, String)> = None;
         for (kw, prop) in &self.property_keywords {
-            if text.contains(kw.as_str())
-                && best.as_ref().is_none_or(|b| kw.len() > b.0)
-            {
+            if text.contains(kw.as_str()) && best.as_ref().is_none_or(|b| kw.len() > b.0) {
                 best = Some((kw.len(), prop.clone()));
             }
         }
@@ -638,10 +719,7 @@ mod tests {
     fn parse_set_color() {
         let intent = parser().parse("把灯设为红色").unwrap();
         assert_eq!(intent.action, ActionType::SetProperty("color".into()));
-        assert_eq!(
-            intent.parameters.get("color"),
-            Some(&Value::from("red"))
-        );
+        assert_eq!(intent.parameters.get("color"), Some(&Value::from("red")));
     }
 
     #[test]

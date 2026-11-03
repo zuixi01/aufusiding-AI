@@ -12,21 +12,20 @@ use super::errors::SecurityError;
 static INJECTION_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     vec![
         // 忽略指令类
-        Regex::new(r"(?i)ignore\s+(previous|all|above|prior)\s+(instructions?|prompts?|commands?)").unwrap(),
+        Regex::new(r"(?i)ignore\s+(previous|all|above|prior)\s+(instructions?|prompts?|commands?)")
+            .unwrap(),
         Regex::new(r"(?i)disregard\s+(previous|all|above|prior)").unwrap(),
         Regex::new(r"(?i)forget\s+(everything|all|previous)").unwrap(),
-
         // 角色劫持类
         Regex::new(r"(?i)(system|assistant|user)\s*:\s*(you\s+are|act\s+as|pretend)").unwrap(),
         Regex::new(r"(?i)new\s+(instructions?|role|persona)").unwrap(),
         Regex::new(r"(?i)act\s+as\s+(if|a|an)\s+").unwrap(),
-
         // 越狱类
         Regex::new(r"(?i)(jailbreak|DAN|do\s+anything\s+now)").unwrap(),
         Regex::new(r"(?i)override\s+(safety|security|guidelines?)").unwrap(),
-
         // 信息泄露类
-        Regex::new(r"(?i)(reveal|show|tell\s+me)\s+(your|the)\s+(prompt|instructions?|system)").unwrap(),
+        Regex::new(r"(?i)(reveal|show|tell\s+me)\s+(your|the)\s+(prompt|instructions?|system)")
+            .unwrap(),
         Regex::new(r"(?i)what\s+(are|is)\s+your\s+(instructions?|prompt|rules?)").unwrap(),
     ]
 });
@@ -34,10 +33,21 @@ static INJECTION_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
 /// 可疑关键词（记录但不阻止）
 static SUSPICIOUS_KEYWORDS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     [
-        "ignore", "disregard", "forget", "override",
-        "jailbreak", "bypass", "hack", "exploit",
-        "system:", "assistant:", "instructions:",
-    ].iter().copied().collect()
+        "ignore",
+        "disregard",
+        "forget",
+        "override",
+        "jailbreak",
+        "bypass",
+        "hack",
+        "exploit",
+        "system:",
+        "assistant:",
+        "instructions:",
+    ]
+    .iter()
+    .copied()
+    .collect()
 });
 
 pub struct PromptGuard {
@@ -106,7 +116,7 @@ impl PromptGuard {
     fn escape_prompt(&self, input: &str) -> String {
         // 移除或转义可能干扰 LLM 的特殊标记
         input
-            .replace("```", "'''")  // 防止代码块注入
+            .replace("```", "'''") // 防止代码块注入
             .replace("<|", "&lt;|") // 防止特殊标记
             .replace("|>", "|&gt;")
     }

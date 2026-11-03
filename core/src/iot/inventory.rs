@@ -98,10 +98,15 @@ impl InventoryTracker {
     /// 消耗库存，返回剩余量
     pub fn consume(&self, id: &Uuid, amount: f64) -> anyhow::Result<f64> {
         let mut items = self.items.lock().unwrap_or_else(|e| e.into_inner());
-        let item = items.get_mut(id)
+        let item = items
+            .get_mut(id)
             .ok_or_else(|| anyhow::anyhow!("item not found: {}", id))?;
         if amount > item.quantity {
-            anyhow::bail!("insufficient stock: have {}, need {}", item.quantity, amount);
+            anyhow::bail!(
+                "insufficient stock: have {}, need {}",
+                item.quantity,
+                amount
+            );
         }
         item.quantity -= amount;
         Ok(item.quantity)
@@ -110,7 +115,8 @@ impl InventoryTracker {
     /// 低库存告警
     pub fn low_stock_alerts(&self) -> Vec<InventoryItem> {
         let items = self.items.lock().unwrap_or_else(|e| e.into_inner());
-        items.values()
+        items
+            .values()
             .filter(|i| i.quantity <= i.low_stock_threshold)
             .cloned()
             .collect()
@@ -121,7 +127,8 @@ impl InventoryTracker {
         let today = Utc::now().date_naive();
         let deadline = today + chrono::Duration::days(within_days);
         let items = self.items.lock().unwrap_or_else(|e| e.into_inner());
-        items.values()
+        items
+            .values()
             .filter(|i| {
                 i.expiry_date
                     .map(|d| d >= today && d <= deadline)
@@ -171,14 +178,19 @@ impl InventoryTracker {
 
     pub fn check_shopping_item(&self, id: &Uuid) -> anyhow::Result<()> {
         let mut list = self.shopping_list.lock().unwrap_or_else(|e| e.into_inner());
-        let entry = list.iter_mut().find(|e| e.id == *id)
+        let entry = list
+            .iter_mut()
+            .find(|e| e.id == *id)
             .ok_or_else(|| anyhow::anyhow!("shopping item not found: {}", id))?;
         entry.checked = true;
         Ok(())
     }
 
     pub fn shopping_list(&self) -> Vec<ShoppingListEntry> {
-        self.shopping_list.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.shopping_list
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     pub fn item_count(&self) -> usize {

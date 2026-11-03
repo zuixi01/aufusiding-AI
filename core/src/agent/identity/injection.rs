@@ -100,7 +100,9 @@ mod tests {
     #[test]
     fn inject_architect() {
         let injector = test_injector();
-        let identity = injector.inject(&Role::Architect, "设计新的缓存系统").unwrap();
+        let identity = injector
+            .inject(&Role::Architect, "设计新的缓存系统")
+            .unwrap();
         assert_eq!(identity.role, Role::Architect);
         assert_eq!(identity.seniority, Seniority::Principal);
         assert!(identity.can_veto);

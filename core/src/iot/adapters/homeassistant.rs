@@ -82,9 +82,15 @@ impl HomeAssistantAdapter {
                 tracing::warn!("failed to read health_check error body: {}", e);
                 String::new()
             });
-            anyhow::bail!("GET /api/ health check failed ({}): {}", status.as_u16(), body);
+            anyhow::bail!(
+                "GET /api/ health check failed ({}): {}",
+                status.as_u16(),
+                body
+            );
         }
-        let body: Value = resp.json().await
+        let body: Value = resp
+            .json()
+            .await
             .map_err(|e| anyhow::anyhow!("health_check: failed to parse response: {}", e))?;
         Ok(body)
     }
@@ -152,7 +158,10 @@ impl HomeAssistantAdapter {
         };
         body.as_object_mut()
             .ok_or_else(|| anyhow::anyhow!("call_service: body is not a JSON object"))?
-            .insert("entity_id".to_string(), Value::String(entity_id.to_string()));
+            .insert(
+                "entity_id".to_string(),
+                Value::String(entity_id.to_string()),
+            );
         let resp = self
             .client
             .post(&url)
@@ -235,11 +244,7 @@ impl DeviceController for HomeAssistantAdapter {
     ) -> anyhow::Result<()> {
         let domain = parse_domain(device_id)?;
         let (svc_domain, service, data) = match property {
-            "brightness" => (
-                "light",
-                "turn_on",
-                json!({ "brightness": value }),
-            ),
+            "brightness" => ("light", "turn_on", json!({ "brightness": value })),
             "temperature" => (
                 "climate",
                 "set_temperature",
@@ -250,16 +255,8 @@ impl DeviceController for HomeAssistantAdapter {
                 "volume_set",
                 json!({ "volume_level": value }),
             ),
-            "hvac_mode" => (
-                "climate",
-                "set_hvac_mode",
-                json!({ "hvac_mode": value }),
-            ),
-            "percentage" => (
-                "fan",
-                "set_percentage",
-                json!({ "percentage": value }),
-            ),
+            "hvac_mode" => ("climate", "set_hvac_mode", json!({ "hvac_mode": value })),
+            "percentage" => ("fan", "set_percentage", json!({ "percentage": value })),
             _ => anyhow::bail!("unsupported property: {}", property),
         };
         // Validate domain matches the expected service domain
@@ -571,12 +568,10 @@ mod tests {
             .set_property("light.kitchen", "color_rgb", json!([255, 0, 0]))
             .await;
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("unsupported property")
-        );
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("unsupported property"));
     }
 
     // 16. 401 unauthorized returns clear error
@@ -729,7 +724,8 @@ mod tests {
             when.method(GET)
                 .path("/")
                 .header("Authorization", "Bearer test-token-abc");
-            then.status(200).json_body(json!({"message": "API running."}));
+            then.status(200)
+                .json_body(json!({"message": "API running."}));
         });
         let ha = adapter(&server);
         let result = ha.health_check().await.unwrap();

@@ -92,10 +92,8 @@ impl DimensionState {
             return 0.0;
         }
         let mid = n / 2;
-        let first_half: f64 =
-            self.recent_scores[..mid].iter().sum::<f64>() / mid as f64;
-        let second_half: f64 =
-            self.recent_scores[mid..].iter().sum::<f64>() / (n - mid) as f64;
+        let first_half: f64 = self.recent_scores[..mid].iter().sum::<f64>() / mid as f64;
+        let second_half: f64 = self.recent_scores[mid..].iter().sum::<f64>() / (n - mid) as f64;
         second_half - first_half
     }
 }
@@ -212,7 +210,11 @@ impl EvolutionEngine {
     pub fn strongest_dimension(&self) -> Option<(Dimension, f64)> {
         self.dimensions
             .iter()
-            .max_by(|a, b| a.1.score.partial_cmp(&b.1.score).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.1.score
+                    .partial_cmp(&b.1.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|(d, s)| (d.clone(), s.score))
     }
 
@@ -220,7 +222,11 @@ impl EvolutionEngine {
     pub fn weakest_dimension(&self) -> Option<(Dimension, f64)> {
         self.dimensions
             .iter()
-            .min_by(|a, b| a.1.score.partial_cmp(&b.1.score).unwrap_or(std::cmp::Ordering::Equal))
+            .min_by(|a, b| {
+                a.1.score
+                    .partial_cmp(&b.1.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|(d, s)| (d.clone(), s.score))
     }
 
@@ -247,7 +253,10 @@ impl EvolutionEngine {
                 highlights.push(format!("{}能力表现优秀（{:.1}分）", dim_name, state.score));
             }
             if state.trend > 5.0 {
-                highlights.push(format!("{}能力持续成长（趋势 +{:.1}）", dim_name, state.trend));
+                highlights.push(format!(
+                    "{}能力持续成长（趋势 +{:.1}）",
+                    dim_name, state.trend
+                ));
             }
 
             // 建议：分数低或趋势负

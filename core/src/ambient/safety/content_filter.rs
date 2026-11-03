@@ -12,8 +12,12 @@ impl ContentFilter {
     pub fn new() -> Self {
         Self {
             blocked_keywords: vec![
-                "暴力".into(), "赌博".into(), "色情".into(),
-                "毒品".into(), "恐怖".into(), "自杀".into(),
+                "暴力".into(),
+                "赌博".into(),
+                "色情".into(),
+                "毒品".into(),
+                "恐怖".into(),
+                "自杀".into(),
                 "武器".into(),
             ],
         }

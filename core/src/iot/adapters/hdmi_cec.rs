@@ -58,7 +58,9 @@ impl HdmiCecAdapter {
             Ok(mut child) => {
                 if let Some(ref mut stdin) = child.stdin {
                     use tokio::io::AsyncWriteExt;
-                    let _ = stdin.write_all(format!("{}\nq\n", cec_arg).as_bytes()).await;
+                    let _ = stdin
+                        .write_all(format!("{}\nq\n", cec_arg).as_bytes())
+                        .await;
                 }
                 let _ = child.wait().await;
             }
@@ -86,19 +88,27 @@ impl DeviceController for HdmiCecAdapter {
         Ok(())
     }
 
-    async fn set_property(&self, device_id: &str, property: &str, value: Value) -> anyhow::Result<()> {
+    async fn set_property(
+        &self,
+        device_id: &str,
+        property: &str,
+        value: Value,
+    ) -> anyhow::Result<()> {
         match property {
             "volume" => {
                 let _level = value.as_u64().unwrap_or(50);
                 // 实际会发送多次 VolumeUp/Down
             }
             "active_source" => {
-                self.send_command(device_id, CecCommand::SetActiveSource).await?;
+                self.send_command(device_id, CecCommand::SetActiveSource)
+                    .await?;
             }
             _ => anyhow::bail!("CEC 不支持属性: {}", property),
         }
         let mut states = self.states.lock().unwrap_or_else(|e| e.into_inner());
-        let state = states.entry(device_id.to_string()).or_insert_with(|| serde_json::json!({}));
+        let state = states
+            .entry(device_id.to_string())
+            .or_insert_with(|| serde_json::json!({}));
         if let Some(obj) = state.as_object_mut() {
             obj.insert(property.to_string(), value);
         }

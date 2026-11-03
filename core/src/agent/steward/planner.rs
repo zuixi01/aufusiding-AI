@@ -66,9 +66,7 @@ impl TaskGraph {
     pub fn ready_tasks(&self) -> Vec<&SubTask> {
         self.tasks
             .iter()
-            .filter(|t| {
-                t.status == SubTaskStatus::Pending && self.dependencies_met(&t.id)
-            })
+            .filter(|t| t.status == SubTaskStatus::Pending && self.dependencies_met(&t.id))
             .collect()
     }
 
@@ -142,7 +140,9 @@ impl TaskGraph {
 
     /// 所有任务是否都已完成
     pub fn is_complete(&self) -> bool {
-        self.tasks.iter().all(|t| t.status == SubTaskStatus::Completed)
+        self.tasks
+            .iter()
+            .all(|t| t.status == SubTaskStatus::Completed)
     }
 
     /// 获取指定任务
@@ -281,10 +281,38 @@ mod tests {
 
     fn sample_graph() -> TaskGraph {
         TaskGraphBuilder::new("实现用户认证")
-            .add_task("PRD", "需求文档", Role::ProductManager, DeliverableType::PRD, Priority::P0, Complexity::Medium)
-            .add_task("设计", "架构设计", Role::Architect, DeliverableType::DesignDoc, Priority::P0, Complexity::High)
-            .add_task("编码", "实现代码", Role::Engineer, DeliverableType::Code, Priority::P0, Complexity::High)
-            .add_task("测试", "测试套件", Role::QA, DeliverableType::TestSuite, Priority::P1, Complexity::Medium)
+            .add_task(
+                "PRD",
+                "需求文档",
+                Role::ProductManager,
+                DeliverableType::PRD,
+                Priority::P0,
+                Complexity::Medium,
+            )
+            .add_task(
+                "设计",
+                "架构设计",
+                Role::Architect,
+                DeliverableType::DesignDoc,
+                Priority::P0,
+                Complexity::High,
+            )
+            .add_task(
+                "编码",
+                "实现代码",
+                Role::Engineer,
+                DeliverableType::Code,
+                Priority::P0,
+                Complexity::High,
+            )
+            .add_task(
+                "测试",
+                "测试套件",
+                Role::QA,
+                DeliverableType::TestSuite,
+                Priority::P1,
+                Complexity::Medium,
+            )
             .add_dependency("设计", "PRD")
             .add_dependency("编码", "设计")
             .add_dependency("测试", "PRD")
@@ -371,7 +399,14 @@ mod tests {
     #[test]
     fn acceptance_criteria_builder() {
         let g = TaskGraphBuilder::new("test")
-            .add_task("T1", "desc", Role::Engineer, DeliverableType::Code, Priority::P0, Complexity::Low)
+            .add_task(
+                "T1",
+                "desc",
+                Role::Engineer,
+                DeliverableType::Code,
+                Priority::P0,
+                Complexity::Low,
+            )
             .add_acceptance_criteria("T1", "测试覆盖率≥80%")
             .add_acceptance_criteria("T1", "无Critical漏洞")
             .build();

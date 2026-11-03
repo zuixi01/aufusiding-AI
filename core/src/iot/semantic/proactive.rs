@@ -10,9 +10,9 @@ use chrono::{NaiveTime, Weekday};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::profile::SemanticProfileStore;
 use crate::iot::scenes::SceneAction;
 use crate::iot::types::DeviceType;
-use super::profile::SemanticProfileStore;
 
 /// 上下文信号
 #[derive(Debug, Clone)]
@@ -289,15 +289,35 @@ impl ProactiveDeviceReasoner {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::profile::build_default_profile;
+    use super::*;
 
     fn build_test_store() -> Arc<SemanticProfileStore> {
         let mut store = SemanticProfileStore::new();
-        store.add(build_default_profile("light-001", "客厅灯", DeviceType::Light, Some("客厅")));
-        store.add(build_default_profile("light-002", "卧室灯", DeviceType::Light, Some("卧室")));
-        store.add(build_default_profile("thermo-001", "客厅空调", DeviceType::Thermostat, Some("客厅")));
-        store.add(build_default_profile("lock-001", "前门锁", DeviceType::Lock, None));
+        store.add(build_default_profile(
+            "light-001",
+            "客厅灯",
+            DeviceType::Light,
+            Some("客厅"),
+        ));
+        store.add(build_default_profile(
+            "light-002",
+            "卧室灯",
+            DeviceType::Light,
+            Some("卧室"),
+        ));
+        store.add(build_default_profile(
+            "thermo-001",
+            "客厅空调",
+            DeviceType::Thermostat,
+            Some("客厅"),
+        ));
+        store.add(build_default_profile(
+            "lock-001",
+            "前门锁",
+            DeviceType::Lock,
+            None,
+        ));
         Arc::new(store)
     }
 
@@ -329,7 +349,9 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.room_occupancy.insert("客厅".into(), false);
-        signal.device_states.insert("light-001".into(), powered_on());
+        signal
+            .device_states
+            .insert("light-001".into(), powered_on());
         let suggestions = reasoner.evaluate(&signal);
         assert_eq!(suggestions.len(), 1);
         assert_eq!(suggestions[0].category, SuggestionCategory::Energy);
@@ -343,7 +365,9 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.room_occupancy.insert("客厅".into(), false);
-        signal.device_states.insert("light-001".into(), powered_off());
+        signal
+            .device_states
+            .insert("light-001".into(), powered_off());
         let suggestions = reasoner.evaluate(&signal);
         assert!(suggestions.is_empty());
     }
@@ -354,7 +378,9 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.room_occupancy.insert("客厅".into(), true);
-        signal.device_states.insert("light-001".into(), powered_on());
+        signal
+            .device_states
+            .insert("light-001".into(), powered_on());
         let suggestions = reasoner.evaluate(&signal);
         assert!(suggestions.is_empty());
     }
@@ -365,9 +391,14 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.time_of_day = NaiveTime::from_hms_opt(22, 30, 0).unwrap();
-        signal.device_states.insert("light-001".into(), powered_on_with_brightness(80));
+        signal
+            .device_states
+            .insert("light-001".into(), powered_on_with_brightness(80));
         let suggestions = reasoner.evaluate(&signal);
-        let dim: Vec<_> = suggestions.iter().filter(|s| s.category == SuggestionCategory::Comfort).collect();
+        let dim: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.category == SuggestionCategory::Comfort)
+            .collect();
         assert!(!dim.is_empty());
         assert_eq!(dim[0].actions[0].command, "set_property");
     }
@@ -378,9 +409,14 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.time_of_day = NaiveTime::from_hms_opt(22, 30, 0).unwrap();
-        signal.device_states.insert("light-001".into(), powered_on_with_brightness(30));
+        signal
+            .device_states
+            .insert("light-001".into(), powered_on_with_brightness(30));
         let suggestions = reasoner.evaluate(&signal);
-        let dim: Vec<_> = suggestions.iter().filter(|s| s.category == SuggestionCategory::Comfort).collect();
+        let dim: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.category == SuggestionCategory::Comfort)
+            .collect();
         assert!(dim.is_empty());
     }
 
@@ -390,9 +426,14 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.time_of_day = NaiveTime::from_hms_opt(14, 0, 0).unwrap();
-        signal.device_states.insert("light-001".into(), powered_on_with_brightness(80));
+        signal
+            .device_states
+            .insert("light-001".into(), powered_on_with_brightness(80));
         let suggestions = reasoner.evaluate(&signal);
-        let dim: Vec<_> = suggestions.iter().filter(|s| s.category == SuggestionCategory::Comfort).collect();
+        let dim: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.category == SuggestionCategory::Comfort)
+            .collect();
         assert!(dim.is_empty());
     }
 
@@ -402,9 +443,14 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.outdoor_temperature = Some(32.0);
-        signal.device_states.insert("thermo-001".into(), powered_off());
+        signal
+            .device_states
+            .insert("thermo-001".into(), powered_off());
         let suggestions = reasoner.evaluate(&signal);
-        let ac: Vec<_> = suggestions.iter().filter(|s| s.description.contains("空调")).collect();
+        let ac: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.description.contains("空调"))
+            .collect();
         assert_eq!(ac.len(), 1);
         assert_eq!(ac[0].category, SuggestionCategory::Comfort);
         assert_eq!(ac[0].actions.len(), 2);
@@ -416,9 +462,14 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.outdoor_temperature = Some(32.0);
-        signal.device_states.insert("thermo-001".into(), powered_on());
+        signal
+            .device_states
+            .insert("thermo-001".into(), powered_on());
         let suggestions = reasoner.evaluate(&signal);
-        let ac: Vec<_> = suggestions.iter().filter(|s| s.description.contains("空调")).collect();
+        let ac: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.description.contains("空调"))
+            .collect();
         assert!(ac.is_empty());
     }
 
@@ -428,9 +479,14 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.outdoor_temperature = Some(20.0);
-        signal.device_states.insert("thermo-001".into(), powered_off());
+        signal
+            .device_states
+            .insert("thermo-001".into(), powered_off());
         let suggestions = reasoner.evaluate(&signal);
-        let ac: Vec<_> = suggestions.iter().filter(|s| s.description.contains("空调")).collect();
+        let ac: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.description.contains("空调"))
+            .collect();
         assert!(ac.is_empty());
     }
 
@@ -440,9 +496,14 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.time_of_day = NaiveTime::from_hms_opt(23, 30, 0).unwrap();
-        signal.device_states.insert("lock-001".into(), powered_off());
+        signal
+            .device_states
+            .insert("lock-001".into(), powered_off());
         let suggestions = reasoner.evaluate(&signal);
-        let locks: Vec<_> = suggestions.iter().filter(|s| s.category == SuggestionCategory::Security).collect();
+        let locks: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.category == SuggestionCategory::Security)
+            .collect();
         assert_eq!(locks.len(), 1);
         assert!(locks[0].description.contains("前门锁"));
     }
@@ -455,7 +516,10 @@ mod tests {
         signal.time_of_day = NaiveTime::from_hms_opt(23, 30, 0).unwrap();
         signal.device_states.insert("lock-001".into(), powered_on());
         let suggestions = reasoner.evaluate(&signal);
-        let locks: Vec<_> = suggestions.iter().filter(|s| s.category == SuggestionCategory::Security).collect();
+        let locks: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.category == SuggestionCategory::Security)
+            .collect();
         assert!(locks.is_empty());
     }
 
@@ -467,9 +531,14 @@ mod tests {
         signal.time_of_day = NaiveTime::from_hms_opt(7, 0, 0).unwrap();
         signal.day_of_week = Weekday::Mon;
         signal.room_occupancy.insert("客厅".into(), true);
-        signal.device_states.insert("light-001".into(), powered_off());
+        signal
+            .device_states
+            .insert("light-001".into(), powered_off());
         let suggestions = reasoner.evaluate(&signal);
-        let morning: Vec<_> = suggestions.iter().filter(|s| s.category == SuggestionCategory::Convenience).collect();
+        let morning: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.category == SuggestionCategory::Convenience)
+            .collect();
         assert_eq!(morning.len(), 1);
         assert!(morning[0].description.contains("早安"));
     }
@@ -482,9 +551,14 @@ mod tests {
         signal.time_of_day = NaiveTime::from_hms_opt(7, 0, 0).unwrap();
         signal.day_of_week = Weekday::Sat;
         signal.room_occupancy.insert("客厅".into(), true);
-        signal.device_states.insert("light-001".into(), powered_off());
+        signal
+            .device_states
+            .insert("light-001".into(), powered_off());
         let suggestions = reasoner.evaluate(&signal);
-        let morning: Vec<_> = suggestions.iter().filter(|s| s.category == SuggestionCategory::Convenience).collect();
+        let morning: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.category == SuggestionCategory::Convenience)
+            .collect();
         assert!(morning.is_empty());
     }
 
@@ -494,12 +568,25 @@ mod tests {
         let reasoner = ProactiveDeviceReasoner::new(store);
         let mut signal = base_signal();
         signal.time_of_day = NaiveTime::from_hms_opt(23, 30, 0).unwrap();
-        signal.device_states.insert("light-001".into(), powered_on_with_brightness(80));
-        signal.device_states.insert("lock-001".into(), powered_off());
+        signal
+            .device_states
+            .insert("light-001".into(), powered_on_with_brightness(80));
+        signal
+            .device_states
+            .insert("lock-001".into(), powered_off());
         let suggestions = reasoner.evaluate(&signal);
-        let comfort: Vec<_> = suggestions.iter().filter(|s| s.category == SuggestionCategory::Comfort).collect();
-        let security: Vec<_> = suggestions.iter().filter(|s| s.category == SuggestionCategory::Security).collect();
-        assert!(!comfort.is_empty(), "should have bedtime dimming suggestion");
+        let comfort: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.category == SuggestionCategory::Comfort)
+            .collect();
+        let security: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.category == SuggestionCategory::Security)
+            .collect();
+        assert!(
+            !comfort.is_empty(),
+            "should have bedtime dimming suggestion"
+        );
         assert!(!security.is_empty(), "should have lock suggestion");
     }
 

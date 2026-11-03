@@ -26,13 +26,18 @@ pub struct ProjectSearchTool {
 
 impl ProjectSearchTool {
     pub fn new(project_root: PathBuf, max_results: usize) -> Self {
-        Self { project_root, max_results }
+        Self {
+            project_root,
+            max_results,
+        }
     }
 }
 
 #[async_trait]
 impl AgentTool for ProjectSearchTool {
-    fn name(&self) -> &str { "project_search" }
+    fn name(&self) -> &str {
+        "project_search"
+    }
 
     fn descriptor(&self) -> ToolDescriptor {
         ToolDescriptor {
@@ -111,7 +116,8 @@ impl ProjectSearchTool {
             Ok(c) => c,
             Err(_) => return,
         };
-        let rel = path.strip_prefix(&self.project_root)
+        let rel = path
+            .strip_prefix(&self.project_root)
             .unwrap_or(path)
             .to_string_lossy()
             .to_string();
@@ -160,7 +166,9 @@ mod tests {
         std::fs::write(dir.path().join("a.rs"), "target line").unwrap();
         std::fs::write(dir.path().join("b.txt"), "target line").unwrap();
         let tool = ProjectSearchTool::new(dir.path().to_path_buf(), 100);
-        let result = tool.execute(json!({"pattern": "target", "file_glob": "*.rs"})).await;
+        let result = tool
+            .execute(json!({"pattern": "target", "file_glob": "*.rs"}))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["count"], 1);
     }

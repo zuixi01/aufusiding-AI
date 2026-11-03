@@ -92,11 +92,7 @@ impl OllamaProvider {
                     tracing::warn!("failed to read error response body: {}", e);
                     String::new()
                 });
-                last_err = Some(anyhow::anyhow!(
-                    "Ollama tags failed ({}): {}",
-                    status,
-                    body
-                ));
+                last_err = Some(anyhow::anyhow!("Ollama tags failed ({}): {}", status, body));
                 continue;
             }
 

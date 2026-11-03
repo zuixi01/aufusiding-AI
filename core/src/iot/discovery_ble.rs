@@ -105,18 +105,13 @@ impl BleScanner for SystemBleScanner {
         };
 
         if !output.status.success() {
-            tracing::warn!(
-                "BLE: bluetoothctl exited with status {}",
-                output.status
-            );
+            tracing::warn!("BLE: bluetoothctl exited with status {}", output.status);
             return Ok(Vec::new());
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let devices: Vec<BleAdvertisement> = stdout
-            .lines()
-            .filter_map(Self::parse_device_line)
-            .collect();
+        let devices: Vec<BleAdvertisement> =
+            stdout.lines().filter_map(Self::parse_device_line).collect();
 
         Ok(devices)
     }

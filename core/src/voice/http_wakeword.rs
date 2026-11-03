@@ -77,9 +77,7 @@ mod tests {
     use super::*;
 
     fn loud_audio() -> AudioBuffer {
-        let samples: Vec<f32> = (0..16000)
-            .map(|i| (i as f32 * 0.1).sin() * 0.5)
-            .collect();
+        let samples: Vec<f32> = (0..16000).map(|i| (i as f32 * 0.1).sin() * 0.5).collect();
         AudioBuffer::new(samples, 16000, 1).unwrap()
     }
 

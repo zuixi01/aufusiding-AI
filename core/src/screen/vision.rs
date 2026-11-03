@@ -84,24 +84,15 @@ impl VisionAnalyzer {
 
 #[async_trait]
 impl ScreenAnalyzer for VisionAnalyzer {
-    async fn detect_elements(
-        &self,
-        snapshot: &ScreenSnapshot,
-    ) -> anyhow::Result<Vec<UIElement>> {
+    async fn detect_elements(&self, snapshot: &ScreenSnapshot) -> anyhow::Result<Vec<UIElement>> {
         self.detect_ui_elements(snapshot).await
     }
 
-    async fn extract_text(
-        &self,
-        snapshot: &ScreenSnapshot,
-    ) -> anyhow::Result<Vec<TextRegion>> {
+    async fn extract_text(&self, snapshot: &ScreenSnapshot) -> anyhow::Result<Vec<TextRegion>> {
         self.ocr.recognize(snapshot).await
     }
 
-    async fn detect_app(
-        &self,
-        _snapshot: &ScreenSnapshot,
-    ) -> anyhow::Result<AppInfo> {
+    async fn detect_app(&self, _snapshot: &ScreenSnapshot) -> anyhow::Result<AppInfo> {
         // 视觉分析无法可靠检测应用信息，返回 Unknown
         Ok(AppInfo {
             name: "Unknown".into(),
@@ -137,7 +128,12 @@ mod tests {
     async fn describe_with_text() {
         let analyzer = make_analyzer(vec![TextRegion {
             text: "确定".into(),
-            bounds: ScreenRegion { x: 10, y: 10, width: 60, height: 30 },
+            bounds: ScreenRegion {
+                x: 10,
+                y: 10,
+                width: 60,
+                height: 30,
+            },
             confidence: 0.9,
         }]);
         let desc = analyzer.describe(&mock_snapshot()).await.unwrap();
@@ -156,7 +152,12 @@ mod tests {
     async fn detect_button_element() {
         let analyzer = make_analyzer(vec![TextRegion {
             text: "OK".into(),
-            bounds: ScreenRegion { x: 10, y: 10, width: 80, height: 30 },
+            bounds: ScreenRegion {
+                x: 10,
+                y: 10,
+                width: 80,
+                height: 30,
+            },
             confidence: 0.9,
         }]);
         let elements = analyzer.detect_ui_elements(&mock_snapshot()).await.unwrap();
@@ -168,7 +169,12 @@ mod tests {
     async fn screen_analyzer_trait_compat() {
         let analyzer = make_analyzer(vec![TextRegion {
             text: "测试".into(),
-            bounds: ScreenRegion { x: 0, y: 0, width: 100, height: 30 },
+            bounds: ScreenRegion {
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 30,
+            },
             confidence: 0.8,
         }]);
         // 通过 trait 引用调用
@@ -184,12 +190,22 @@ mod tests {
         let analyzer = make_analyzer(vec![
             TextRegion {
                 text: "标题".into(),
-                bounds: ScreenRegion { x: 0, y: 0, width: 300, height: 40 },
+                bounds: ScreenRegion {
+                    x: 0,
+                    y: 0,
+                    width: 300,
+                    height: 40,
+                },
                 confidence: 0.9,
             },
             TextRegion {
                 text: "提交".into(),
-                bounds: ScreenRegion { x: 100, y: 200, width: 80, height: 30 },
+                bounds: ScreenRegion {
+                    x: 100,
+                    y: 200,
+                    width: 80,
+                    height: 30,
+                },
                 confidence: 0.85,
             },
         ]);

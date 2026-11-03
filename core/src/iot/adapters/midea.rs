@@ -122,10 +122,7 @@ impl MideaAdapter {
     }
 
     /// GET /mas/v5/app/proxy?alias=/v1/appliance/{id}/status -- get appliance status.
-    pub async fn get_status(
-        &self,
-        device_id: &str,
-    ) -> anyhow::Result<Vec<MideaStatus>> {
+    pub async fn get_status(&self, device_id: &str) -> anyhow::Result<Vec<MideaStatus>> {
         let url = self.endpoint("mas/v5/app/proxy");
         let alias = format!("/v1/appliance/{}/status", device_id);
 
@@ -149,11 +146,7 @@ impl MideaAdapter {
 
         let parsed: MideaResponse<Vec<MideaStatus>> = resp.json().await?;
         if parsed.code != 0 {
-            anyhow::bail!(
-                "get_status error (code {}): {}",
-                parsed.code,
-                parsed.msg
-            );
+            anyhow::bail!("get_status error (code {}): {}", parsed.code, parsed.msg);
         }
         Ok(parsed.data.unwrap_or_default())
     }
@@ -197,11 +190,7 @@ impl MideaAdapter {
 
         let parsed: MideaResponse<Value> = resp.json().await?;
         if parsed.code != 0 {
-            anyhow::bail!(
-                "send_command error (code {}): {}",
-                parsed.code,
-                parsed.msg
-            );
+            anyhow::bail!("send_command error (code {}): {}", parsed.code, parsed.msg);
         }
         Ok(())
     }
@@ -224,21 +213,13 @@ impl MideaAdapter {
 #[async_trait]
 impl DeviceController for MideaAdapter {
     async fn turn_on(&self, device_id: &str) -> anyhow::Result<()> {
-        self.send_command(
-            device_id,
-            "powerOn",
-            json!({"powerStatus": true}),
-        )
-        .await
+        self.send_command(device_id, "powerOn", json!({"powerStatus": true}))
+            .await
     }
 
     async fn turn_off(&self, device_id: &str) -> anyhow::Result<()> {
-        self.send_command(
-            device_id,
-            "powerOff",
-            json!({"powerStatus": false}),
-        )
-        .await
+        self.send_command(device_id, "powerOff", json!({"powerStatus": false}))
+            .await
     }
 
     async fn set_property(
@@ -248,18 +229,9 @@ impl DeviceController for MideaAdapter {
         value: Value,
     ) -> anyhow::Result<()> {
         let (op_type, params) = match property {
-            "temperature" => (
-                "setTemperature",
-                json!({"targetTemperature": value}),
-            ),
-            "mode" => (
-                "setMode",
-                json!({"operationMode": value}),
-            ),
-            "fan_speed" => (
-                "setFanSpeed",
-                json!({"fanSpeed": value}),
-            ),
+            "temperature" => ("setTemperature", json!({"targetTemperature": value})),
+            "mode" => ("setMode", json!({"operationMode": value})),
+            "fan_speed" => ("setFanSpeed", json!({"fanSpeed": value})),
             _ => anyhow::bail!("unsupported property: {}", property),
         };
         self.send_command(device_id, op_type, params).await
@@ -267,10 +239,8 @@ impl DeviceController for MideaAdapter {
 
     async fn get_state(&self, device_id: &str) -> anyhow::Result<Value> {
         let statuses = self.get_status(device_id).await?;
-        let status_map: HashMap<String, Value> = statuses
-            .into_iter()
-            .map(|s| (s.key, s.value))
-            .collect();
+        let status_map: HashMap<String, Value> =
+            statuses.into_iter().map(|s| (s.key, s.value)).collect();
         Ok(json!({
             "device_id": device_id,
             "status": status_map
@@ -669,16 +639,14 @@ mod tests {
     // 19. with_base_url trims trailing slash
     #[test]
     fn with_base_url_trims_trailing_slash() {
-        let adapter =
-            MideaAdapter::new(test_config()).with_base_url("http://localhost:1234/");
+        let adapter = MideaAdapter::new(test_config()).with_base_url("http://localhost:1234/");
         assert_eq!(adapter.base_url, "http://localhost:1234");
     }
 
     // 20. endpoint builds correct URL
     #[test]
     fn endpoint_builds_correct_url() {
-        let adapter =
-            MideaAdapter::new(test_config()).with_base_url("http://localhost:5555");
+        let adapter = MideaAdapter::new(test_config()).with_base_url("http://localhost:5555");
         let url = adapter.endpoint("/mas/v5/app/proxy");
         assert_eq!(url, "http://localhost:5555/mas/v5/app/proxy");
     }

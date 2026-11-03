@@ -95,10 +95,14 @@ impl SystemAudioSource {
             AudioInputBackend::PipeWire => {
                 let mut cmd = Command::new("pw-record");
                 cmd.args([
-                    "--format", "f32",
-                    "--rate", &self.config.sample_rate.to_string(),
-                    "--channels", &self.config.channels.to_string(),
-                    "--target", &self.config.device_name,
+                    "--format",
+                    "f32",
+                    "--rate",
+                    &self.config.sample_rate.to_string(),
+                    "--channels",
+                    &self.config.channels.to_string(),
+                    "--target",
+                    &self.config.device_name,
                     "-",
                 ]);
                 cmd
@@ -118,12 +122,18 @@ impl SystemAudioSource {
             AudioInputBackend::Alsa => {
                 let mut cmd = Command::new("arecord");
                 cmd.args([
-                    "-f", "FLOAT_LE",
-                    "-r", &self.config.sample_rate.to_string(),
-                    "-c", &self.config.channels.to_string(),
-                    "-D", &self.config.device_name,
-                    "-d", &format!("{:.3}", duration_sec),
-                    "-t", "raw",
+                    "-f",
+                    "FLOAT_LE",
+                    "-r",
+                    &self.config.sample_rate.to_string(),
+                    "-c",
+                    &self.config.channels.to_string(),
+                    "-D",
+                    &self.config.device_name,
+                    "-d",
+                    &format!("{:.3}", duration_sec),
+                    "-t",
+                    "raw",
                     "-q",
                     "-",
                 ]);

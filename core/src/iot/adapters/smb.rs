@@ -210,37 +210,121 @@ impl MockSmbTransport {
             (MockCall::Connect { .. }, MockCall::Connect { .. }) => {}
             (MockCall::Disconnect, MockCall::Disconnect) => {}
             (MockCall::ListShares, MockCall::ListShares) => {}
-            (MockCall::ListDirectory { share: s1, path: p1 }, MockCall::ListDirectory { share: s2, path: p2 }) => {
+            (
+                MockCall::ListDirectory {
+                    share: s1,
+                    path: p1,
+                },
+                MockCall::ListDirectory {
+                    share: s2,
+                    path: p2,
+                },
+            ) => {
                 if s1 != s2 || p1 != p2 {
-                    anyhow::bail!("call mismatch: expected {:?}, got {:?}", expected_call, call);
+                    anyhow::bail!(
+                        "call mismatch: expected {:?}, got {:?}",
+                        expected_call,
+                        call
+                    );
                 }
             }
-            (MockCall::ReadFile { share: s1, path: p1 }, MockCall::ReadFile { share: s2, path: p2 }) => {
+            (
+                MockCall::ReadFile {
+                    share: s1,
+                    path: p1,
+                },
+                MockCall::ReadFile {
+                    share: s2,
+                    path: p2,
+                },
+            ) => {
                 if s1 != s2 || p1 != p2 {
-                    anyhow::bail!("call mismatch: expected {:?}, got {:?}", expected_call, call);
+                    anyhow::bail!(
+                        "call mismatch: expected {:?}, got {:?}",
+                        expected_call,
+                        call
+                    );
                 }
             }
-            (MockCall::WriteFile { share: s1, path: p1, data: d1 }, MockCall::WriteFile { share: s2, path: p2, data: d2 }) => {
+            (
+                MockCall::WriteFile {
+                    share: s1,
+                    path: p1,
+                    data: d1,
+                },
+                MockCall::WriteFile {
+                    share: s2,
+                    path: p2,
+                    data: d2,
+                },
+            ) => {
                 if s1 != s2 || p1 != p2 || d1 != d2 {
-                    anyhow::bail!("call mismatch: expected {:?}, got {:?}", expected_call, call);
+                    anyhow::bail!(
+                        "call mismatch: expected {:?}, got {:?}",
+                        expected_call,
+                        call
+                    );
                 }
             }
-            (MockCall::DeleteFile { share: s1, path: p1 }, MockCall::DeleteFile { share: s2, path: p2 }) => {
+            (
+                MockCall::DeleteFile {
+                    share: s1,
+                    path: p1,
+                },
+                MockCall::DeleteFile {
+                    share: s2,
+                    path: p2,
+                },
+            ) => {
                 if s1 != s2 || p1 != p2 {
-                    anyhow::bail!("call mismatch: expected {:?}, got {:?}", expected_call, call);
+                    anyhow::bail!(
+                        "call mismatch: expected {:?}, got {:?}",
+                        expected_call,
+                        call
+                    );
                 }
             }
-            (MockCall::CreateDirectory { share: s1, path: p1 }, MockCall::CreateDirectory { share: s2, path: p2 }) => {
+            (
+                MockCall::CreateDirectory {
+                    share: s1,
+                    path: p1,
+                },
+                MockCall::CreateDirectory {
+                    share: s2,
+                    path: p2,
+                },
+            ) => {
                 if s1 != s2 || p1 != p2 {
-                    anyhow::bail!("call mismatch: expected {:?}, got {:?}", expected_call, call);
+                    anyhow::bail!(
+                        "call mismatch: expected {:?}, got {:?}",
+                        expected_call,
+                        call
+                    );
                 }
             }
-            (MockCall::FileInfo { share: s1, path: p1 }, MockCall::FileInfo { share: s2, path: p2 }) => {
+            (
+                MockCall::FileInfo {
+                    share: s1,
+                    path: p1,
+                },
+                MockCall::FileInfo {
+                    share: s2,
+                    path: p2,
+                },
+            ) => {
                 if s1 != s2 || p1 != p2 {
-                    anyhow::bail!("call mismatch: expected {:?}, got {:?}", expected_call, call);
+                    anyhow::bail!(
+                        "call mismatch: expected {:?}, got {:?}",
+                        expected_call,
+                        call
+                    );
                 }
             }
-            _ => anyhow::bail!("call mismatch: expected {:?}, got {:?}", expected_call, call),
+            _ => anyhow::bail!(
+                "call mismatch: expected {:?}, got {:?}",
+                expected_call,
+                call
+            ),
         }
 
         Ok(response)
@@ -256,12 +340,14 @@ impl SmbTransport for MockSmbTransport {
         username: &str,
         password: &str,
     ) -> anyhow::Result<()> {
-        let response = self.handle_call(MockCall::Connect {
-            host: host.to_string(),
-            port,
-            username: username.to_string(),
-            password: password.to_string(),
-        }).await?;
+        let response = self
+            .handle_call(MockCall::Connect {
+                host: host.to_string(),
+                port,
+                username: username.to_string(),
+                password: password.to_string(),
+            })
+            .await?;
 
         match response {
             MockResponse::Ok => Ok(()),
@@ -291,10 +377,12 @@ impl SmbTransport for MockSmbTransport {
     }
 
     async fn list_directory(&self, share: &str, path: &str) -> anyhow::Result<Vec<SmbEntry>> {
-        let response = self.handle_call(MockCall::ListDirectory {
-            share: share.to_string(),
-            path: path.to_string(),
-        }).await?;
+        let response = self
+            .handle_call(MockCall::ListDirectory {
+                share: share.to_string(),
+                path: path.to_string(),
+            })
+            .await?;
 
         match response {
             MockResponse::Entries(entries) => Ok(entries),
@@ -304,10 +392,12 @@ impl SmbTransport for MockSmbTransport {
     }
 
     async fn read_file(&self, share: &str, path: &str) -> anyhow::Result<Vec<u8>> {
-        let response = self.handle_call(MockCall::ReadFile {
-            share: share.to_string(),
-            path: path.to_string(),
-        }).await?;
+        let response = self
+            .handle_call(MockCall::ReadFile {
+                share: share.to_string(),
+                path: path.to_string(),
+            })
+            .await?;
 
         match response {
             MockResponse::Data(data) => Ok(data),
@@ -317,11 +407,13 @@ impl SmbTransport for MockSmbTransport {
     }
 
     async fn write_file(&self, share: &str, path: &str, data: &[u8]) -> anyhow::Result<()> {
-        let response = self.handle_call(MockCall::WriteFile {
-            share: share.to_string(),
-            path: path.to_string(),
-            data: data.to_vec(),
-        }).await?;
+        let response = self
+            .handle_call(MockCall::WriteFile {
+                share: share.to_string(),
+                path: path.to_string(),
+                data: data.to_vec(),
+            })
+            .await?;
 
         match response {
             MockResponse::Ok => Ok(()),
@@ -331,10 +423,12 @@ impl SmbTransport for MockSmbTransport {
     }
 
     async fn delete_file(&self, share: &str, path: &str) -> anyhow::Result<()> {
-        let response = self.handle_call(MockCall::DeleteFile {
-            share: share.to_string(),
-            path: path.to_string(),
-        }).await?;
+        let response = self
+            .handle_call(MockCall::DeleteFile {
+                share: share.to_string(),
+                path: path.to_string(),
+            })
+            .await?;
 
         match response {
             MockResponse::Ok => Ok(()),
@@ -344,10 +438,12 @@ impl SmbTransport for MockSmbTransport {
     }
 
     async fn create_directory(&self, share: &str, path: &str) -> anyhow::Result<()> {
-        let response = self.handle_call(MockCall::CreateDirectory {
-            share: share.to_string(),
-            path: path.to_string(),
-        }).await?;
+        let response = self
+            .handle_call(MockCall::CreateDirectory {
+                share: share.to_string(),
+                path: path.to_string(),
+            })
+            .await?;
 
         match response {
             MockResponse::Ok => Ok(()),
@@ -357,10 +453,12 @@ impl SmbTransport for MockSmbTransport {
     }
 
     async fn file_info(&self, share: &str, path: &str) -> anyhow::Result<SmbFileInfo> {
-        let response = self.handle_call(MockCall::FileInfo {
-            share: share.to_string(),
-            path: path.to_string(),
-        }).await?;
+        let response = self
+            .handle_call(MockCall::FileInfo {
+                share: share.to_string(),
+                path: path.to_string(),
+            })
+            .await?;
 
         match response {
             MockResponse::Info(info) => Ok(info),
@@ -398,12 +496,14 @@ impl SmbAdapter {
     /// Connect to SMB server.
     pub async fn connect(&self) -> anyhow::Result<()> {
         let mut transport = self.transport.write().await;
-        transport.connect(
-            &self.config.host,
-            self.config.port,
-            &self.config.username,
-            &self.config.password,
-        ).await?;
+        transport
+            .connect(
+                &self.config.host,
+                self.config.port,
+                &self.config.username,
+                &self.config.password,
+            )
+            .await?;
         *self.connected.write().await = true;
         Ok(())
     }
@@ -494,22 +594,41 @@ impl DeviceController for SmbAdapter {
         self.disconnect().await
     }
 
-    async fn set_property(&self, _device_id: &str, property: &str, value: Value) -> anyhow::Result<()> {
+    async fn set_property(
+        &self,
+        _device_id: &str,
+        property: &str,
+        value: Value,
+    ) -> anyhow::Result<()> {
         match property {
             "write_file" => {
-                let share = value["share"].as_str().ok_or_else(|| anyhow::anyhow!("missing share"))?;
-                let path = value["path"].as_str().ok_or_else(|| anyhow::anyhow!("missing path"))?;
-                let data = value["data"].as_str().ok_or_else(|| anyhow::anyhow!("missing data"))?;
+                let share = value["share"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("missing share"))?;
+                let path = value["path"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("missing path"))?;
+                let data = value["data"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("missing data"))?;
                 self.write_file(share, path, data.as_bytes()).await
             }
             "delete_file" => {
-                let share = value["share"].as_str().ok_or_else(|| anyhow::anyhow!("missing share"))?;
-                let path = value["path"].as_str().ok_or_else(|| anyhow::anyhow!("missing path"))?;
+                let share = value["share"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("missing share"))?;
+                let path = value["path"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("missing path"))?;
                 self.delete_file(share, path).await
             }
             "create_directory" => {
-                let share = value["share"].as_str().ok_or_else(|| anyhow::anyhow!("missing share"))?;
-                let path = value["path"].as_str().ok_or_else(|| anyhow::anyhow!("missing path"))?;
+                let share = value["share"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("missing share"))?;
+                let path = value["path"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("missing path"))?;
                 self.create_directory(share, path).await
             }
             _ => anyhow::bail!("unsupported property: {}", property),
@@ -564,7 +683,10 @@ mod tests {
         );
         let mock = Arc::new(MockSmbTransport::new());
         let mock_clone = mock.clone();
-        (SmbAdapter::new(config, Box::new(MockSmbTransport::new())), mock_clone)
+        (
+            SmbAdapter::new(config, Box::new(MockSmbTransport::new())),
+            mock_clone,
+        )
     }
 
     // 1. connect success
@@ -584,7 +706,8 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.connect().await.unwrap();
@@ -608,7 +731,8 @@ mod tests {
                 password: "wrongpass".to_string(),
             },
             MockResponse::Error("authentication failed".to_string()),
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         assert!(adapter.connect().await.is_err());
@@ -632,7 +756,8 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(MockCall::Disconnect, MockResponse::Ok).await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
@@ -658,7 +783,8 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::ListShares,
             MockResponse::Shares(vec![
@@ -673,7 +799,8 @@ mod tests {
                     comment: "Media files".to_string(),
                 },
             ]),
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.connect().await.unwrap();
@@ -713,7 +840,8 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::ListDirectory {
                 share: "Documents".to_string(),
@@ -733,7 +861,8 @@ mod tests {
                     modified: 1234567891,
                 },
             ]),
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.connect().await.unwrap();
@@ -762,14 +891,16 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::ReadFile {
                 share: "Documents".to_string(),
                 path: "test.txt".to_string(),
             },
             MockResponse::Data(b"Hello, World!".to_vec()),
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.connect().await.unwrap();
@@ -794,14 +925,16 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::ReadFile {
                 share: "Documents".to_string(),
                 path: "missing.txt".to_string(),
             },
             MockResponse::Error("file not found".to_string()),
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.connect().await.unwrap();
@@ -825,7 +958,8 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::WriteFile {
                 share: "Documents".to_string(),
@@ -833,11 +967,15 @@ mod tests {
                 data: b"New content".to_vec(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.connect().await.unwrap();
-        adapter.write_file("Documents", "new.txt", b"New content").await.unwrap();
+        adapter
+            .write_file("Documents", "new.txt", b"New content")
+            .await
+            .unwrap();
     }
 
     // 10. delete_file success
@@ -857,14 +995,16 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::DeleteFile {
                 share: "Documents".to_string(),
                 path: "old.txt".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.connect().await.unwrap();
@@ -888,18 +1028,23 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::CreateDirectory {
                 share: "Documents".to_string(),
                 path: "newfolder".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.connect().await.unwrap();
-        adapter.create_directory("Documents", "newfolder").await.unwrap();
+        adapter
+            .create_directory("Documents", "newfolder")
+            .await
+            .unwrap();
     }
 
     // 12. file_info success
@@ -919,7 +1064,8 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::FileInfo {
                 share: "Documents".to_string(),
@@ -932,7 +1078,8 @@ mod tests {
                 is_directory: false,
                 is_readonly: false,
             }),
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.connect().await.unwrap();
@@ -959,7 +1106,8 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.turn_on("smb-001").await.unwrap();
@@ -983,7 +1131,8 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(MockCall::Disconnect, MockResponse::Ok).await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
@@ -1009,7 +1158,8 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::WriteFile {
                 share: "Documents".to_string(),
@@ -1017,19 +1167,23 @@ mod tests {
                 data: b"content".to_vec(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.turn_on("smb-001").await.unwrap();
-        adapter.set_property(
-            "smb-001",
-            "write_file",
-            serde_json::json!({
-                "share": "Documents",
-                "path": "test.txt",
-                "data": "content"
-            }),
-        ).await.unwrap();
+        adapter
+            .set_property(
+                "smb-001",
+                "write_file",
+                serde_json::json!({
+                    "share": "Documents",
+                    "path": "test.txt",
+                    "data": "content"
+                }),
+            )
+            .await
+            .unwrap();
     }
 
     // 16. DeviceController set_property delete_file
@@ -1049,25 +1203,30 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::DeleteFile {
                 share: "Documents".to_string(),
                 path: "old.txt".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.turn_on("smb-001").await.unwrap();
-        adapter.set_property(
-            "smb-001",
-            "delete_file",
-            serde_json::json!({
-                "share": "Documents",
-                "path": "old.txt"
-            }),
-        ).await.unwrap();
+        adapter
+            .set_property(
+                "smb-001",
+                "delete_file",
+                serde_json::json!({
+                    "share": "Documents",
+                    "path": "old.txt"
+                }),
+            )
+            .await
+            .unwrap();
     }
 
     // 17. DeviceController set_property create_directory
@@ -1087,25 +1246,30 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::CreateDirectory {
                 share: "Documents".to_string(),
                 path: "newfolder".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.turn_on("smb-001").await.unwrap();
-        adapter.set_property(
-            "smb-001",
-            "create_directory",
-            serde_json::json!({
-                "share": "Documents",
-                "path": "newfolder"
-            }),
-        ).await.unwrap();
+        adapter
+            .set_property(
+                "smb-001",
+                "create_directory",
+                serde_json::json!({
+                    "share": "Documents",
+                    "path": "newfolder"
+                }),
+            )
+            .await
+            .unwrap();
     }
 
     // 18. DeviceController get_state connected
@@ -1125,17 +1289,17 @@ mod tests {
                 password: "testpass".to_string(),
             },
             MockResponse::Ok,
-        ).await;
+        )
+        .await;
         mock.expect(
             MockCall::ListShares,
-            MockResponse::Shares(vec![
-                SmbShare {
-                    name: "Documents".to_string(),
-                    share_type: "DISK".to_string(),
-                    comment: "".to_string(),
-                },
-            ]),
-        ).await;
+            MockResponse::Shares(vec![SmbShare {
+                name: "Documents".to_string(),
+                share_type: "DISK".to_string(),
+                comment: "".to_string(),
+            }]),
+        )
+        .await;
 
         let adapter = SmbAdapter::with_transport(config, Box::new(mock));
         adapter.turn_on("smb-001").await.unwrap();
@@ -1174,9 +1338,15 @@ mod tests {
 
         assert!(adapter.list_directory("Documents", "/").await.is_err());
         assert!(adapter.read_file("Documents", "test.txt").await.is_err());
-        assert!(adapter.write_file("Documents", "test.txt", b"data").await.is_err());
+        assert!(adapter
+            .write_file("Documents", "test.txt", b"data")
+            .await
+            .is_err());
         assert!(adapter.delete_file("Documents", "test.txt").await.is_err());
-        assert!(adapter.create_directory("Documents", "folder").await.is_err());
+        assert!(adapter
+            .create_directory("Documents", "folder")
+            .await
+            .is_err());
         assert!(adapter.file_info("Documents", "test.txt").await.is_err());
     }
 

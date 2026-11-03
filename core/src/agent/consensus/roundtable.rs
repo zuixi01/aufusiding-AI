@@ -32,10 +32,7 @@ pub enum ConsensusOutcome {
         dissents: Vec<Dissent>,
     },
     /// 大管家裁决
-    StewardDecision {
-        decision: String,
-        rationale: String,
-    },
+    StewardDecision { decision: String, rationale: String },
     /// 升级给用户
     EscalatedToUser {
         summary: String,
@@ -190,13 +187,9 @@ mod tests {
         rt.add_proposal(p);
 
         rt.add_vote(
-            WeightedVote::new(AgentId::new(), pid, Stance::StrongAgree, "同意")
-                .with_weight(1.0),
+            WeightedVote::new(AgentId::new(), pid, Stance::StrongAgree, "同意").with_weight(1.0),
         );
-        rt.add_vote(
-            WeightedVote::new(AgentId::new(), pid, Stance::Agree, "可以")
-                .with_weight(0.8),
-        );
+        rt.add_vote(WeightedVote::new(AgentId::new(), pid, Stance::Agree, "可以").with_weight(0.8));
 
         match rt.tally() {
             VoteResult::Adopted { score } => assert!(score >= 0.6),
@@ -211,8 +204,7 @@ mod tests {
         let pid = p.id;
         rt.add_proposal(p);
         rt.add_vote(
-            WeightedVote::new(AgentId::new(), pid, Stance::StrongAgree, "ok")
-                .with_weight(1.0),
+            WeightedVote::new(AgentId::new(), pid, Stance::StrongAgree, "ok").with_weight(1.0),
         );
 
         let strategy = ResolutionStrategy::new();

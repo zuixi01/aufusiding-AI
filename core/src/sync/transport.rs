@@ -89,13 +89,25 @@ impl Transport for MockTransport {
 
 /// WebSocket 传输实现
 pub struct WebSocketTransport {
-    writer: Option<tokio::sync::Mutex<futures_util::stream::SplitSink<
-        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-        tokio_tungstenite::tungstenite::Message,
-    >>>,
-    reader: Option<tokio::sync::Mutex<futures_util::stream::SplitStream<
-        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-    >>>,
+    writer: Option<
+        tokio::sync::Mutex<
+            futures_util::stream::SplitSink<
+                tokio_tungstenite::WebSocketStream<
+                    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+                >,
+                tokio_tungstenite::tungstenite::Message,
+            >,
+        >,
+    >,
+    reader: Option<
+        tokio::sync::Mutex<
+            futures_util::stream::SplitStream<
+                tokio_tungstenite::WebSocketStream<
+                    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+                >,
+            >,
+        >,
+    >,
     connected: bool,
 }
 
@@ -128,11 +140,15 @@ impl Transport for WebSocketTransport {
     async fn send(&self, data: &[u8]) -> anyhow::Result<()> {
         use futures_util::SinkExt;
 
-        let writer = self.writer.as_ref()
+        let writer = self
+            .writer
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("not connected"))?;
         let mut guard = writer.lock().await;
         guard
-            .send(tokio_tungstenite::tungstenite::Message::Binary(data.to_vec()))
+            .send(tokio_tungstenite::tungstenite::Message::Binary(
+                data.to_vec(),
+            ))
             .await
             .map_err(|e| anyhow::anyhow!("websocket send failed: {}", e))?;
         Ok(())
@@ -141,7 +157,9 @@ impl Transport for WebSocketTransport {
     async fn receive(&self) -> anyhow::Result<Vec<u8>> {
         use futures_util::StreamExt;
 
-        let reader = self.reader.as_ref()
+        let reader = self
+            .reader
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("not connected"))?;
         let mut guard = reader.lock().await;
         match guard.next().await {
@@ -156,7 +174,9 @@ impl Transport for WebSocketTransport {
 
         if let Some(ref writer) = self.writer {
             let mut guard = writer.lock().await;
-            let _ = guard.send(tokio_tungstenite::tungstenite::Message::Close(None)).await;
+            let _ = guard
+                .send(tokio_tungstenite::tungstenite::Message::Close(None))
+                .await;
         }
         self.writer = None;
         self.reader = None;

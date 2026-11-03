@@ -8,8 +8,8 @@ use crate::config::AppConfig;
 use crate::daemon::DaemonProcess;
 use crate::iot::adapter_factory::AdapterFactory;
 use crate::iot::event_bus::EventBus;
-use crate::iot::semantic::profile::SemanticProfileStore;
 use crate::iot::semantic::proactive_monitor::ProactiveMonitor;
+use crate::iot::semantic::profile::SemanticProfileStore;
 use crate::providers::traits::Provider;
 
 use super::audio_sink::AudioSink;
@@ -48,7 +48,17 @@ impl DaemonBuilder {
         stt: Box<dyn StreamingSttEngine>,
         tts: Box<dyn StreamingTtsEngine>,
     ) -> anyhow::Result<DaemonComponents> {
-        Self::build_with_provider(config, audio_source, audio_sink, vad, stt, tts, None, None, None)
+        Self::build_with_provider(
+            config,
+            audio_source,
+            audio_sink,
+            vad,
+            stt,
+            tts,
+            None,
+            None,
+            None,
+        )
     }
 
     /// 带 Provider 注入的完整构建方法
@@ -73,10 +83,8 @@ impl DaemonBuilder {
         let profile_store = Arc::new(SemanticProfileStore::new());
 
         // 4. IntentDispatcher (with semantic pipeline + optional provider)
-        let mut intent_dispatcher = IntentDispatcher::with_semantic(
-            Arc::clone(&profile_store),
-            Arc::clone(&controller),
-        );
+        let mut intent_dispatcher =
+            IntentDispatcher::with_semantic(Arc::clone(&profile_store), Arc::clone(&controller));
         if let Some(p) = provider {
             intent_dispatcher = intent_dispatcher.with_provider(p);
         }
@@ -89,9 +97,10 @@ impl DaemonBuilder {
 
         // 5. PrivacyAwareDispatcher 包装
         let privacy_config = SanitizerConfig::default();
-        let dispatcher: Box<dyn Dispatcher> = Box::new(
-            PrivacyAwareDispatcher::new(intent_dispatcher, privacy_config),
-        );
+        let dispatcher: Box<dyn Dispatcher> = Box::new(PrivacyAwareDispatcher::new(
+            intent_dispatcher,
+            privacy_config,
+        ));
 
         // 6. ProactiveMonitor
         let monitor = ProactiveMonitor::new(&event_bus, Arc::clone(&profile_store));
@@ -122,9 +131,7 @@ impl DaemonBuilder {
         );
 
         // 10. DaemonProcess
-        let process = DaemonProcess::new(
-            config.data_dir.join("daemon.pid"),
-        );
+        let process = DaemonProcess::new(config.data_dir.join("daemon.pid"));
 
         // 11. AmbientDaemon
         let daemon = AmbientDaemon::new(
@@ -163,9 +170,15 @@ mod tests {
     struct TestStt;
     #[async_trait]
     impl StreamingSttEngine for TestStt {
-        async fn feed_chunk(&self, _chunk: &AudioChunk) -> anyhow::Result<Option<String>> { Ok(None) }
-        async fn finalize(&self) -> anyhow::Result<String> { Ok("测试".into()) }
-        async fn reset(&self) -> anyhow::Result<()> { Ok(()) }
+        async fn feed_chunk(&self, _chunk: &AudioChunk) -> anyhow::Result<Option<String>> {
+            Ok(None)
+        }
+        async fn finalize(&self) -> anyhow::Result<String> {
+            Ok("测试".into())
+        }
+        async fn reset(&self) -> anyhow::Result<()> {
+            Ok(())
+        }
     }
 
     struct TestTts;

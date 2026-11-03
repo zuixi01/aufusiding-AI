@@ -34,17 +34,11 @@ impl TeamBuilder {
     }
 
     /// 根据 TaskGraph 组建团队，返回 (Role -> AgentId) 映射
-    pub async fn build_team(
-        &self,
-        graph: &TaskGraph,
-    ) -> Result<Vec<(Role, AgentId)>, AgentError> {
+    pub async fn build_team(&self, graph: &TaskGraph) -> Result<Vec<(Role, AgentId)>, AgentError> {
         let roles = self.required_roles(graph);
         let mut team = Vec::new();
         for role in roles {
-            let id = self
-                .runtime
-                .spawn(&role, &graph.goal)
-                .await?;
+            let id = self.runtime.spawn(&role, &graph.goal).await?;
             team.push((role, id));
         }
         Ok(team)
@@ -62,9 +56,7 @@ impl TeamBuilder {
 
     /// 根据角色查找团队中的 AgentId
     pub fn find_by_role<'a>(team: &'a [(Role, AgentId)], role: &Role) -> Option<&'a AgentId> {
-        team.iter()
-            .find(|(r, _)| r == role)
-            .map(|(_, id)| id)
+        team.iter().find(|(r, _)| r == role).map(|(_, id)| id)
     }
 }
 

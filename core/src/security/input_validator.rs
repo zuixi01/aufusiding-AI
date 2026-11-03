@@ -7,9 +7,8 @@ use std::sync::LazyLock;
 
 use super::errors::ValidationError;
 
-static DEVICE_ID_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^[a-zA-Z0-9\-_]+$").unwrap()
-});
+static DEVICE_ID_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9\-_]+$").unwrap());
 
 static SQL_INJECTION_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     vec![
@@ -179,7 +178,11 @@ mod tests {
         ];
 
         for attack in attacks {
-            assert!(validator.validate_text(attack).is_err(), "应阻止: {}", attack);
+            assert!(
+                validator.validate_text(attack).is_err(),
+                "应阻止: {}",
+                attack
+            );
         }
     }
 

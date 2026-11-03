@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod unit {
     use crate::ambient::*;
-    use crate::voice::streaming_types::{AudioChunk, VadDecision};
     use crate::voice::streaming_traits::{StreamingSttEngine, StreamingTtsEngine, VadEngine};
+    use crate::voice::streaming_types::{AudioChunk, VadDecision};
     use async_trait::async_trait;
 
     // ─── Mock 引擎 ──────────────────────────────────────
@@ -34,7 +34,9 @@ mod unit {
     }
     impl MockStt {
         fn new(text: &str) -> Self {
-            Self { transcript: std::sync::Mutex::new(text.to_string()) }
+            Self {
+                transcript: std::sync::Mutex::new(text.to_string()),
+            }
         }
     }
     #[async_trait]
@@ -45,7 +47,9 @@ mod unit {
         async fn finalize(&self) -> anyhow::Result<String> {
             Ok(self.transcript.lock().unwrap().clone())
         }
-        async fn reset(&self) -> anyhow::Result<()> { Ok(()) }
+        async fn reset(&self) -> anyhow::Result<()> {
+            Ok(())
+        }
     }
 
     struct MockTts;
@@ -70,13 +74,8 @@ mod unit {
         EnhancedWakewordDetector::new(inner, 0.3) // 低阈值方便测试
     }
 
-    fn make_runner(
-        vad_decisions: Vec<VadDecision>,
-        stt_text: &str,
-    ) -> AmbientLoopRunner {
-        let source = MockAudioSource::new(
-            (0..100).map(|i| make_speech_chunk(i)).collect()
-        );
+    fn make_runner(vad_decisions: Vec<VadDecision>, stt_text: &str) -> AmbientLoopRunner {
+        let source = MockAudioSource::new((0..100).map(|i| make_speech_chunk(i)).collect());
         let sink = MockAudioSink::new();
         let vad = MockVad::new(vad_decisions);
         let wakeword = make_wakeword_detector();
@@ -204,13 +203,18 @@ mod unit {
 
     #[tokio::test]
     async fn intent_dispatch_returns_result() {
-        use std::sync::Arc;
         use crate::iot::control::{GenericController, MockDeviceController};
         use crate::iot::semantic::profile::{build_default_profile, SemanticProfileStore};
         use crate::iot::types::DeviceType;
+        use std::sync::Arc;
 
         let mut store = SemanticProfileStore::new();
-        store.add(build_default_profile("light-001", "客厅灯", DeviceType::Light, Some("客厅")));
+        store.add(build_default_profile(
+            "light-001",
+            "客厅灯",
+            DeviceType::Light,
+            Some("客厅"),
+        ));
         let store = Arc::new(store);
 
         let mut gc = GenericController::new();
@@ -319,8 +323,7 @@ mod unit {
     #[test]
     fn enhanced_wakeword_followup_configurable() {
         let inner = crate::voice::WakewordDetector::new("".into(), 0.05);
-        let detector = EnhancedWakewordDetector::new(inner, 0.85)
-            .with_followup_required(false);
+        let detector = EnhancedWakewordDetector::new(inner, 0.85).with_followup_required(false);
         assert!(!detector.requires_followup());
     }
 
@@ -362,10 +365,7 @@ mod unit {
 
     #[tokio::test]
     async fn loop_runner_stays_idle_on_silence() {
-        let mut runner = make_runner(
-            vec![VadDecision::Silence, VadDecision::Silence],
-            "",
-        );
+        let mut runner = make_runner(vec![VadDecision::Silence, VadDecision::Silence], "");
         runner.tick().await.unwrap();
         assert_eq!(runner.state(), AmbientState::Idle);
     }
@@ -389,10 +389,7 @@ mod unit {
 
     #[tokio::test]
     async fn loop_runner_continuous_mode_enters_listening_on_speech() {
-        let mut runner = make_runner(
-            vec![VadDecision::Speech],
-            "你好",
-        );
+        let mut runner = make_runner(vec![VadDecision::Speech], "你好");
         runner.set_listening_mode(ListeningMode::Continuous);
         runner.tick().await.unwrap();
         assert_eq!(runner.state(), AmbientState::Listening);
@@ -402,9 +399,10 @@ mod unit {
 
     #[tokio::test]
     async fn daemon_creation() {
-        let process = crate::daemon::DaemonProcess::new(
-            crate::test_support::temp_file_path("ambient-daemon", "pid"),
-        );
+        let process = crate::daemon::DaemonProcess::new(crate::test_support::temp_file_path(
+            "ambient-daemon",
+            "pid",
+        ));
         let runner = make_runner(vec![VadDecision::Silence], "");
         let config = AmbientConfig::default();
         let event_bus = std::sync::Arc::new(crate::iot::EventBus::new(16));
@@ -415,14 +413,15 @@ mod unit {
 
     #[tokio::test]
     async fn daemon_start_stop() {
-        let process = crate::daemon::DaemonProcess::new(
-            crate::test_support::temp_file_path("ambient-daemon-ss", "pid"),
-        );
+        let process = crate::daemon::DaemonProcess::new(crate::test_support::temp_file_path(
+            "ambient-daemon-ss",
+            "pid",
+        ));
         let runner = make_runner(vec![VadDecision::Silence], "");
         let config = AmbientConfig::default();
         let event_bus = std::sync::Arc::new(crate::iot::EventBus::new(16));
-        let mut daemon = AmbientDaemon::new(process, runner, config, event_bus)
-            .with_max_iterations(2);
+        let mut daemon =
+            AmbientDaemon::new(process, runner, config, event_bus).with_max_iterations(2);
         daemon.start().await.unwrap();
         assert!(daemon.is_running());
         daemon.stop().await.unwrap();
@@ -498,13 +497,21 @@ mod unit {
         struct FailProvider;
         #[async_trait]
         impl Provider for FailProvider {
-            fn name(&self) -> &str { "fail" }
-            fn available_models(&self) -> Vec<String> { vec!["fail-model".into()] }
+            fn name(&self) -> &str {
+                "fail"
+            }
+            fn available_models(&self) -> Vec<String> {
+                vec!["fail-model".into()]
+            }
             async fn chat(&self, _: &ChatRequest) -> anyhow::Result<ChatResponse> {
                 anyhow::bail!("模拟错误")
             }
-            async fn embed(&self, _: &str) -> anyhow::Result<Vec<f32>> { Ok(vec![]) }
-            async fn validate_key(&self) -> anyhow::Result<bool> { Ok(false) }
+            async fn embed(&self, _: &str) -> anyhow::Result<Vec<f32>> {
+                Ok(vec![])
+            }
+            async fn validate_key(&self) -> anyhow::Result<bool> {
+                Ok(false)
+            }
         }
 
         let provider: std::sync::Arc<dyn Provider> = std::sync::Arc::new(FailProvider);
@@ -521,14 +528,22 @@ mod unit {
         struct SlowProvider;
         #[async_trait]
         impl Provider for SlowProvider {
-            fn name(&self) -> &str { "slow" }
-            fn available_models(&self) -> Vec<String> { vec!["slow-model".into()] }
+            fn name(&self) -> &str {
+                "slow"
+            }
+            fn available_models(&self) -> Vec<String> {
+                vec!["slow-model".into()]
+            }
             async fn chat(&self, _: &ChatRequest) -> anyhow::Result<ChatResponse> {
                 tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
                 unreachable!()
             }
-            async fn embed(&self, _: &str) -> anyhow::Result<Vec<f32>> { Ok(vec![]) }
-            async fn validate_key(&self) -> anyhow::Result<bool> { Ok(false) }
+            async fn embed(&self, _: &str) -> anyhow::Result<Vec<f32>> {
+                Ok(vec![])
+            }
+            async fn validate_key(&self) -> anyhow::Result<bool> {
+                Ok(false)
+            }
         }
 
         let provider: std::sync::Arc<dyn Provider> = std::sync::Arc::new(SlowProvider);
@@ -542,9 +557,9 @@ mod unit {
 
     #[tokio::test]
     async fn privacy_dispatcher_with_llm_provider() {
-        use crate::providers::mock::MockProvider;
-        use crate::ambient::privacy_dispatcher::{PrivacyAwareDispatcher, SanitizerConfig};
         use crate::ambient::dispatcher_trait::Dispatcher;
+        use crate::ambient::privacy_dispatcher::{PrivacyAwareDispatcher, SanitizerConfig};
+        use crate::providers::mock::MockProvider;
 
         let provider = std::sync::Arc::new(MockProvider::new("priv-test"));
         let inner = IntentDispatcher::new().with_provider(provider);

@@ -30,20 +30,25 @@ mod tests {
         let handle = tokio::spawn(async move {
             while rx.recv().await.is_ok() {
                 let n = c.fetch_add(1, Ordering::SeqCst);
-                if n + 1 >= 1000 { break; }
+                if n + 1 >= 1000 {
+                    break;
+                }
             }
         });
 
         for i in 0..1000 {
             bus.publish(DeviceEvent::new(
-                format!("dev-{}", i), DeviceType::Sensor,
-                EventKind::StateChanged, serde_json::json!({"i": i}),
+                format!("dev-{}", i),
+                DeviceType::Sensor,
+                EventKind::StateChanged,
+                serde_json::json!({"i": i}),
             ));
         }
 
-        tokio::time::timeout(
-            tokio::time::Duration::from_secs(5), handle
-        ).await.unwrap().unwrap();
+        tokio::time::timeout(tokio::time::Duration::from_secs(5), handle)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(count.load(Ordering::SeqCst), 1000);
     }
 
@@ -66,13 +71,17 @@ mod tests {
 
         tokio::task::yield_now().await;
         bus.publish(DeviceEvent::new(
-            "dev-001", DeviceType::Sensor, EventKind::StateChanged,
+            "dev-001",
+            DeviceType::Sensor,
+            EventKind::StateChanged,
             serde_json::json!({}),
         ));
 
         for h in handles {
             tokio::time::timeout(tokio::time::Duration::from_secs(2), h)
-                .await.unwrap().unwrap();
+                .await
+                .unwrap()
+                .unwrap();
         }
         assert_eq!(count.load(Ordering::SeqCst), 50);
     }
@@ -105,7 +114,9 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor, EventKind::StateChanged,
+            "sensor-001",
+            DeviceType::Sensor,
+            EventKind::StateChanged,
             serde_json::json!({}),
         ));
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
@@ -172,7 +183,9 @@ mod tests {
         }
         for h in handles {
             tokio::time::timeout(tokio::time::Duration::from_secs(5), h)
-                .await.unwrap().unwrap();
+                .await
+                .unwrap()
+                .unwrap();
         }
         // Should end with 0 rules (all removed)
         let rules = engine.list_rules().await;
@@ -188,7 +201,8 @@ mod tests {
         for i in 0..100 {
             let c = Arc::clone(&cache);
             handles.push(tokio::spawn(async move {
-                c.set(&format!("dev-{}", i), serde_json::json!({"val": i})).await;
+                c.set(&format!("dev-{}", i), serde_json::json!({"val": i}))
+                    .await;
             }));
         }
         for h in handles {
@@ -234,15 +248,15 @@ mod tests {
     #[tokio::test]
     async fn aggregator_many_devices_dedup() {
         let mut agg = DiscoveryAggregator::new();
-        agg.add_provider(Box::new(MdnsDiscoveryProvider::with_socket(
-            Box::new(SimulatedMdnsSocket::typical_lan_devices()),
-        )));
-        agg.add_provider(Box::new(SsdpDiscoveryProvider::with_socket(
-            Box::new(SimulatedSsdpSocket::typical_upnp_devices()),
-        )));
-        agg.add_provider(Box::new(BleDiscoveryProvider::with_scanner(
-            Box::new(SimulatedBleScanner::typical_ble_devices()),
-        )));
+        agg.add_provider(Box::new(MdnsDiscoveryProvider::with_socket(Box::new(
+            SimulatedMdnsSocket::typical_lan_devices(),
+        ))));
+        agg.add_provider(Box::new(SsdpDiscoveryProvider::with_socket(Box::new(
+            SimulatedSsdpSocket::typical_upnp_devices(),
+        ))));
+        agg.add_provider(Box::new(BleDiscoveryProvider::with_scanner(Box::new(
+            SimulatedBleScanner::typical_ble_devices(),
+        ))));
 
         let devices = agg.scan_all(1).await.unwrap();
         // All have unique IPs, so no dedup needed — just verify count
@@ -277,7 +291,9 @@ mod tests {
         // First event triggers, rest are in cooldown=None so all fire
         for _ in 0..500 {
             bus.publish(DeviceEvent::new(
-                "sensor-001", DeviceType::Sensor, EventKind::StateChanged,
+                "sensor-001",
+                DeviceType::Sensor,
+                EventKind::StateChanged,
                 serde_json::json!({}),
             ));
         }
@@ -294,7 +310,8 @@ mod tests {
         let registry = Arc::new(crate::iot::registry::DeviceRegistry::new(&path).unwrap());
         let bus = Arc::new(EventBus::new(256));
         let provisioner = crate::iot::auto_provision::AutoProvisioner::new(
-            Arc::clone(&registry), Arc::clone(&bus),
+            Arc::clone(&registry),
+            Arc::clone(&bus),
         );
 
         for i in 0..100 {

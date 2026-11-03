@@ -36,12 +36,7 @@ impl EventBusController {
     }
 
     fn publish(&self, device_id: &str, kind: EventKind, payload: Value) {
-        let event = DeviceEvent::new(
-            device_id,
-            self.device_type_enum(),
-            kind,
-            payload,
-        );
+        let event = DeviceEvent::new(device_id, self.device_type_enum(), kind, payload);
         let receivers = self.event_bus.publish(event);
         if receivers == 0 {
             tracing::debug!("event bus: no active receivers for event");
@@ -77,7 +72,9 @@ impl DeviceController for EventBusController {
         property: &str,
         value: Value,
     ) -> anyhow::Result<()> {
-        self.inner.set_property(device_id, property, value.clone()).await?;
+        self.inner
+            .set_property(device_id, property, value.clone())
+            .await?;
         self.publish(
             device_id,
             EventKind::PropertyChanged,
@@ -152,10 +149,7 @@ mod tests {
         let mut rx = bus.subscribe();
         let _state = ctrl.get_state("light-001").await.unwrap();
         // 尝试接收，应该超时（无事件）
-        let result = tokio::time::timeout(
-            std::time::Duration::from_millis(50),
-            rx.recv(),
-        ).await;
+        let result = tokio::time::timeout(std::time::Duration::from_millis(50), rx.recv()).await;
         assert!(result.is_err()); // timeout = no event
     }
 
@@ -168,10 +162,7 @@ mod tests {
         let mut rx = bus.subscribe();
         let result = ctrl.turn_on("nonexistent").await;
         assert!(result.is_err());
-        let recv = tokio::time::timeout(
-            std::time::Duration::from_millis(50),
-            rx.recv(),
-        ).await;
+        let recv = tokio::time::timeout(std::time::Duration::from_millis(50), rx.recv()).await;
         assert!(recv.is_err());
     }
 

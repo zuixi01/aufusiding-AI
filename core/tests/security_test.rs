@@ -2,11 +2,11 @@
 //!
 //! 验证安全防护模块的攻击检测和防护能力。
 
-use prometheus_core::security::{
-    PromptGuard, InputValidator, CommandSanitizer, RateLimiter,
-    SecurityAuditLog, SecurityEvent, SecurityEventType, Severity,
-};
 use chrono::Utc;
+use prometheus_core::security::{
+    CommandSanitizer, InputValidator, PromptGuard, RateLimiter, SecurityAuditLog, SecurityEvent,
+    SecurityEventType, Severity,
+};
 
 fn temp_path(prefix: &str) -> std::path::PathBuf {
     prometheus_core::test_support::temp_db_path(prefix)
@@ -106,7 +106,11 @@ fn input_validator_blocks_sql_injection() {
         "UNION SELECT * FROM passwords",
     ];
     for attack in attacks {
-        assert!(validator.validate_text(attack).is_err(), "应阻止 SQL 注入: {}", attack);
+        assert!(
+            validator.validate_text(attack).is_err(),
+            "应阻止 SQL 注入: {}",
+            attack
+        );
     }
 }
 
@@ -114,12 +118,24 @@ fn input_validator_blocks_sql_injection() {
 fn input_validator_blocks_control_chars() {
     let validator = InputValidator::new();
     let input_with_null = "hello\x00world";
-    assert!(validator.validate_text(input_with_null).is_err(), "应阻止包含控制字符的输入");
+    assert!(
+        validator.validate_text(input_with_null).is_err(),
+        "应阻止包含控制字符的输入"
+    );
     let input_with_bell = "hello\x07world";
-    assert!(validator.validate_text(input_with_bell).is_err(), "应阻止包含 BEL 字符的输入");
+    assert!(
+        validator.validate_text(input_with_bell).is_err(),
+        "应阻止包含 BEL 字符的输入"
+    );
     // 换行和 tab 应该允许
-    assert!(validator.validate_text("hello\nworld").is_ok(), "换行应允许");
-    assert!(validator.validate_text("hello\tworld").is_ok(), "Tab 应允许");
+    assert!(
+        validator.validate_text("hello\nworld").is_ok(),
+        "换行应允许"
+    );
+    assert!(
+        validator.validate_text("hello\tworld").is_ok(),
+        "Tab 应允许"
+    );
 }
 
 #[test]
@@ -130,9 +146,18 @@ fn input_validator_device_id_whitelist() {
     assert!(validator.validate_device_id("sensor_temp_01").is_ok());
     assert!(validator.validate_device_id("ABC123").is_ok());
     // 非法 ID
-    assert!(validator.validate_device_id("light;rm -rf /").is_err(), "应阻止含分号的 ID");
-    assert!(validator.validate_device_id("light&001").is_err(), "应阻止含 & 的 ID");
-    assert!(validator.validate_device_id("../etc/passwd").is_err(), "应阻止路径遍历");
+    assert!(
+        validator.validate_device_id("light;rm -rf /").is_err(),
+        "应阻止含分号的 ID"
+    );
+    assert!(
+        validator.validate_device_id("light&001").is_err(),
+        "应阻止含 & 的 ID"
+    );
+    assert!(
+        validator.validate_device_id("../etc/passwd").is_err(),
+        "应阻止路径遍历"
+    );
     assert!(validator.validate_device_id("").is_err(), "应阻止空 ID");
 }
 
@@ -144,7 +169,10 @@ fn input_validator_json_depth_limit() {
     assert!(validator.validate_json(normal).is_ok(), "正常深度应通过");
     // 超深嵌套 (>10 层)
     let deep = r#"{"a":{"b":{"c":{"d":{"e":{"f":{"g":{"h":{"i":{"j":{"k":1}}}}}}}}}}}"#;
-    assert!(validator.validate_json(deep).is_err(), "超过 10 层嵌套应被拒绝");
+    assert!(
+        validator.validate_json(deep).is_err(),
+        "超过 10 层嵌套应被拒绝"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -160,7 +188,11 @@ fn command_sanitizer_blocks_shell_injection() {
         "light|nc attacker 4444",
     ];
     for attack in attacks {
-        assert!(CommandSanitizer::sanitize_device_id(attack).is_err(), "应阻止: {}", attack);
+        assert!(
+            CommandSanitizer::sanitize_device_id(attack).is_err(),
+            "应阻止: {}",
+            attack
+        );
     }
 }
 
@@ -172,21 +204,39 @@ fn command_sanitizer_blocks_path_traversal() {
         "..%2f..%2fetc%2fpasswd",
     ];
     for attack in attacks {
-        assert!(CommandSanitizer::sanitize_device_id(attack).is_err(), "应阻止路径遍历: {}", attack);
+        assert!(
+            CommandSanitizer::sanitize_device_id(attack).is_err(),
+            "应阻止路径遍历: {}",
+            attack
+        );
     }
 }
 
 #[test]
 fn command_sanitizer_command_whitelist() {
     // 白名单内命令
-    let allowed = vec!["turn_on", "turn_off", "set_brightness", "get_state", "toggle"];
+    let allowed = vec![
+        "turn_on",
+        "turn_off",
+        "set_brightness",
+        "get_state",
+        "toggle",
+    ];
     for cmd in allowed {
-        assert!(CommandSanitizer::sanitize_command(cmd).is_ok(), "应允许: {}", cmd);
+        assert!(
+            CommandSanitizer::sanitize_command(cmd).is_ok(),
+            "应允许: {}",
+            cmd
+        );
     }
     // 白名单外命令
     let blocked = vec!["exec", "eval", "rm", "sudo", "chmod", "curl"];
     for cmd in blocked {
-        assert!(CommandSanitizer::sanitize_command(cmd).is_err(), "应阻止: {}", cmd);
+        assert!(
+            CommandSanitizer::sanitize_command(cmd).is_err(),
+            "应阻止: {}",
+            cmd
+        );
     }
 }
 
@@ -194,10 +244,16 @@ fn command_sanitizer_command_whitelist() {
 fn command_sanitizer_params_injection() {
     // 正常参数
     let normal = serde_json::json!({"brightness": 80, "color": "warm"});
-    assert!(CommandSanitizer::sanitize_params(&normal).is_ok(), "正常参数应通过");
+    assert!(
+        CommandSanitizer::sanitize_params(&normal).is_ok(),
+        "正常参数应通过"
+    );
     // 注入参数
     let injection = serde_json::json!({"cmd": "; rm -rf /"});
-    assert!(CommandSanitizer::sanitize_params(&injection).is_err(), "含注入的参数应被阻止");
+    assert!(
+        CommandSanitizer::sanitize_params(&injection).is_err(),
+        "含注入的参数应被阻止"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -208,7 +264,11 @@ fn command_sanitizer_params_injection() {
 async fn rate_limiter_allows_within_limit() {
     let limiter = RateLimiter::with_limits(10, 100, 1000);
     for i in 0..10 {
-        assert!(limiter.check("client-a").await.is_ok(), "第 {} 次请求应通过", i + 1);
+        assert!(
+            limiter.check("client-a").await.is_ok(),
+            "第 {} 次请求应通过",
+            i + 1
+        );
     }
 }
 
@@ -229,10 +289,19 @@ async fn rate_limiter_separate_clients() {
     for _ in 0..3 {
         limiter.check("client-c").await.unwrap();
     }
-    assert!(limiter.check("client-c").await.is_err(), "client-c 应被限制");
+    assert!(
+        limiter.check("client-c").await.is_err(),
+        "client-c 应被限制"
+    );
     // client-d 应独立计数
-    assert!(limiter.check("client-d").await.is_ok(), "client-d 应不受影响");
-    assert!(limiter.check("client-d").await.is_ok(), "client-d 第二次应通过");
+    assert!(
+        limiter.check("client-d").await.is_ok(),
+        "client-d 应不受影响"
+    );
+    assert!(
+        limiter.check("client-d").await.is_ok(),
+        "client-d 第二次应通过"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

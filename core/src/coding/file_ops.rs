@@ -34,7 +34,9 @@ impl FileOpsTool {
                 let canon_parent = parent
                     .canonicalize()
                     .map_err(|e| format!("父目录解析失败: {}", e))?;
-                let canon_sandbox = self.sandbox_root.canonicalize()
+                let canon_sandbox = self
+                    .sandbox_root
+                    .canonicalize()
                     .map_err(|e| format!("沙箱根解析失败: {}", e))?;
                 if !canon_parent.starts_with(&canon_sandbox) {
                     return Err("路径超出沙箱范围".to_string());
@@ -43,7 +45,9 @@ impl FileOpsTool {
             target
         };
 
-        let canon_sandbox = self.sandbox_root.canonicalize()
+        let canon_sandbox = self
+            .sandbox_root
+            .canonicalize()
             .unwrap_or_else(|_| self.sandbox_root.clone());
         if !normalized.starts_with(&canon_sandbox) {
             return Err("路径超出沙箱范围".to_string());
@@ -132,7 +136,9 @@ mod tests {
         let dir = tempdir().unwrap();
         std::fs::write(dir.path().join("test.txt"), "hello").unwrap();
         let tool = FileOpsTool::new(dir.path().to_path_buf());
-        let result = tool.execute(json!({"action": "read", "path": "test.txt"})).await;
+        let result = tool
+            .execute(json!({"action": "read", "path": "test.txt"}))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["content"], "hello");
     }
@@ -141,7 +147,9 @@ mod tests {
     async fn write_file_in_sandbox() {
         let dir = tempdir().unwrap();
         let tool = FileOpsTool::new(dir.path().to_path_buf());
-        let result = tool.execute(json!({"action": "write", "path": "out.txt", "content": "data"})).await;
+        let result = tool
+            .execute(json!({"action": "write", "path": "out.txt", "content": "data"}))
+            .await;
         assert!(result.success);
         let content = std::fs::read_to_string(dir.path().join("out.txt")).unwrap();
         assert_eq!(content, "data");
@@ -162,7 +170,9 @@ mod tests {
     async fn reject_path_traversal() {
         let dir = tempdir().unwrap();
         let tool = FileOpsTool::new(dir.path().to_path_buf());
-        let result = tool.execute(json!({"action": "read", "path": "../../etc/passwd"})).await;
+        let result = tool
+            .execute(json!({"action": "read", "path": "../../etc/passwd"}))
+            .await;
         assert!(!result.success);
         assert!(result.error.unwrap().contains("沙箱"));
     }
@@ -171,7 +181,9 @@ mod tests {
     async fn read_nonexistent_file() {
         let dir = tempdir().unwrap();
         let tool = FileOpsTool::new(dir.path().to_path_buf());
-        let result = tool.execute(json!({"action": "read", "path": "nope.txt"})).await;
+        let result = tool
+            .execute(json!({"action": "read", "path": "nope.txt"}))
+            .await;
         assert!(!result.success);
     }
 }

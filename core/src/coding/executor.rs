@@ -21,11 +21,7 @@ impl CodeExecutor {
     pub fn new(temp_dir: PathBuf) -> Self {
         Self {
             temp_dir,
-            allowed_languages: vec![
-                "python".to_string(),
-                "node".to_string(),
-                "bash".to_string(),
-            ],
+            allowed_languages: vec!["python".to_string(), "node".to_string(), "bash".to_string()],
             timeout: Duration::from_secs(30),
         }
     }

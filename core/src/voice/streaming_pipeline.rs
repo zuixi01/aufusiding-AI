@@ -36,7 +36,10 @@ impl StreamingVoicePipeline {
         config: StreamingConfig,
     ) -> Self {
         Self {
-            stt, tts, vad, config,
+            stt,
+            tts,
+            vad,
+            config,
             state: TurnState::Listening,
             silence_ms: 0,
             has_speech: false,
@@ -111,7 +114,11 @@ impl StreamingVoicePipeline {
                 if event_tx.send(event.clone()).await.is_err() {
                     tracing::debug!("stream event receiver dropped");
                 }
-                if let StreamEvent::PartialTranscript { text, is_final: true } = event {
+                if let StreamEvent::PartialTranscript {
+                    text,
+                    is_final: true,
+                } = event
+                {
                     final_text = text.clone();
                 }
             }
@@ -132,7 +139,11 @@ impl StreamingVoicePipeline {
         self.state = TurnState::Speaking;
         let chunks = self.tts.synthesize_streamed(&response).await?;
         for chunk in chunks {
-            if event_tx.send(StreamEvent::SynthesizedChunk(chunk)).await.is_err() {
+            if event_tx
+                .send(StreamEvent::SynthesizedChunk(chunk))
+                .await
+                .is_err()
+            {
                 tracing::debug!("stream event receiver dropped during TTS");
                 break;
             }
@@ -192,7 +203,9 @@ mod tests {
     async fn speech_triggers_partial_transcript() {
         let mut pipeline = make_pipeline();
         let events = pipeline.process_chunk(&speech_chunk(0)).await.unwrap();
-        assert!(events.iter().any(|e| matches!(e, StreamEvent::SpeechStarted)));
+        assert!(events
+            .iter()
+            .any(|e| matches!(e, StreamEvent::SpeechStarted)));
     }
 
     #[tokio::test]
@@ -241,7 +254,9 @@ mod tests {
         while let Some(e) = event_rx.recv().await {
             events.push(e);
         }
-        assert!(events.iter().any(|e| matches!(e, StreamEvent::SpeechStarted)));
+        assert!(events
+            .iter()
+            .any(|e| matches!(e, StreamEvent::SpeechStarted)));
         assert!(events.iter().any(|e| matches!(e, StreamEvent::Done)));
     }
 

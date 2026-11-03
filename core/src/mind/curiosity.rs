@@ -182,7 +182,11 @@ impl CuriosityEngine {
             .iter()
             .filter(|g| !g.explored && g.importance >= self.min_importance)
             .collect();
-        pending.sort_by(|a, b| b.importance.partial_cmp(&a.importance).unwrap_or(std::cmp::Ordering::Equal));
+        pending.sort_by(|a, b| {
+            b.importance
+                .partial_cmp(&a.importance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         pending
     }
 

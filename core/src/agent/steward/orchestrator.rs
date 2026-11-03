@@ -75,10 +75,7 @@ impl Steward {
             }
         }
 
-        Ok(OrchestrationSession {
-            team,
-            monitor,
-        })
+        Ok(OrchestrationSession { team, monitor })
     }
 
     /// 处理升级请求
@@ -126,9 +123,30 @@ mod tests {
 
     fn sample_graph() -> TaskGraph {
         TaskGraphBuilder::new("实现用户认证")
-            .add_task("PRD", "需求文档", Role::ProductManager, DeliverableType::PRD, Priority::P0, Complexity::Medium)
-            .add_task("设计", "架构设计", Role::Architect, DeliverableType::DesignDoc, Priority::P0, Complexity::High)
-            .add_task("编码", "实现代码", Role::Engineer, DeliverableType::Code, Priority::P0, Complexity::High)
+            .add_task(
+                "PRD",
+                "需求文档",
+                Role::ProductManager,
+                DeliverableType::PRD,
+                Priority::P0,
+                Complexity::Medium,
+            )
+            .add_task(
+                "设计",
+                "架构设计",
+                Role::Architect,
+                DeliverableType::DesignDoc,
+                Priority::P0,
+                Complexity::High,
+            )
+            .add_task(
+                "编码",
+                "实现代码",
+                Role::Engineer,
+                DeliverableType::Code,
+                Priority::P0,
+                Complexity::High,
+            )
             .add_dependency("设计", "PRD")
             .add_dependency("编码", "设计")
             .build()
@@ -145,7 +163,11 @@ mod tests {
 
         // 所有任务都应有 assigned_agent
         for task in &graph.tasks {
-            assert!(task.assigned_agent.is_some(), "task {} 未分配 agent", task.id);
+            assert!(
+                task.assigned_agent.is_some(),
+                "task {} 未分配 agent",
+                task.id
+            );
         }
     }
 

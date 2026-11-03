@@ -91,7 +91,8 @@ impl NgramModel {
                     })
                     .collect();
 
-                predictions.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                predictions
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                 return predictions;
             }
         }

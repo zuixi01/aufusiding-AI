@@ -28,12 +28,7 @@ pub fn template() -> RoleTemplate {
             ..QualityStandards::engineering_default()
         },
         can_veto: true,
-        collaborates_with: vec![
-            Role::Architect,
-            Role::Engineer,
-            Role::QA,
-            Role::DevOps,
-        ],
+        collaborates_with: vec![Role::Architect, Role::Engineer, Role::QA, Role::DevOps],
         watches: &["review_request", "security_alert", "code_review"],
     }
 }

@@ -144,7 +144,10 @@ impl StreamingSttEngine for HttpStreamingSttEngine {
     }
 
     async fn reset(&self) -> anyhow::Result<()> {
-        self.buffer.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
         *self.chunks_fed.lock().unwrap_or_else(|e| e.into_inner()) = 0;
         Ok(())
     }

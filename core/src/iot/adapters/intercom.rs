@@ -47,7 +47,12 @@ pub struct IntercomCapability {
 
 impl IntercomCapability {
     pub fn full() -> Self {
-        Self { ring_detection: true, two_way_audio: true, video_feed: true, remote_unlock: true }
+        Self {
+            ring_detection: true,
+            two_way_audio: true,
+            video_feed: true,
+            remote_unlock: true,
+        }
     }
 }
 
@@ -91,12 +96,15 @@ impl IntercomAdapter {
 
     pub fn register_device(&self, device_id: &str, config: IntercomConfig) {
         let mut devices = self.devices.lock().unwrap_or_else(|e| e.into_inner());
-        devices.insert(device_id.to_string(), IntercomDeviceState {
-            config,
-            locked: true,
-            last_event: None,
-            last_event_time: None,
-        });
+        devices.insert(
+            device_id.to_string(),
+            IntercomDeviceState {
+                config,
+                locked: true,
+                last_event: None,
+                last_event_time: None,
+            },
+        );
     }
 
     fn publish_event(&self, device_id: &str, event: IntercomEvent) {
@@ -116,7 +124,8 @@ impl IntercomAdapter {
 
     pub fn handle_ring(&self, device_id: &str) -> anyhow::Result<()> {
         let mut devices = self.devices.lock().unwrap_or_else(|e| e.into_inner());
-        let state = devices.get_mut(device_id)
+        let state = devices
+            .get_mut(device_id)
             .ok_or_else(|| anyhow::anyhow!("unknown intercom: {}", device_id))?;
         state.last_event = Some(IntercomEvent::Ring);
         state.last_event_time = Some(Utc::now());
@@ -127,7 +136,8 @@ impl IntercomAdapter {
 
     pub fn handle_motion(&self, device_id: &str) -> anyhow::Result<()> {
         let mut devices = self.devices.lock().unwrap_or_else(|e| e.into_inner());
-        let state = devices.get_mut(device_id)
+        let state = devices
+            .get_mut(device_id)
             .ok_or_else(|| anyhow::anyhow!("unknown intercom: {}", device_id))?;
         state.last_event = Some(IntercomEvent::Motion);
         state.last_event_time = Some(Utc::now());
@@ -138,7 +148,8 @@ impl IntercomAdapter {
 
     pub fn remote_unlock(&self, device_id: &str) -> anyhow::Result<()> {
         let mut devices = self.devices.lock().unwrap_or_else(|e| e.into_inner());
-        let state = devices.get_mut(device_id)
+        let state = devices
+            .get_mut(device_id)
             .ok_or_else(|| anyhow::anyhow!("unknown intercom: {}", device_id))?;
         if !state.config.capabilities.remote_unlock {
             anyhow::bail!("device {} does not support remote unlock", device_id);
@@ -153,7 +164,8 @@ impl IntercomAdapter {
 
     pub fn get_video_feed_url(&self, device_id: &str) -> anyhow::Result<String> {
         let devices = self.devices.lock().unwrap_or_else(|e| e.into_inner());
-        let state = devices.get(device_id)
+        let state = devices
+            .get(device_id)
             .ok_or_else(|| anyhow::anyhow!("unknown intercom: {}", device_id))?;
         if !state.config.capabilities.video_feed {
             anyhow::bail!("device {} does not support video feed", device_id);
@@ -185,12 +197,18 @@ impl DeviceController for IntercomAdapter {
         Ok(())
     }
 
-    async fn set_property(&self, device_id: &str, property: &str, value: Value) -> anyhow::Result<()> {
+    async fn set_property(
+        &self,
+        device_id: &str,
+        property: &str,
+        value: Value,
+    ) -> anyhow::Result<()> {
         match property {
             "locked" => {
                 let lock = value.as_bool().unwrap_or(true);
                 let mut devices = self.devices.lock().unwrap_or_else(|e| e.into_inner());
-                let state = devices.get_mut(device_id)
+                let state = devices
+                    .get_mut(device_id)
                     .ok_or_else(|| anyhow::anyhow!("unknown intercom: {}", device_id))?;
                 state.locked = lock;
                 Ok(())
@@ -201,7 +219,8 @@ impl DeviceController for IntercomAdapter {
 
     async fn get_state(&self, device_id: &str) -> anyhow::Result<Value> {
         let devices = self.devices.lock().unwrap_or_else(|e| e.into_inner());
-        let state = devices.get(device_id)
+        let state = devices
+            .get(device_id)
             .ok_or_else(|| anyhow::anyhow!("unknown intercom: {}", device_id))?;
         Ok(serde_json::json!({
             "device_id": device_id,
@@ -286,16 +305,19 @@ mod tests {
     #[test]
     fn remote_unlock_no_capability() {
         let adapter = IntercomAdapter::new();
-        adapter.register_device("intercom-002", IntercomConfig {
-            protocol: IntercomProtocol::Http,
-            host: "192.168.1.101".into(),
-            capabilities: IntercomCapability {
-                ring_detection: true,
-                two_way_audio: false,
-                video_feed: false,
-                remote_unlock: false,
+        adapter.register_device(
+            "intercom-002",
+            IntercomConfig {
+                protocol: IntercomProtocol::Http,
+                host: "192.168.1.101".into(),
+                capabilities: IntercomCapability {
+                    ring_detection: true,
+                    two_way_audio: false,
+                    video_feed: false,
+                    remote_unlock: false,
+                },
             },
-        });
+        );
         assert!(adapter.remote_unlock("intercom-002").is_err());
     }
 
@@ -310,11 +332,14 @@ mod tests {
     #[test]
     fn video_feed_url_http() {
         let adapter = IntercomAdapter::new();
-        adapter.register_device("ic-http", IntercomConfig {
-            protocol: IntercomProtocol::Http,
-            host: "10.0.0.1".into(),
-            capabilities: IntercomCapability::full(),
-        });
+        adapter.register_device(
+            "ic-http",
+            IntercomConfig {
+                protocol: IntercomProtocol::Http,
+                host: "10.0.0.1".into(),
+                capabilities: IntercomCapability::full(),
+            },
+        );
         let url = adapter.get_video_feed_url("ic-http").unwrap();
         assert!(url.starts_with("http://"));
     }
@@ -322,14 +347,19 @@ mod tests {
     #[test]
     fn video_feed_no_capability() {
         let adapter = IntercomAdapter::new();
-        adapter.register_device("ic-novid", IntercomConfig {
-            protocol: IntercomProtocol::Sip,
-            host: "10.0.0.2".into(),
-            capabilities: IntercomCapability {
-                ring_detection: true, two_way_audio: true,
-                video_feed: false, remote_unlock: true,
+        adapter.register_device(
+            "ic-novid",
+            IntercomConfig {
+                protocol: IntercomProtocol::Sip,
+                host: "10.0.0.2".into(),
+                capabilities: IntercomCapability {
+                    ring_detection: true,
+                    two_way_audio: true,
+                    video_feed: false,
+                    remote_unlock: true,
+                },
             },
-        });
+        );
         assert!(adapter.get_video_feed_url("ic-novid").is_err());
     }
 
@@ -348,7 +378,10 @@ mod tests {
     #[tokio::test]
     async fn set_property_locked() {
         let adapter = setup();
-        adapter.set_property("intercom-001", "locked", serde_json::json!(false)).await.unwrap();
+        adapter
+            .set_property("intercom-001", "locked", serde_json::json!(false))
+            .await
+            .unwrap();
         let state = adapter.get_state("intercom-001").await.unwrap();
         assert_eq!(state["locked"], false);
     }
@@ -356,7 +389,10 @@ mod tests {
     #[tokio::test]
     async fn set_property_unsupported() {
         let adapter = setup();
-        assert!(adapter.set_property("intercom-001", "color", serde_json::json!("red")).await.is_err());
+        assert!(adapter
+            .set_property("intercom-001", "color", serde_json::json!("red"))
+            .await
+            .is_err());
     }
 
     #[test]

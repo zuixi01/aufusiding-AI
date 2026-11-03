@@ -31,7 +31,11 @@ pub struct SemanticCacheStats {
 impl SemanticCacheStats {
     pub fn hit_rate(&self) -> f64 {
         let total = self.hits + self.misses;
-        if total == 0 { 0.0 } else { self.hits as f64 / total as f64 }
+        if total == 0 {
+            0.0
+        } else {
+            self.hits as f64 / total as f64
+        }
     }
 }
 
@@ -114,9 +118,9 @@ impl SemanticTaskCache {
         let chars: Vec<char> = text.chars().collect();
 
         for window in chars.windows(3) {
-            let hash = window.iter().fold(0u64, |acc, &c| {
-                acc.wrapping_mul(31).wrapping_add(c as u64)
-            });
+            let hash = window
+                .iter()
+                .fold(0u64, |acc, &c| acc.wrapping_mul(31).wrapping_add(c as u64));
             let idx = (hash as usize) % dim;
             vec[idx] += 1.0;
         }

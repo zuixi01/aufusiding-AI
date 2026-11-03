@@ -129,9 +129,16 @@ impl RoutineLearner {
         if events.len() < 2 {
             return 0.0;
         }
-        let hours: Vec<u32> = events.iter().map(|e| e.timestamp.format("%H").to_string().parse().unwrap_or(0)).collect();
+        let hours: Vec<u32> = events
+            .iter()
+            .map(|e| e.timestamp.format("%H").to_string().parse().unwrap_or(0))
+            .collect();
         let mean = hours.iter().sum::<u32>() as f64 / hours.len() as f64;
-        let variance = hours.iter().map(|h| (*h as f64 - mean).powi(2)).sum::<f64>() / hours.len() as f64;
+        let variance = hours
+            .iter()
+            .map(|h| (*h as f64 - mean).powi(2))
+            .sum::<f64>()
+            / hours.len() as f64;
         let std_dev = variance.sqrt();
         // 标准差越小，时间越一致，置信度越高
         (1.0 - std_dev / 12.0).max(0.0)
@@ -141,7 +148,8 @@ impl RoutineLearner {
         if events.is_empty() {
             return None;
         }
-        let mut hour_counts: std::collections::HashMap<u32, usize> = std::collections::HashMap::new();
+        let mut hour_counts: std::collections::HashMap<u32, usize> =
+            std::collections::HashMap::new();
         for e in events {
             let hour: u32 = e.timestamp.format("%H").to_string().parse().unwrap_or(0);
             *hour_counts.entry(hour).or_default() += 1;

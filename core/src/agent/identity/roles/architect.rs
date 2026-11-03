@@ -33,6 +33,10 @@ pub fn template() -> RoleTemplate {
             Role::ProductManager,
             Role::DevOps,
         ],
-        watches: &["review_request", "design_discussion", "architecture_decision"],
+        watches: &[
+            "review_request",
+            "design_discussion",
+            "architecture_decision",
+        ],
     }
 }

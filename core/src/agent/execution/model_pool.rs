@@ -93,10 +93,7 @@ impl ModelPool {
     /// 检查指定层级是否有可用模型
     pub async fn has_tier(&self, tier: &ModelTier) -> bool {
         let backends = self.backends.read().await;
-        backends
-            .get(tier)
-            .map(|v| !v.is_empty())
-            .unwrap_or(false)
+        backends.get(tier).map(|v| !v.is_empty()).unwrap_or(false)
     }
 }
 
@@ -174,12 +171,9 @@ mod tests {
     #[tokio::test]
     async fn total_models_count() {
         let pool = ModelPool::new();
-        pool.register(ModelTier::Standard, mock_backend("s1"))
-            .await;
-        pool.register(ModelTier::Standard, mock_backend("s2"))
-            .await;
-        pool.register(ModelTier::Premium, mock_backend("p1"))
-            .await;
+        pool.register(ModelTier::Standard, mock_backend("s1")).await;
+        pool.register(ModelTier::Standard, mock_backend("s2")).await;
+        pool.register(ModelTier::Premium, mock_backend("p1")).await;
         assert_eq!(pool.total_models().await, 3);
     }
 

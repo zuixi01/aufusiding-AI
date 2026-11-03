@@ -442,19 +442,29 @@ impl PiiDetector {
     /// 身份证校验位验证
     fn validate_id_card(s: &str) -> bool {
         let digits: Vec<u32> = s.chars().take(17).filter_map(|c| c.to_digit(10)).collect();
-        if digits.len() != 17 { return false; }
+        if digits.len() != 17 {
+            return false;
+        }
         let weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
         let check_chars = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
         let sum: u32 = digits.iter().zip(weights.iter()).map(|(d, w)| d * w).sum();
         let idx = (sum % 11) as usize;
-        let Some(last) = s.chars().last() else { return false };
+        let Some(last) = s.chars().last() else {
+            return false;
+        };
         last.to_ascii_uppercase() == check_chars[idx]
     }
 
     /// Luhn 校验（银行卡）
     fn validate_luhn(s: &str) -> bool {
-        let digits: Vec<u32> = s.chars().filter(|c| c.is_ascii_digit()).filter_map(|c| c.to_digit(10)).collect();
-        if digits.len() < 16 || digits.len() > 19 { return false; }
+        let digits: Vec<u32> = s
+            .chars()
+            .filter(|c| c.is_ascii_digit())
+            .filter_map(|c| c.to_digit(10))
+            .collect();
+        if digits.len() < 16 || digits.len() > 19 {
+            return false;
+        }
         let mut sum = 0u32;
         for (i, &d) in digits.iter().rev().enumerate() {
             if i % 2 == 1 {
@@ -470,7 +480,9 @@ impl PiiDetector {
     /// 地理坐标范围校验：lat ∈ [-90, 90], lng ∈ [-180, 180]
     fn validate_geo_coordinate(s: &str) -> bool {
         let parts: Vec<&str> = s.split(',').collect();
-        if parts.len() != 2 { return false; }
+        if parts.len() != 2 {
+            return false;
+        }
         let lat: f64 = match parts[0].trim().parse() {
             Ok(v) => v,
             Err(_) => return false,
@@ -485,7 +497,9 @@ impl PiiDetector {
     /// IMEI Luhn 校验（15 位数字，最后一位为校验位）
     fn validate_imei_luhn(s: &str) -> bool {
         let digits: Vec<u32> = s.chars().filter_map(|c| c.to_digit(10)).collect();
-        if digits.len() != 15 { return false; }
+        if digits.len() != 15 {
+            return false;
+        }
         let mut sum = 0u32;
         for (i, &d) in digits.iter().enumerate() {
             if i % 2 == 1 {
@@ -500,7 +514,9 @@ impl PiiDetector {
 
     /// VIN 第 9 位校验位验证
     fn validate_vin(s: &str) -> bool {
-        if s.len() != 17 { return false; }
+        if s.len() != 17 {
+            return false;
+        }
         let transliterate = |c: char| -> Option<u32> {
             match c {
                 'A' | 'J' => Some(1),
@@ -520,25 +536,37 @@ impl PiiDetector {
         let chars: Vec<char> = s.chars().collect();
         let mut sum = 0u32;
         for (i, &c) in chars.iter().enumerate() {
-            if i == 8 { continue; } // skip check digit position
+            if i == 8 {
+                continue;
+            } // skip check digit position
             match transliterate(c) {
                 Some(v) => sum += v * weights[i] as u32,
                 None => return false,
             }
         }
         let remainder = sum % 11;
-        let expected = if remainder == 10 { 'X' } else { char::from_digit(remainder, 10).unwrap() };
+        let expected = if remainder == 10 {
+            'X'
+        } else {
+            char::from_digit(remainder, 10).unwrap()
+        };
         chars[8] == expected
     }
 
     /// IBAN mod-97 校验
     fn validate_iban(s: &str) -> bool {
         let cleaned: String = s.chars().filter(|c| !c.is_whitespace()).collect();
-        if cleaned.len() < 5 { return false; }
+        if cleaned.len() < 5 {
+            return false;
+        }
         // 前两位必须是字母，第 3-4 位必须是数字
         let chars: Vec<char> = cleaned.chars().collect();
-        if !chars[0].is_ascii_uppercase() || !chars[1].is_ascii_uppercase() { return false; }
-        if !chars[2].is_ascii_digit() || !chars[3].is_ascii_digit() { return false; }
+        if !chars[0].is_ascii_uppercase() || !chars[1].is_ascii_uppercase() {
+            return false;
+        }
+        if !chars[2].is_ascii_digit() || !chars[3].is_ascii_digit() {
+            return false;
+        }
         // 将前 4 位移到末尾
         let rearranged = format!("{}{}", &cleaned[4..], &cleaned[..4]);
         // 字母转数字 (A=10, B=11, ..., Z=35)
@@ -562,34 +590,38 @@ impl PiiDetector {
 
     fn build_surname_dict() -> HashSet<String> {
         let surnames = [
-            "赵","钱","孙","李","周","吴","郑","王","冯","陈","褚","卫","蒋","沈","韩","杨",
-            "朱","秦","尤","许","何","吕","施","张","孔","曹","严","华","金","魏","陶","姜",
-            "戚","谢","邹","喻","柏","水","窦","章","云","苏","潘","葛","奚","范","彭","郎",
-            "鲁","韦","昌","马","苗","凤","花","方","俞","任","袁","柳","酆","鲍","史","唐",
-            "费","廉","岑","薛","雷","贺","倪","汤","滕","殷","罗","毕","郝","邬","安","常",
-            "乐","于","时","傅","皮","卞","齐","康","伍","余","元","卜","顾","孟","平","黄",
-            "和","穆","萧","尹","姚","邵","湛","汪","祁","毛","禹","狄","米","贝","明","臧",
-            "计","伏","成","戴","谈","宋","茅","庞","熊","纪","舒","屈","项","祝","董","梁",
-            "杜","阮","蓝","闵","席","季","麻","强","贾","路","娄","危","江","童","颜","郭",
-            "梅","盛","林","刁","钟","徐","邱","骆","高","夏","蔡","田","樊","胡","凌","霍",
-            "虞","万","支","柯","昝","管","卢","莫","经","房","裘","缪","干","解","应","宗",
-            "丁","宣","贲","邓","郁","单","杭","洪","包","诸","左","石","崔","吉","钮","龚",
-            "程","嵇","邢","滑","裴","陆","荣","翁","荀","羊","於","惠","甄","曲","家","封",
-            "芮","羿","储","靳","汲","邴","糜","松","井","段","富","巫","乌","焦","巴","弓",
-            "牧","隗","山","谷","车","侯","宓","蓬","全","郗","班","仰","秋","仲","伊","宫",
-            "宁","仇","栾","暴","甘","钭","厉","戎","祖","武","符","刘","景","詹","束","龙",
-            "叶","幸","司","韶","郜","黎","蓟","溥","印","宿","白","怀","蒲","邰","从","鄂",
-            "索","咸","籍","赖","卓","蔺","屠","蒙","池","乔","阴","胥","能","苍","双","闻",
-            "莘","党","翟","谭","贡","劳","逄","姬","申","扶","堵","冉","宰","郦","雍","却",
-            "璩","桑","桂","濮","牛","寿","通","边","扈","燕","冀","浦","尚","农","温","别",
-            "庄","晏","柴","瞿","阎","充","慕","连","茹","习","宦","艾","鱼","容","向","古",
-            "易","慎","戈","廖","庾","终","暨","居","衡","步","都","耿","满","弘","匡","国",
-            "文","寇","广","禄","阙","东","欧","殳","沃","利","蔚","越","夔","隆","师","巩",
-            "厍","聂","晁","勾","敖","融","冷","訾","辛","阚","那","简","饶","空","曾","毋",
-            "沙","乜","养","鞠","须","丰","巢","关","蒯","相","查","后","荆","红","游","竺",
-            "权","逯","盖","益","桓","公","上官","欧阳","司马","诸葛","司徒","司空","令狐",
-            "钟离","宇文","长孙","慕容","鲜于","闾丘","百里","东方","南宫","万俟","尉迟",
-            "公孙","端木","皇甫","轩辕","太史","夏侯","独孤","澹台","拓跋","呼延",
+            "赵", "钱", "孙", "李", "周", "吴", "郑", "王", "冯", "陈", "褚", "卫", "蒋", "沈",
+            "韩", "杨", "朱", "秦", "尤", "许", "何", "吕", "施", "张", "孔", "曹", "严", "华",
+            "金", "魏", "陶", "姜", "戚", "谢", "邹", "喻", "柏", "水", "窦", "章", "云", "苏",
+            "潘", "葛", "奚", "范", "彭", "郎", "鲁", "韦", "昌", "马", "苗", "凤", "花", "方",
+            "俞", "任", "袁", "柳", "酆", "鲍", "史", "唐", "费", "廉", "岑", "薛", "雷", "贺",
+            "倪", "汤", "滕", "殷", "罗", "毕", "郝", "邬", "安", "常", "乐", "于", "时", "傅",
+            "皮", "卞", "齐", "康", "伍", "余", "元", "卜", "顾", "孟", "平", "黄", "和", "穆",
+            "萧", "尹", "姚", "邵", "湛", "汪", "祁", "毛", "禹", "狄", "米", "贝", "明", "臧",
+            "计", "伏", "成", "戴", "谈", "宋", "茅", "庞", "熊", "纪", "舒", "屈", "项", "祝",
+            "董", "梁", "杜", "阮", "蓝", "闵", "席", "季", "麻", "强", "贾", "路", "娄", "危",
+            "江", "童", "颜", "郭", "梅", "盛", "林", "刁", "钟", "徐", "邱", "骆", "高", "夏",
+            "蔡", "田", "樊", "胡", "凌", "霍", "虞", "万", "支", "柯", "昝", "管", "卢", "莫",
+            "经", "房", "裘", "缪", "干", "解", "应", "宗", "丁", "宣", "贲", "邓", "郁", "单",
+            "杭", "洪", "包", "诸", "左", "石", "崔", "吉", "钮", "龚", "程", "嵇", "邢", "滑",
+            "裴", "陆", "荣", "翁", "荀", "羊", "於", "惠", "甄", "曲", "家", "封", "芮", "羿",
+            "储", "靳", "汲", "邴", "糜", "松", "井", "段", "富", "巫", "乌", "焦", "巴", "弓",
+            "牧", "隗", "山", "谷", "车", "侯", "宓", "蓬", "全", "郗", "班", "仰", "秋", "仲",
+            "伊", "宫", "宁", "仇", "栾", "暴", "甘", "钭", "厉", "戎", "祖", "武", "符", "刘",
+            "景", "詹", "束", "龙", "叶", "幸", "司", "韶", "郜", "黎", "蓟", "溥", "印", "宿",
+            "白", "怀", "蒲", "邰", "从", "鄂", "索", "咸", "籍", "赖", "卓", "蔺", "屠", "蒙",
+            "池", "乔", "阴", "胥", "能", "苍", "双", "闻", "莘", "党", "翟", "谭", "贡", "劳",
+            "逄", "姬", "申", "扶", "堵", "冉", "宰", "郦", "雍", "却", "璩", "桑", "桂", "濮",
+            "牛", "寿", "通", "边", "扈", "燕", "冀", "浦", "尚", "农", "温", "别", "庄", "晏",
+            "柴", "瞿", "阎", "充", "慕", "连", "茹", "习", "宦", "艾", "鱼", "容", "向", "古",
+            "易", "慎", "戈", "廖", "庾", "终", "暨", "居", "衡", "步", "都", "耿", "满", "弘",
+            "匡", "国", "文", "寇", "广", "禄", "阙", "东", "欧", "殳", "沃", "利", "蔚", "越",
+            "夔", "隆", "师", "巩", "厍", "聂", "晁", "勾", "敖", "融", "冷", "訾", "辛", "阚",
+            "那", "简", "饶", "空", "曾", "毋", "沙", "乜", "养", "鞠", "须", "丰", "巢", "关",
+            "蒯", "相", "查", "后", "荆", "红", "游", "竺", "权", "逯", "盖", "益", "桓", "公",
+            "上官", "欧阳", "司马", "诸葛", "司徒", "司空", "令狐", "钟离", "宇文", "长孙", "慕容",
+            "鲜于", "闾丘", "百里", "东方", "南宫", "万俟", "尉迟", "公孙", "端木", "皇甫", "轩辕",
+            "太史", "夏侯", "独孤", "澹台", "拓跋", "呼延",
         ];
         surnames.iter().map(|s| s.to_string()).collect()
     }
@@ -602,19 +634,30 @@ impl PiiDetector {
         while i < len {
             // 尝试复姓 (2字) + 名 (1-2字)
             for surname_len in [2usize, 1] {
-                if i + surname_len > len { continue; }
+                if i + surname_len > len {
+                    continue;
+                }
                 let surname: String = chars[i..i + surname_len].iter().collect();
-                if !self.chinese_surnames.contains(&surname) { continue; }
+                if !self.chinese_surnames.contains(&surname) {
+                    continue;
+                }
                 for name_len in [2usize, 1] {
                     let total = surname_len + name_len;
-                    if i + total > len { continue; }
+                    if i + total > len {
+                        continue;
+                    }
                     let full: String = chars[i..i + total].iter().collect();
                     // 所有字符必须是中文
-                    if !full.chars().all(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)) { continue; }
+                    if !full.chars().all(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)) {
+                        continue;
+                    }
                     // 边界检查：前后不能是中文字符（避免从句子中间截取）
                     let prev_is_cjk = i > 0 && ('\u{4e00}'..='\u{9fff}').contains(&chars[i - 1]);
-                    let next_is_cjk = i + total < len && ('\u{4e00}'..='\u{9fff}').contains(&chars[i + total]);
-                    if prev_is_cjk || next_is_cjk { continue; }
+                    let next_is_cjk =
+                        i + total < len && ('\u{4e00}'..='\u{9fff}').contains(&chars[i + total]);
+                    if prev_is_cjk || next_is_cjk {
+                        continue;
+                    }
                     let byte_start = chars[..i].iter().map(|c| c.len_utf8()).sum();
                     let byte_end: usize = byte_start + full.len();
                     results.push(PiiEntity {
@@ -633,7 +676,8 @@ impl PiiDetector {
 
     /// 上下文密码检测
     fn detect_passwords(text: &str) -> Vec<PiiEntity> {
-        let re = Regex::new(r#"(?i)(?:密码|password|passwd|pwd|secret|token)[\s:：=]+(\S+)"#).unwrap();
+        let re =
+            Regex::new(r#"(?i)(?:密码|password|passwd|pwd|secret|token)[\s:：=]+(\S+)"#).unwrap();
         let mut results = Vec::new();
         for caps in re.captures_iter(text) {
             if let Some(m) = caps.get(1) {
@@ -653,9 +697,13 @@ impl PiiDetector {
         entities.sort_by(|a, b| a.start.cmp(&b.start).then(b.end.cmp(&a.end)));
         let mut keep = vec![true; entities.len()];
         for i in 0..entities.len() {
-            if !keep[i] { continue; }
+            if !keep[i] {
+                continue;
+            }
             for j in (i + 1)..entities.len() {
-                if !keep[j] { continue; }
+                if !keep[j] {
+                    continue;
+                }
                 if entities[j].start < entities[i].end {
                     // 重叠：保留置信度高的
                     if entities[j].confidence > entities[i].confidence {
@@ -669,7 +717,11 @@ impl PiiDetector {
         }
         let mut idx = 0;
         keep.iter().for_each(|&k| {
-            if !k { entities.remove(idx); } else { idx += 1; }
+            if !k {
+                entities.remove(idx);
+            } else {
+                idx += 1;
+            }
         });
     }
 }
@@ -677,7 +729,9 @@ impl PiiDetector {
 mod tests {
     use super::*;
 
-    fn detector() -> PiiDetector { PiiDetector::new() }
+    fn detector() -> PiiDetector {
+        PiiDetector::new()
+    }
 
     #[test]
     fn detect_email() {
@@ -688,14 +742,18 @@ mod tests {
     #[test]
     fn detect_chinese_phone() {
         let entities = detector().detect("手机号13812345678结束");
-        assert!(entities.iter().any(|e| e.entity_type == PiiType::ChinesePhone));
+        assert!(entities
+            .iter()
+            .any(|e| e.entity_type == PiiType::ChinesePhone));
     }
 
     #[test]
     fn detect_id_card_with_checksum() {
         let text = "身份证 110101199001010031 的号码";
         let entities = detector().detect(text);
-        assert!(entities.iter().any(|e| e.entity_type == PiiType::ChineseIdCard));
+        assert!(entities
+            .iter()
+            .any(|e| e.entity_type == PiiType::ChineseIdCard));
     }
 
     #[test]
@@ -719,13 +777,17 @@ mod tests {
     #[test]
     fn detect_license_plate() {
         let entities = detector().detect("车牌京A12345号");
-        assert!(entities.iter().any(|e| e.entity_type == PiiType::LicensePlate));
+        assert!(entities
+            .iter()
+            .any(|e| e.entity_type == PiiType::LicensePlate));
     }
 
     #[test]
     fn detect_password_context() {
         let entities = detector().detect("密码: mySecret123");
-        assert!(entities.iter().any(|e| e.entity_type == PiiType::Password && e.text == "mySecret123"));
+        assert!(entities
+            .iter()
+            .any(|e| e.entity_type == PiiType::Password && e.text == "mySecret123"));
     }
 
     #[test]

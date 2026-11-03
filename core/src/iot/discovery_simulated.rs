@@ -23,43 +23,46 @@ impl SimulatedMdnsSocket {
 
     /// 工厂：典型局域网设备集
     pub fn typical_lan_devices() -> Self {
-        Self::new(vec![
-            MdnsResponse {
-                hostname: "hp-printer.local".into(),
-                ip: "192.168.1.10".into(),
-                port: 631,
-                service_type: "_ipp._tcp.local.".into(),
-                txt_records: HashMap::from([("name".into(), "HP LaserJet".into())]),
-            },
-            MdnsResponse {
-                hostname: "sonos-living.local".into(),
-                ip: "192.168.1.20".into(),
-                port: 1400,
-                service_type: "_airplay._tcp.local.".into(),
-                txt_records: HashMap::from([("name".into(), "Sonos Living Room".into())]),
-            },
-            MdnsResponse {
-                hostname: "nas-synology.local".into(),
-                ip: "192.168.1.30".into(),
-                port: 445,
-                service_type: "_smb._tcp.local.".into(),
-                txt_records: HashMap::from([("name".into(), "Synology NAS".into())]),
-            },
-            MdnsResponse {
-                hostname: "homekit-light.local".into(),
-                ip: "192.168.1.40".into(),
-                port: 8080,
-                service_type: "_hap._tcp.local.".into(),
-                txt_records: HashMap::from([("name".into(), "HomeKit Light".into())]),
-            },
-            MdnsResponse {
-                hostname: "chromecast.local".into(),
-                ip: "192.168.1.50".into(),
-                port: 8008,
-                service_type: "_googlecast._tcp.local.".into(),
-                txt_records: HashMap::from([("name".into(), "Chromecast Ultra".into())]),
-            },
-        ], 10)
+        Self::new(
+            vec![
+                MdnsResponse {
+                    hostname: "hp-printer.local".into(),
+                    ip: "192.168.1.10".into(),
+                    port: 631,
+                    service_type: "_ipp._tcp.local.".into(),
+                    txt_records: HashMap::from([("name".into(), "HP LaserJet".into())]),
+                },
+                MdnsResponse {
+                    hostname: "sonos-living.local".into(),
+                    ip: "192.168.1.20".into(),
+                    port: 1400,
+                    service_type: "_airplay._tcp.local.".into(),
+                    txt_records: HashMap::from([("name".into(), "Sonos Living Room".into())]),
+                },
+                MdnsResponse {
+                    hostname: "nas-synology.local".into(),
+                    ip: "192.168.1.30".into(),
+                    port: 445,
+                    service_type: "_smb._tcp.local.".into(),
+                    txt_records: HashMap::from([("name".into(), "Synology NAS".into())]),
+                },
+                MdnsResponse {
+                    hostname: "homekit-light.local".into(),
+                    ip: "192.168.1.40".into(),
+                    port: 8080,
+                    service_type: "_hap._tcp.local.".into(),
+                    txt_records: HashMap::from([("name".into(), "HomeKit Light".into())]),
+                },
+                MdnsResponse {
+                    hostname: "chromecast.local".into(),
+                    ip: "192.168.1.50".into(),
+                    port: 8008,
+                    service_type: "_googlecast._tcp.local.".into(),
+                    txt_records: HashMap::from([("name".into(), "Chromecast Ultra".into())]),
+                },
+            ],
+            10,
+        )
     }
 }
 
@@ -91,26 +94,29 @@ impl SimulatedSsdpSocket {
 
     /// 工厂：典型 UPnP 设备集
     pub fn typical_upnp_devices() -> Self {
-        Self::new(vec![
-            SsdpResponse {
-                location: "http://192.168.1.60:8200/rootDesc.xml".into(),
-                search_target: "urn:schemas-upnp-org:device:MediaRenderer:1".into(),
-                usn: "uuid:renderer-001".into(),
-                server: "DLNA Speaker".into(),
-            },
-            SsdpResponse {
-                location: "http://192.168.1.70:49152/desc.xml".into(),
-                search_target: "urn:schemas-upnp-org:device:MediaServer:1".into(),
-                usn: "uuid:server-001".into(),
-                server: "Plex Media Server".into(),
-            },
-            SsdpResponse {
-                location: "http://192.168.1.1:80/rootDesc.xml".into(),
-                search_target: "urn:schemas-upnp-org:device:InternetGatewayDevice:1".into(),
-                usn: "uuid:gateway-001".into(),
-                server: "Home Router".into(),
-            },
-        ], 10)
+        Self::new(
+            vec![
+                SsdpResponse {
+                    location: "http://192.168.1.60:8200/rootDesc.xml".into(),
+                    search_target: "urn:schemas-upnp-org:device:MediaRenderer:1".into(),
+                    usn: "uuid:renderer-001".into(),
+                    server: "DLNA Speaker".into(),
+                },
+                SsdpResponse {
+                    location: "http://192.168.1.70:49152/desc.xml".into(),
+                    search_target: "urn:schemas-upnp-org:device:MediaServer:1".into(),
+                    usn: "uuid:server-001".into(),
+                    server: "Plex Media Server".into(),
+                },
+                SsdpResponse {
+                    location: "http://192.168.1.1:80/rootDesc.xml".into(),
+                    search_target: "urn:schemas-upnp-org:device:InternetGatewayDevice:1".into(),
+                    usn: "uuid:gateway-001".into(),
+                    server: "Home Router".into(),
+                },
+            ],
+            10,
+        )
     }
 }
 
@@ -142,20 +148,23 @@ impl SimulatedBleScanner {
 
     /// 工厂：典型 BLE 设备集
     pub fn typical_ble_devices() -> Self {
-        Self::new(vec![
-            BleAdvertisement {
-                mac_address: "AA:BB:CC:DD:EE:01".into(),
-                local_name: Some("Mi Band 7".into()),
-                service_uuids: vec!["0000fee7-0000-1000-8000-00805f9b34fb".into()],
-                rssi: -55,
-            },
-            BleAdvertisement {
-                mac_address: "AA:BB:CC:DD:EE:02".into(),
-                local_name: Some("Smart Lock Pro".into()),
-                service_uuids: vec!["0000fff0-0000-1000-8000-00805f9b34fb".into()],
-                rssi: -40,
-            },
-        ], 10)
+        Self::new(
+            vec![
+                BleAdvertisement {
+                    mac_address: "AA:BB:CC:DD:EE:01".into(),
+                    local_name: Some("Mi Band 7".into()),
+                    service_uuids: vec!["0000fee7-0000-1000-8000-00805f9b34fb".into()],
+                    rssi: -55,
+                },
+                BleAdvertisement {
+                    mac_address: "AA:BB:CC:DD:EE:02".into(),
+                    local_name: Some("Smart Lock Pro".into()),
+                    service_uuids: vec!["0000fff0-0000-1000-8000-00805f9b34fb".into()],
+                    rssi: -40,
+                },
+            ],
+            10,
+        )
     }
 }
 
@@ -203,15 +212,16 @@ mod tests {
 
     #[tokio::test]
     async fn simulated_delay() {
-        let socket = SimulatedMdnsSocket::new(vec![
-            MdnsResponse {
+        let socket = SimulatedMdnsSocket::new(
+            vec![MdnsResponse {
                 hostname: "test.local".into(),
                 ip: "10.0.0.1".into(),
                 port: 80,
                 service_type: "_http._tcp.local.".into(),
                 txt_records: HashMap::new(),
-            },
-        ], 50);
+            }],
+            50,
+        );
         let start = tokio::time::Instant::now();
         let provider = MdnsDiscoveryProvider::with_socket(Box::new(socket));
         let devices = provider.scan(1).await.unwrap();

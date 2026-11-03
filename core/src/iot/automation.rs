@@ -96,10 +96,22 @@ pub enum Condition {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Action {
-    RunScene { scene_id: String },
-    DeviceCommand { device_id: String, command: String, params: Value },
-    Delay { duration_ms: u64, then: Box<Action> },
-    Notify { message: String, level: NotifyLevel },
+    RunScene {
+        scene_id: String,
+    },
+    DeviceCommand {
+        device_id: String,
+        command: String,
+        params: Value,
+    },
+    Delay {
+        duration_ms: u64,
+        then: Box<Action>,
+    },
+    Notify {
+        message: String,
+        level: NotifyLevel,
+    },
     Sequence(Vec<Action>),
 }
 
@@ -152,7 +164,9 @@ fn compare_values(left: &Value, right: &Value, op: &CompareOp) -> bool {
 
 fn parse_hhmm(s: &str) -> Option<NaiveTime> {
     let parts: Vec<&str> = s.split(':').collect();
-    if parts.len() != 2 { return None; }
+    if parts.len() != 2 {
+        return None;
+    }
     let h = parts[0].parse::<u32>().ok()?;
     let m = parts[1].parse::<u32>().ok()?;
     NaiveTime::from_hms_opt(h, m, 0)
@@ -265,10 +279,16 @@ impl AutomationEngine {
     /// 评估事件是否匹配触发器
     pub fn matches_trigger(trigger: &Trigger, event: &DeviceEvent) -> bool {
         match trigger {
-            Trigger::DeviceEvent { device_id, event_kind } => {
-                event.device_id == *device_id && event.event_kind == *event_kind
-            }
-            Trigger::Threshold { device_id, property, op, value } => {
+            Trigger::DeviceEvent {
+                device_id,
+                event_kind,
+            } => event.device_id == *device_id && event.event_kind == *event_kind,
+            Trigger::Threshold {
+                device_id,
+                property,
+                op,
+                value,
+            } => {
                 if event.device_id != *device_id {
                     return false;
                 }
@@ -278,10 +298,14 @@ impl AutomationEngine {
                     false
                 }
             }
-            Trigger::Geofence { zone_id, transition } => {
-                let payload_zone = event.payload.get("zone_id")
-                    .and_then(|v| v.as_str());
-                let payload_transition = event.payload.get("transition")
+            Trigger::Geofence {
+                zone_id,
+                transition,
+            } => {
+                let payload_zone = event.payload.get("zone_id").and_then(|v| v.as_str());
+                let payload_transition = event
+                    .payload
+                    .get("transition")
                     .and_then(|v| serde_json::from_value::<GeoTransition>(v.clone()).ok());
                 payload_zone == Some(zone_id.as_str())
                     && payload_transition.as_ref() == Some(transition)
@@ -296,9 +320,8 @@ impl AutomationEngine {
         device_states: &HashMap<String, Value>,
     ) -> bool {
         let now = Utc::now();
-        let time = NaiveTime::from_hms_opt(
-            now.hour(), now.minute(), now.second(),
-        ).unwrap_or_default();
+        let time =
+            NaiveTime::from_hms_opt(now.hour(), now.minute(), now.second()).unwrap_or_default();
         let weekday = now.weekday();
         Self::evaluate_condition_at(condition, device_states, time, weekday)
     }
@@ -311,15 +334,23 @@ impl AutomationEngine {
         weekday: Weekday,
     ) -> bool {
         match condition {
-            Condition::DeviceState { device_id, property, op, value } => {
-                device_states.get(device_id)
-                    .and_then(|state| state.get(property))
-                    .map(|actual| compare_values(actual, value, op))
-                    .unwrap_or(false)
-            }
+            Condition::DeviceState {
+                device_id,
+                property,
+                op,
+                value,
+            } => device_states
+                .get(device_id)
+                .and_then(|state| state.get(property))
+                .map(|actual| compare_values(actual, value, op))
+                .unwrap_or(false),
             Condition::TimeRange { after, before } => {
-                let Some(after_t) = parse_hhmm(after) else { return false };
-                let Some(before_t) = parse_hhmm(before) else { return false };
+                let Some(after_t) = parse_hhmm(after) else {
+                    return false;
+                };
+                let Some(before_t) = parse_hhmm(before) else {
+                    return false;
+                };
                 if after_t <= before_t {
                     time >= after_t && time <= before_t
                 } else {
@@ -327,15 +358,13 @@ impl AutomationEngine {
                     time >= after_t || time <= before_t
                 }
             }
-            Condition::DaysOfWeek { days } => {
-                days.contains(&weekday_to_u8(weekday))
-            }
-            Condition::And(conditions) => {
-                conditions.iter().all(|c| Self::evaluate_condition_at(c, device_states, time, weekday))
-            }
-            Condition::Or(conditions) => {
-                conditions.iter().any(|c| Self::evaluate_condition_at(c, device_states, time, weekday))
-            }
+            Condition::DaysOfWeek { days } => days.contains(&weekday_to_u8(weekday)),
+            Condition::And(conditions) => conditions
+                .iter()
+                .all(|c| Self::evaluate_condition_at(c, device_states, time, weekday)),
+            Condition::Or(conditions) => conditions
+                .iter()
+                .any(|c| Self::evaluate_condition_at(c, device_states, time, weekday)),
             Condition::Not(inner) => {
                 !Self::evaluate_condition_at(inner, device_states, time, weekday)
             }
@@ -382,7 +411,9 @@ impl AutomationEngine {
                     if Self::is_in_cooldown(rule) {
                         continue;
                     }
-                    let triggered = rule.triggers.iter()
+                    let triggered = rule
+                        .triggers
+                        .iter()
                         .any(|t| Self::matches_trigger(t, &event));
                     if !triggered {
                         continue;
@@ -395,7 +426,9 @@ impl AutomationEngine {
                         HashMap::new()
                     };
 
-                    let conditions_met = rule.conditions.iter()
+                    let conditions_met = rule
+                        .conditions
+                        .iter()
                         .all(|c| Self::evaluate_condition(c, &device_states));
                     if !conditions_met {
                         continue;
@@ -416,7 +449,9 @@ impl AutomationEngine {
                             &scene_manager,
                             &notification_log,
                             &bus_for_actions,
-                        ).await {
+                        )
+                        .await
+                        {
                             tracing::warn!("automation action execution failed: {}", e);
                         }
                     }
@@ -429,7 +464,8 @@ impl AutomationEngine {
     pub async fn trigger_rule(&self, rule_id: &str) -> anyhow::Result<()> {
         let actions = {
             let mut rules = self.rules.write().await;
-            let rule = rules.iter_mut()
+            let rule = rules
+                .iter_mut()
                 .find(|r| r.id == rule_id)
                 .ok_or_else(|| anyhow::anyhow!("rule not found: {}", rule_id))?;
             rule.last_triggered = Some(Utc::now());
@@ -444,7 +480,9 @@ impl AutomationEngine {
                 &self.scene_manager,
                 &self.notification_log,
                 &self.event_bus,
-            ).await {
+            )
+            .await
+            {
                 tracing::warn!("trigger_rule action execution failed: {}", e);
             }
         }
@@ -475,7 +513,11 @@ impl AutomationEngine {
                     }
                     Ok(())
                 }
-                Action::DeviceCommand { device_id, command, params } => {
+                Action::DeviceCommand {
+                    device_id,
+                    command,
+                    params,
+                } => {
                     if let Some(ctrl) = controller {
                         ctrl.execute(device_id, command, params.clone()).await?;
                     }
@@ -484,12 +526,20 @@ impl AutomationEngine {
                 Action::Delay { duration_ms, then } => {
                     tokio::time::sleep(tokio::time::Duration::from_millis(*duration_ms)).await;
                     Self::execute_action_internal(
-                        then, scene_executor, controller, scene_manager,
-                        notification_log, event_bus,
-                    ).await
+                        then,
+                        scene_executor,
+                        controller,
+                        scene_manager,
+                        notification_log,
+                        event_bus,
+                    )
+                    .await
                 }
                 Action::Notify { message, level } => {
-                    notification_log.write().await.push((message.clone(), level.clone()));
+                    notification_log
+                        .write()
+                        .await
+                        .push((message.clone(), level.clone()));
                     event_bus.publish(DeviceEvent::new(
                         "system",
                         super::types::DeviceType::Other("automation".into()),
@@ -501,9 +551,14 @@ impl AutomationEngine {
                 Action::Sequence(actions) => {
                     for a in actions {
                         Self::execute_action_internal(
-                            a, scene_executor, controller, scene_manager,
-                            notification_log, event_bus,
-                        ).await?;
+                            a,
+                            scene_executor,
+                            controller,
+                            scene_manager,
+                            notification_log,
+                            event_bus,
+                        )
+                        .await?;
                     }
                     Ok(())
                 }
@@ -514,8 +569,8 @@ impl AutomationEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::DeviceType;
+    use super::*;
 
     fn make_event(device_id: &str, kind: EventKind, payload: Value) -> DeviceEvent {
         DeviceEvent::new(device_id, DeviceType::Sensor, kind, payload)
@@ -580,8 +635,11 @@ mod tests {
             op: CompareOp::Gt,
             value: serde_json::json!(30),
         };
-        let event = make_event("sensor-001", EventKind::PropertyChanged,
-            serde_json::json!({"temperature": 35}));
+        let event = make_event(
+            "sensor-001",
+            EventKind::PropertyChanged,
+            serde_json::json!({"temperature": 35}),
+        );
         assert!(AutomationEngine::matches_trigger(&trigger, &event));
     }
 
@@ -593,8 +651,11 @@ mod tests {
             op: CompareOp::Lt,
             value: serde_json::json!(20),
         };
-        let event = make_event("sensor-001", EventKind::PropertyChanged,
-            serde_json::json!({"temperature": 25}));
+        let event = make_event(
+            "sensor-001",
+            EventKind::PropertyChanged,
+            serde_json::json!({"temperature": 25}),
+        );
         assert!(!AutomationEngine::matches_trigger(&trigger, &event));
     }
 
@@ -604,8 +665,11 @@ mod tests {
             zone_id: "home".into(),
             transition: GeoTransition::Enter,
         };
-        let event = make_event("vehicle-001", EventKind::StateChanged,
-            serde_json::json!({"zone_id": "home", "transition": "Enter"}));
+        let event = make_event(
+            "vehicle-001",
+            EventKind::StateChanged,
+            serde_json::json!({"zone_id": "home", "transition": "Enter"}),
+        );
         assert!(AutomationEngine::matches_trigger(&trigger, &event));
     }
 
@@ -615,14 +679,19 @@ mod tests {
             zone_id: "home".into(),
             transition: GeoTransition::Enter,
         };
-        let event = make_event("vehicle-001", EventKind::StateChanged,
-            serde_json::json!({"zone_id": "office", "transition": "Enter"}));
+        let event = make_event(
+            "vehicle-001",
+            EventKind::StateChanged,
+            serde_json::json!({"zone_id": "office", "transition": "Enter"}),
+        );
         assert!(!AutomationEngine::matches_trigger(&trigger, &event));
     }
 
     #[test]
     fn matches_trigger_schedule_returns_false() {
-        let trigger = Trigger::Schedule { cron: "0 0 * * * *".into() };
+        let trigger = Trigger::Schedule {
+            cron: "0 0 * * * *".into(),
+        };
         let event = make_event("any", EventKind::StateChanged, serde_json::json!({}));
         assert!(!AutomationEngine::matches_trigger(&trigger, &event));
     }
@@ -641,8 +710,14 @@ mod tests {
 
     fn sample_device_states() -> HashMap<String, Value> {
         let mut states = HashMap::new();
-        states.insert("light-001".into(), serde_json::json!({"brightness": 80, "powered": true}));
-        states.insert("sensor-001".into(), serde_json::json!({"temperature": 20, "humidity": 55}));
+        states.insert(
+            "light-001".into(),
+            serde_json::json!({"brightness": 80, "powered": true}),
+        );
+        states.insert(
+            "sensor-001".into(),
+            serde_json::json!({"temperature": 20, "humidity": 55}),
+        );
         states
     }
 
@@ -654,7 +729,10 @@ mod tests {
             op: CompareOp::Eq,
             value: serde_json::json!(80),
         };
-        assert!(AutomationEngine::evaluate_condition(&cond, &sample_device_states()));
+        assert!(AutomationEngine::evaluate_condition(
+            &cond,
+            &sample_device_states()
+        ));
     }
 
     #[test]
@@ -665,108 +743,168 @@ mod tests {
             op: CompareOp::Gt,
             value: serde_json::json!(25),
         };
-        assert!(!AutomationEngine::evaluate_condition(&cond, &sample_device_states()));
+        assert!(!AutomationEngine::evaluate_condition(
+            &cond,
+            &sample_device_states()
+        ));
     }
 
     #[test]
     fn evaluate_condition_time_range_in_range() {
-        let cond = Condition::TimeRange { after: "08:00".into(), before: "18:00".into() };
+        let cond = Condition::TimeRange {
+            after: "08:00".into(),
+            before: "18:00".into(),
+        };
         let time = NaiveTime::from_hms_opt(12, 0, 0).unwrap();
         assert!(AutomationEngine::evaluate_condition_at(
-            &cond, &HashMap::new(), time, Weekday::Mon));
+            &cond,
+            &HashMap::new(),
+            time,
+            Weekday::Mon
+        ));
     }
 
     #[test]
     fn evaluate_condition_time_range_out_of_range() {
-        let cond = Condition::TimeRange { after: "08:00".into(), before: "18:00".into() };
+        let cond = Condition::TimeRange {
+            after: "08:00".into(),
+            before: "18:00".into(),
+        };
         let time = NaiveTime::from_hms_opt(20, 0, 0).unwrap();
         assert!(!AutomationEngine::evaluate_condition_at(
-            &cond, &HashMap::new(), time, Weekday::Mon));
+            &cond,
+            &HashMap::new(),
+            time,
+            Weekday::Mon
+        ));
     }
 
     #[test]
     fn evaluate_condition_days_of_week_match() {
-        let cond = Condition::DaysOfWeek { days: vec![1, 2, 3, 4, 5] }; // Mon-Fri
+        let cond = Condition::DaysOfWeek {
+            days: vec![1, 2, 3, 4, 5],
+        }; // Mon-Fri
         assert!(AutomationEngine::evaluate_condition_at(
-            &cond, &HashMap::new(),
-            NaiveTime::from_hms_opt(12, 0, 0).unwrap(), Weekday::Wed));
+            &cond,
+            &HashMap::new(),
+            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
+            Weekday::Wed
+        ));
     }
 
     #[test]
     fn evaluate_condition_days_of_week_no_match() {
-        let cond = Condition::DaysOfWeek { days: vec![1, 2, 3, 4, 5] }; // Mon-Fri
+        let cond = Condition::DaysOfWeek {
+            days: vec![1, 2, 3, 4, 5],
+        }; // Mon-Fri
         assert!(!AutomationEngine::evaluate_condition_at(
-            &cond, &HashMap::new(),
-            NaiveTime::from_hms_opt(12, 0, 0).unwrap(), Weekday::Sun));
+            &cond,
+            &HashMap::new(),
+            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
+            Weekday::Sun
+        ));
     }
 
     #[test]
     fn evaluate_condition_and_all_true() {
         let cond = Condition::And(vec![
             Condition::DeviceState {
-                device_id: "light-001".into(), property: "brightness".into(),
-                op: CompareOp::Eq, value: serde_json::json!(80),
+                device_id: "light-001".into(),
+                property: "brightness".into(),
+                op: CompareOp::Eq,
+                value: serde_json::json!(80),
             },
             Condition::DeviceState {
-                device_id: "sensor-001".into(), property: "temperature".into(),
-                op: CompareOp::Eq, value: serde_json::json!(20),
+                device_id: "sensor-001".into(),
+                property: "temperature".into(),
+                op: CompareOp::Eq,
+                value: serde_json::json!(20),
             },
         ]);
-        assert!(AutomationEngine::evaluate_condition(&cond, &sample_device_states()));
+        assert!(AutomationEngine::evaluate_condition(
+            &cond,
+            &sample_device_states()
+        ));
     }
 
     #[test]
     fn evaluate_condition_and_partial_false() {
         let cond = Condition::And(vec![
             Condition::DeviceState {
-                device_id: "light-001".into(), property: "brightness".into(),
-                op: CompareOp::Eq, value: serde_json::json!(80),
+                device_id: "light-001".into(),
+                property: "brightness".into(),
+                op: CompareOp::Eq,
+                value: serde_json::json!(80),
             },
             Condition::DeviceState {
-                device_id: "sensor-001".into(), property: "temperature".into(),
-                op: CompareOp::Gt, value: serde_json::json!(25),
+                device_id: "sensor-001".into(),
+                property: "temperature".into(),
+                op: CompareOp::Gt,
+                value: serde_json::json!(25),
             },
         ]);
-        assert!(!AutomationEngine::evaluate_condition(&cond, &sample_device_states()));
+        assert!(!AutomationEngine::evaluate_condition(
+            &cond,
+            &sample_device_states()
+        ));
     }
 
     #[test]
     fn evaluate_condition_or_any_true() {
         let cond = Condition::Or(vec![
             Condition::DeviceState {
-                device_id: "sensor-001".into(), property: "temperature".into(),
-                op: CompareOp::Gt, value: serde_json::json!(25),
+                device_id: "sensor-001".into(),
+                property: "temperature".into(),
+                op: CompareOp::Gt,
+                value: serde_json::json!(25),
             },
             Condition::DeviceState {
-                device_id: "light-001".into(), property: "brightness".into(),
-                op: CompareOp::Eq, value: serde_json::json!(80),
+                device_id: "light-001".into(),
+                property: "brightness".into(),
+                op: CompareOp::Eq,
+                value: serde_json::json!(80),
             },
         ]);
-        assert!(AutomationEngine::evaluate_condition(&cond, &sample_device_states()));
+        assert!(AutomationEngine::evaluate_condition(
+            &cond,
+            &sample_device_states()
+        ));
     }
 
     #[test]
     fn evaluate_condition_or_all_false() {
         let cond = Condition::Or(vec![
             Condition::DeviceState {
-                device_id: "sensor-001".into(), property: "temperature".into(),
-                op: CompareOp::Gt, value: serde_json::json!(30),
+                device_id: "sensor-001".into(),
+                property: "temperature".into(),
+                op: CompareOp::Gt,
+                value: serde_json::json!(30),
             },
             Condition::DeviceState {
-                device_id: "light-001".into(), property: "brightness".into(),
-                op: CompareOp::Lt, value: serde_json::json!(50),
+                device_id: "light-001".into(),
+                property: "brightness".into(),
+                op: CompareOp::Lt,
+                value: serde_json::json!(50),
             },
         ]);
-        assert!(!AutomationEngine::evaluate_condition(&cond, &sample_device_states()));
+        assert!(!AutomationEngine::evaluate_condition(
+            &cond,
+            &sample_device_states()
+        ));
     }
 
     #[test]
     fn evaluate_condition_not_inverts() {
         let cond = Condition::Not(Box::new(Condition::DeviceState {
-            device_id: "light-001".into(), property: "brightness".into(),
-            op: CompareOp::Eq, value: serde_json::json!(80),
+            device_id: "light-001".into(),
+            property: "brightness".into(),
+            op: CompareOp::Eq,
+            value: serde_json::json!(80),
         }));
-        assert!(!AutomationEngine::evaluate_condition(&cond, &sample_device_states()));
+        assert!(!AutomationEngine::evaluate_condition(
+            &cond,
+            &sample_device_states()
+        ));
     }
 
     #[test]
@@ -775,20 +913,29 @@ mod tests {
         let cond = Condition::And(vec![
             Condition::Or(vec![
                 Condition::DeviceState {
-                    device_id: "sensor-001".into(), property: "temperature".into(),
-                    op: CompareOp::Gt, value: serde_json::json!(25),
+                    device_id: "sensor-001".into(),
+                    property: "temperature".into(),
+                    op: CompareOp::Gt,
+                    value: serde_json::json!(25),
                 },
                 Condition::DeviceState {
-                    device_id: "light-001".into(), property: "brightness".into(),
-                    op: CompareOp::Eq, value: serde_json::json!(80),
+                    device_id: "light-001".into(),
+                    property: "brightness".into(),
+                    op: CompareOp::Eq,
+                    value: serde_json::json!(80),
                 },
             ]),
             Condition::Not(Box::new(Condition::DeviceState {
-                device_id: "sensor-001".into(), property: "humidity".into(),
-                op: CompareOp::Gt, value: serde_json::json!(60),
+                device_id: "sensor-001".into(),
+                property: "humidity".into(),
+                op: CompareOp::Gt,
+                value: serde_json::json!(60),
             })),
         ]);
-        assert!(AutomationEngine::evaluate_condition(&cond, &sample_device_states()));
+        assert!(AutomationEngine::evaluate_condition(
+            &cond,
+            &sample_device_states()
+        ));
     }
 
     // ─── engine CRUD tests ────────────────────────────────
@@ -909,11 +1056,18 @@ mod tests {
     #[test]
     fn trigger_serde_roundtrip() {
         let triggers = vec![
-            Trigger::DeviceEvent { device_id: "d1".into(), event_kind: EventKind::StateChanged },
-            Trigger::Schedule { cron: "0 0 * * * *".into() },
+            Trigger::DeviceEvent {
+                device_id: "d1".into(),
+                event_kind: EventKind::StateChanged,
+            },
+            Trigger::Schedule {
+                cron: "0 0 * * * *".into(),
+            },
             Trigger::Threshold {
-                device_id: "s1".into(), property: "temp".into(),
-                op: CompareOp::Gt, value: serde_json::json!(30),
+                device_id: "s1".into(),
+                property: "temp".into(),
+                op: CompareOp::Gt,
+                value: serde_json::json!(30),
             },
         ];
         for trigger in &triggers {
@@ -958,8 +1112,11 @@ mod tests {
             op: CompareOp::Gt,
             value: serde_json::json!(30),
         };
-        let event = make_event("sensor-001", EventKind::PropertyChanged,
-            serde_json::json!({"temperature": 35}));
+        let event = make_event(
+            "sensor-001",
+            EventKind::PropertyChanged,
+            serde_json::json!({"temperature": 35}),
+        );
         assert!(AutomationEngine::matches_trigger(&trigger, &event));
 
         let condition = Condition::DeviceState {
@@ -998,16 +1155,21 @@ mod tests {
             cooldown_secs: Some(300),
         };
 
-        let event = make_event("sensor-001", EventKind::PropertyChanged,
-            serde_json::json!({"temperature": 32}));
-        let triggered = rule.triggers.iter()
+        let event = make_event(
+            "sensor-001",
+            EventKind::PropertyChanged,
+            serde_json::json!({"temperature": 32}),
+        );
+        let triggered = rule
+            .triggers
+            .iter()
             .any(|t| AutomationEngine::matches_trigger(t, &event));
         assert!(triggered);
 
         let time = NaiveTime::from_hms_opt(14, 0, 0).unwrap();
-        let conditions_met = rule.conditions.iter()
-            .all(|c| AutomationEngine::evaluate_condition_at(
-                c, &HashMap::new(), time, Weekday::Mon));
+        let conditions_met = rule.conditions.iter().all(|c| {
+            AutomationEngine::evaluate_condition_at(c, &HashMap::new(), time, Weekday::Mon)
+        });
         assert!(conditions_met);
         assert!(!rule.actions.is_empty());
     }
@@ -1054,14 +1216,14 @@ mod tests {
     async fn start_triggers_device_command() {
         let bus = Arc::new(EventBus::new(64));
         let controller = setup_controller_with_devices();
-        let engine = AutomationEngine::new(Arc::clone(&bus))
-            .with_controller(controller);
+        let engine = AutomationEngine::new(Arc::clone(&bus)).with_controller(controller);
 
         engine.add_rule(make_ac_rule()).await.unwrap();
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor,
+            "sensor-001",
+            DeviceType::Sensor,
             EventKind::PropertyChanged,
             serde_json::json!({"temperature": 35}),
         ));
@@ -1097,7 +1259,9 @@ mod tests {
                 event_kind: EventKind::StateChanged,
             }],
             conditions: vec![],
-            actions: vec![Action::RunScene { scene_id: "come-home".into() }],
+            actions: vec![Action::RunScene {
+                scene_id: "come-home".into(),
+            }],
             last_triggered: None,
             cooldown_secs: None,
         };
@@ -1105,7 +1269,8 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "door-001", DeviceType::Lock,
+            "door-001",
+            DeviceType::Lock,
             EventKind::StateChanged,
             serde_json::json!({"opened": true}),
         ));
@@ -1121,7 +1286,9 @@ mod tests {
         let controller = setup_controller_with_devices();
         let cache = Arc::new(DeviceStateCache::new());
         // Set temperature below threshold condition
-        cache.set("sensor-001", serde_json::json!({"temperature": 20})).await;
+        cache
+            .set("sensor-001", serde_json::json!({"temperature": 20}))
+            .await;
 
         let engine = AutomationEngine::new(Arc::clone(&bus))
             .with_controller(controller)
@@ -1152,7 +1319,8 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor,
+            "sensor-001",
+            DeviceType::Sensor,
             EventKind::PropertyChanged,
             serde_json::json!({"temperature": 20}),
         ));
@@ -1186,7 +1354,11 @@ mod tests {
         engine.add_rule(rule).await.unwrap();
         engine.start().await;
 
-        bus.publish(make_event("sensor-001", EventKind::StateChanged, serde_json::json!({})));
+        bus.publish(make_event(
+            "sensor-001",
+            EventKind::StateChanged,
+            serde_json::json!({}),
+        ));
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
         let notifications = engine.notifications().await;
@@ -1209,9 +1381,18 @@ mod tests {
             }],
             conditions: vec![],
             actions: vec![Action::Sequence(vec![
-                Action::Notify { message: "first".into(), level: NotifyLevel::Info },
-                Action::Notify { message: "second".into(), level: NotifyLevel::Info },
-                Action::Notify { message: "third".into(), level: NotifyLevel::Info },
+                Action::Notify {
+                    message: "first".into(),
+                    level: NotifyLevel::Info,
+                },
+                Action::Notify {
+                    message: "second".into(),
+                    level: NotifyLevel::Info,
+                },
+                Action::Notify {
+                    message: "third".into(),
+                    level: NotifyLevel::Info,
+                },
             ])],
             last_triggered: None,
             cooldown_secs: None,
@@ -1219,7 +1400,11 @@ mod tests {
         engine.add_rule(rule).await.unwrap();
         engine.start().await;
 
-        bus.publish(make_event("sensor-001", EventKind::StateChanged, serde_json::json!({})));
+        bus.publish(make_event(
+            "sensor-001",
+            EventKind::StateChanged,
+            serde_json::json!({}),
+        ));
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
         let notifications = engine.notifications().await;
@@ -1269,11 +1454,19 @@ mod tests {
         engine.start().await;
 
         // First event triggers
-        bus.publish(make_event("sensor-001", EventKind::StateChanged, serde_json::json!({})));
+        bus.publish(make_event(
+            "sensor-001",
+            EventKind::StateChanged,
+            serde_json::json!({}),
+        ));
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
         // Second event within cooldown — should not trigger
-        bus.publish(make_event("sensor-001", EventKind::StateChanged, serde_json::json!({})));
+        bus.publish(make_event(
+            "sensor-001",
+            EventKind::StateChanged,
+            serde_json::json!({}),
+        ));
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
         let notifications = engine.notifications().await;
@@ -1294,7 +1487,11 @@ mod tests {
         engine.add_rule(rule).await.unwrap();
         engine.start().await;
 
-        bus.publish(make_event("sensor-001", EventKind::StateChanged, serde_json::json!({})));
+        bus.publish(make_event(
+            "sensor-001",
+            EventKind::StateChanged,
+            serde_json::json!({}),
+        ));
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
         assert!(engine.notifications().await.is_empty());
@@ -1334,7 +1531,9 @@ mod tests {
         let bus = Arc::new(EventBus::new(64));
         let controller = setup_controller_with_devices();
         let cache = Arc::new(DeviceStateCache::new());
-        cache.set("sensor-001", serde_json::json!({"temperature": 35})).await;
+        cache
+            .set("sensor-001", serde_json::json!({"temperature": 35}))
+            .await;
 
         let engine = AutomationEngine::new(Arc::clone(&bus))
             .with_controller(controller)
@@ -1374,7 +1573,8 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor,
+            "sensor-001",
+            DeviceType::Sensor,
             EventKind::PropertyChanged,
             serde_json::json!({"temperature": 35}),
         ));

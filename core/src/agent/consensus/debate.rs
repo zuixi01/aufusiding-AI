@@ -46,7 +46,10 @@ impl Proposal {
 
     /// 未回应的质疑数
     pub fn unaddressed_count(&self) -> usize {
-        self.challenges.iter().filter(|c| c.response.is_none()).count()
+        self.challenges
+            .iter()
+            .filter(|c| c.response.is_none())
+            .count()
     }
 }
 

@@ -62,7 +62,9 @@ impl super::backend::InferenceBackend for MlxBackend {
         &self,
         request: &super::backend::InferenceRequest,
     ) -> anyhow::Result<super::backend::InferenceResponse> {
-        let model_path = self.model_path.as_ref()
+        let model_path = self
+            .model_path
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("mlx backend model not loaded"))?;
         let start = Instant::now();
         let prompt = request.prompt.trim();

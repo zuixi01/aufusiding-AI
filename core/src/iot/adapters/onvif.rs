@@ -41,7 +41,8 @@ const SOAP_ENVELOPE_CLOSE: &str = r#"
 
 fn soap_get_profiles() -> String {
     format!(
-        "{}\n    <trt:GetProfiles/>{}", SOAP_ENVELOPE_OPEN, SOAP_ENVELOPE_CLOSE
+        "{}\n    <trt:GetProfiles/>{}",
+        SOAP_ENVELOPE_OPEN, SOAP_ENVELOPE_CLOSE
     )
 }
 
@@ -114,9 +115,8 @@ fn extract_xml_value(xml: &str, tag: &str) -> Option<String> {
     // Find opening tag position — try bare first, then any namespace prefix
     let start_tag_begin = xml.find(&bare).or_else(|| {
         // Find `:Tag` then walk back to the `<`
-        xml.find(&prefixed).and_then(|colon_pos| {
-            xml[..colon_pos].rfind('<')
-        })
+        xml.find(&prefixed)
+            .and_then(|colon_pos| xml[..colon_pos].rfind('<'))
     })?;
 
     // Find end of opening tag `>`
@@ -197,9 +197,7 @@ impl OnvifAdapter {
     fn service_url(&self, config: &OnvifConfig, service_path: &str) -> String {
         match &self.base_url_override {
             Some(base) => format!("{}{}", base, service_path),
-            None => format!(
-                "http://{}:{}{}", config.host, config.port, service_path
-            ),
+            None => format!("http://{}:{}{}", config.host, config.port, service_path),
         }
     }
 
@@ -289,11 +287,7 @@ impl OnvifAdapter {
     }
 
     /// PTZ stop.
-    pub async fn ptz_stop(
-        &self,
-        device_id: &str,
-        profile_token: &str,
-    ) -> anyhow::Result<()> {
+    pub async fn ptz_stop(&self, device_id: &str, profile_token: &str) -> anyhow::Result<()> {
         let config = self.get_config(device_id)?;
         let url = self.service_url(config, "/onvif/ptz_service");
         let body = soap_stop(profile_token);
@@ -354,18 +348,14 @@ impl DeviceController for OnvifAdapter {
                 Ok(())
             }
             "ptz_stop" => {
-                let profile_token = value
-                    .as_str()
-                    .unwrap_or("profile_1");
+                let profile_token = value.as_str().unwrap_or("profile_1");
                 let url = self.service_url(config, "/onvif/ptz_service");
                 let body = soap_stop(profile_token);
                 self.soap_request(&url, "Stop", &body).await?;
                 Ok(())
             }
             "snapshot" => {
-                let profile_token = value
-                    .as_str()
-                    .unwrap_or("profile_1");
+                let profile_token = value.as_str().unwrap_or("profile_1");
                 let url = self.service_url(config, "/onvif/media_service");
                 let body = soap_get_snapshot_uri(profile_token);
                 self.soap_request(&url, "GetSnapshotUri", &body).await?;
@@ -426,7 +416,8 @@ mod tests {
               </trt:Profiles>
             </trt:GetProfilesResponse>
           </s:Body>
-        </s:Envelope>"#.to_string()
+        </s:Envelope>"#
+            .to_string()
     }
 
     fn stream_uri_response() -> String {
@@ -439,7 +430,8 @@ mod tests {
               </trt:MediaUri>
             </trt:GetStreamUriResponse>
           </s:Body>
-        </s:Envelope>"#.to_string()
+        </s:Envelope>"#
+            .to_string()
     }
 
     fn snapshot_uri_response() -> String {
@@ -452,7 +444,8 @@ mod tests {
               </trt:MediaUri>
             </trt:GetSnapshotUriResponse>
           </s:Body>
-        </s:Envelope>"#.to_string()
+        </s:Envelope>"#
+            .to_string()
     }
 
     fn ptz_ok_response() -> String {
@@ -461,7 +454,8 @@ mod tests {
           <s:Body>
             <tptz:ContinuousMoveResponse/>
           </s:Body>
-        </s:Envelope>"#.to_string()
+        </s:Envelope>"#
+            .to_string()
     }
 
     // 1. supported_type
@@ -637,10 +631,7 @@ mod tests {
     async fn set_property_unsupported_errors() {
         let server = MockServer::start();
         let a = adapter(&server);
-        assert!(a
-            .set_property("cam-001", "fly", Value::Null)
-            .await
-            .is_err());
+        assert!(a.set_property("cam-001", "fly", Value::Null).await.is_err());
     }
 
     // 14. get_state calls GetProfiles and returns state

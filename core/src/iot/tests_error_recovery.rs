@@ -58,7 +58,9 @@ mod tests {
         }
 
         bus.publish(DeviceEvent::new(
-            "dev-001", DeviceType::Sensor, EventKind::StateChanged,
+            "dev-001",
+            DeviceType::Sensor,
+            EventKind::StateChanged,
             serde_json::json!({}),
         ));
 
@@ -78,7 +80,9 @@ mod tests {
             id: "bad-cron".into(),
             name: "Bad cron".into(),
             enabled: true,
-            triggers: vec![Trigger::Schedule { cron: "not valid cron".into() }],
+            triggers: vec![Trigger::Schedule {
+                cron: "not valid cron".into(),
+            }],
             conditions: vec![],
             actions: vec![Action::Notify {
                 message: "should not fire".into(),
@@ -92,7 +96,9 @@ mod tests {
             id: "good-cron".into(),
             name: "Good cron".into(),
             enabled: true,
-            triggers: vec![Trigger::Schedule { cron: "* * * * * * *".into() }],
+            triggers: vec![Trigger::Schedule {
+                cron: "* * * * * * *".into(),
+            }],
             conditions: vec![],
             actions: vec![Action::Notify {
                 message: "good fired".into(),
@@ -117,8 +123,7 @@ mod tests {
         let bus = Arc::new(EventBus::new(64));
         // Controller with no registered devices → all commands fail
         let gc = GenericController::new();
-        let engine = AutomationEngine::new(Arc::clone(&bus))
-            .with_controller(Arc::new(gc));
+        let engine = AutomationEngine::new(Arc::clone(&bus)).with_controller(Arc::new(gc));
 
         let rule = AutomationRule {
             id: "err-continue".into(),
@@ -156,7 +161,8 @@ mod tests {
         let registry = Arc::new(crate::iot::registry::DeviceRegistry::new(&path).unwrap());
         let bus = Arc::new(EventBus::new(64));
         let provisioner = crate::iot::auto_provision::AutoProvisioner::new(
-            Arc::clone(&registry), Arc::clone(&bus),
+            Arc::clone(&registry),
+            Arc::clone(&bus),
         );
 
         let device = crate::iot::discovery::DeviceInfo {
@@ -193,7 +199,9 @@ mod tests {
             enabled: true,
             triggers: vec![],
             conditions: vec![],
-            actions: vec![Action::RunScene { scene_id: "nonexistent".into() }],
+            actions: vec![Action::RunScene {
+                scene_id: "nonexistent".into(),
+            }],
             last_triggered: None,
             cooldown_secs: None,
         };
@@ -237,7 +245,9 @@ mod tests {
         tokio::time::timeout(tokio::time::Duration::from_secs(5), async {
             writer.await.unwrap();
             reader.await.unwrap();
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
     }
 
     // 8. EventBus 容量溢出 → Lagged 错误处理，不 panic
@@ -249,8 +259,10 @@ mod tests {
         // Publish more than capacity
         for i in 0..20 {
             bus.publish(DeviceEvent::new(
-                format!("dev-{}", i), DeviceType::Sensor,
-                EventKind::StateChanged, serde_json::json!({}),
+                format!("dev-{}", i),
+                DeviceType::Sensor,
+                EventKind::StateChanged,
+                serde_json::json!({}),
             ));
         }
 
@@ -265,7 +277,9 @@ mod tests {
                 }
                 Err(_) => break,
             }
-            if received >= 1 { break; }
+            if received >= 1 {
+                break;
+            }
         }
         // At least some messages received after lagged
         assert!(received >= 1);
@@ -279,7 +293,9 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor, EventKind::StateChanged,
+            "sensor-001",
+            DeviceType::Sensor,
+            EventKind::StateChanged,
             serde_json::json!({"temperature": 25}),
         ));
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
@@ -302,7 +318,9 @@ mod tests {
         }
 
         bus.publish(DeviceEvent::new(
-            "big-dev", DeviceType::Sensor, EventKind::PropertyChanged,
+            "big-dev",
+            DeviceType::Sensor,
+            EventKind::PropertyChanged,
             serde_json::Value::Object(big),
         ));
         tokio::task::yield_now().await;

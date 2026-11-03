@@ -12,9 +12,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use prometheus_core::agent::execution::model_pool::{MockModelBackend, ModelPool, ModelTier};
-use prometheus_core::agent::integration::{
-    AgentOrchestrator, ComplexityAssessor, TaskRoute,
-};
+use prometheus_core::agent::integration::{AgentOrchestrator, ComplexityAssessor, TaskRoute};
 use prometheus_core::agent::types::Role;
 use prometheus_core::orchestrator::{BackendReply, ChatBackend, ChatOrchestrator};
 use prometheus_core::router::classifier::ClassificationResult;
@@ -58,17 +56,14 @@ async fn make_model_pool() -> Arc<ModelPool> {
 
 #[tokio::test]
 async fn orchestrator_without_cluster_works_normally() {
-    let history = HistoryStore::new(
-        prometheus_core::test_support::temp_db_path("cluster-no-agent"),
-    );
+    let history = HistoryStore::new(prometheus_core::test_support::temp_db_path(
+        "cluster-no-agent",
+    ));
     let mut orchestrator = ChatOrchestrator::new(history, TestBackend);
     // 不设置 agent_orchestrator
 
     let session = orchestrator.create_session(Some("normal")).await.unwrap();
-    let turn = orchestrator
-        .send_message(session.id, "你好")
-        .await
-        .unwrap();
+    let turn = orchestrator.send_message(session.id, "你好").await.unwrap();
 
     assert!(turn.reply.contains("echo"));
     assert!(!turn.route_reason.contains("Agent集群"));
@@ -80,19 +75,16 @@ async fn orchestrator_without_cluster_works_normally() {
 
 #[tokio::test]
 async fn simple_request_bypasses_cluster() {
-    let history = HistoryStore::new(
-        prometheus_core::test_support::temp_db_path("cluster-simple-bypass"),
-    );
+    let history = HistoryStore::new(prometheus_core::test_support::temp_db_path(
+        "cluster-simple-bypass",
+    ));
     let pool = make_model_pool().await;
     let mut orchestrator = ChatOrchestrator::new(history, TestBackend);
     orchestrator.set_agent_orchestrator(AgentOrchestrator::new(pool));
 
     let session = orchestrator.create_session(Some("simple")).await.unwrap();
     // "你好" 是简单闲聊，复杂度低，应走原有路径
-    let turn = orchestrator
-        .send_message(session.id, "你好")
-        .await
-        .unwrap();
+    let turn = orchestrator.send_message(session.id, "你好").await.unwrap();
 
     assert!(turn.reply.contains("echo"));
     assert!(!turn.route_reason.contains("Agent集群"));
@@ -104,9 +96,9 @@ async fn simple_request_bypasses_cluster() {
 
 #[tokio::test]
 async fn complex_request_triggers_cluster() {
-    let history = HistoryStore::new(
-        prometheus_core::test_support::temp_db_path("cluster-complex-trigger"),
-    );
+    let history = HistoryStore::new(prometheus_core::test_support::temp_db_path(
+        "cluster-complex-trigger",
+    ));
     let pool = make_model_pool().await;
     let mut orchestrator = ChatOrchestrator::new(history, TestBackend);
     orchestrator.set_agent_orchestrator(AgentOrchestrator::new(pool));
@@ -114,7 +106,10 @@ async fn complex_request_triggers_cluster() {
     let session = orchestrator.create_session(Some("complex")).await.unwrap();
     // 包含多步骤关键词 "设计并实现"，应触发集群
     let turn = orchestrator
-        .send_message(session.id, "设计并实现一个完整的用户认证系统，包含OAuth和JWT")
+        .send_message(
+            session.id,
+            "设计并实现一个完整的用户认证系统，包含OAuth和JWT",
+        )
         .await
         .unwrap();
 
@@ -218,9 +213,9 @@ async fn complexity_assessment_boundary() {
 
 #[tokio::test]
 async fn cluster_result_stored_in_history() {
-    let history = HistoryStore::new(
-        prometheus_core::test_support::temp_db_path("cluster-history-store"),
-    );
+    let history = HistoryStore::new(prometheus_core::test_support::temp_db_path(
+        "cluster-history-store",
+    ));
     let pool = make_model_pool().await;
     let mut orchestrator = ChatOrchestrator::new(history, TestBackend);
     orchestrator.set_agent_orchestrator(AgentOrchestrator::new(pool));

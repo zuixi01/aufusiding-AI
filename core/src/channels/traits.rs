@@ -60,15 +60,22 @@ impl MockMessageChannel {
     }
 
     pub fn add_incoming(&self, msg: ReceivedMessage) {
-        self.receive_messages.lock().unwrap_or_else(|e| e.into_inner()).push(msg);
+        self.receive_messages
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(msg);
     }
 
     pub fn sent_messages(&self) -> Vec<(String, Message)> {
-        self.send_log.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.send_log
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     pub fn set_available(&self, val: bool) {
-        self.available.store(val, std::sync::atomic::Ordering::SeqCst);
+        self.available
+            .store(val, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -79,12 +86,19 @@ impl MessageChannel for MockMessageChannel {
     }
 
     async fn send(&self, recipient: &str, message: &Message) -> anyhow::Result<()> {
-        self.send_log.lock().unwrap_or_else(|e| e.into_inner()).push((recipient.to_string(), message.clone()));
+        self.send_log
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push((recipient.to_string(), message.clone()));
         Ok(())
     }
 
     async fn receive(&self) -> anyhow::Result<Vec<ReceivedMessage>> {
-        Ok(self.receive_messages.lock().unwrap_or_else(|e| e.into_inner()).clone())
+        Ok(self
+            .receive_messages
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone())
     }
 
     async fn is_available(&self) -> bool {
@@ -145,7 +159,10 @@ mod tests {
     #[tokio::test]
     async fn mock_channel_send_records() {
         let ch = MockMessageChannel::new("test");
-        let msg = Message { text: "hi".into(), attachments: vec![] };
+        let msg = Message {
+            text: "hi".into(),
+            attachments: vec![],
+        };
         ch.send("user1", &msg).await.unwrap();
         let sent = ch.sent_messages();
         assert_eq!(sent.len(), 1);
@@ -158,7 +175,10 @@ mod tests {
         let ch = MockMessageChannel::new("test");
         ch.add_incoming(ReceivedMessage {
             sender_id: "s1".into(),
-            message: Message { text: "hello".into(), attachments: vec![] },
+            message: Message {
+                text: "hello".into(),
+                attachments: vec![],
+            },
             timestamp: chrono::Utc::now(),
         });
         let msgs = ch.receive().await.unwrap();

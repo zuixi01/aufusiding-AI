@@ -141,8 +141,8 @@ impl SecurityMode {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::classification::SensitivityLevel;
+    use super::*;
 
     fn make_classification(level: SensitivityLevel) -> DataClassification {
         DataClassification {
@@ -158,21 +158,30 @@ mod tests {
     fn paranoid_forces_local_for_public() {
         let enforcer = SecurityPolicyEnforcer::new(SecurityMode::Paranoid);
         let class = make_classification(SensitivityLevel::Public);
-        assert!(matches!(enforcer.enforce(&class, true), PolicyDecision::ForceLocal(_)));
+        assert!(matches!(
+            enforcer.enforce(&class, true),
+            PolicyDecision::ForceLocal(_)
+        ));
     }
 
     #[test]
     fn paranoid_forces_local_for_normal() {
         let enforcer = SecurityPolicyEnforcer::new(SecurityMode::Paranoid);
         let class = make_classification(SensitivityLevel::Normal);
-        assert!(matches!(enforcer.enforce(&class, true), PolicyDecision::ForceLocal(_)));
+        assert!(matches!(
+            enforcer.enforce(&class, true),
+            PolicyDecision::ForceLocal(_)
+        ));
     }
 
     #[test]
     fn paranoid_forces_local_for_confidential() {
         let enforcer = SecurityPolicyEnforcer::new(SecurityMode::Paranoid);
         let class = make_classification(SensitivityLevel::Confidential);
-        assert!(matches!(enforcer.enforce(&class, true), PolicyDecision::ForceLocal(_)));
+        assert!(matches!(
+            enforcer.enforce(&class, true),
+            PolicyDecision::ForceLocal(_)
+        ));
     }
 
     // ── Balanced 模式 ──
@@ -195,7 +204,10 @@ mod tests {
     fn balanced_forces_local_for_sensitive() {
         let enforcer = SecurityPolicyEnforcer::new(SecurityMode::Balanced);
         let class = make_classification(SensitivityLevel::Sensitive);
-        assert!(matches!(enforcer.enforce(&class, true), PolicyDecision::ForceLocal(_)));
+        assert!(matches!(
+            enforcer.enforce(&class, true),
+            PolicyDecision::ForceLocal(_)
+        ));
     }
 
     // ── Convenient 模式 ──
@@ -211,21 +223,31 @@ mod tests {
     fn convenient_anonymizes_sensitive() {
         let enforcer = SecurityPolicyEnforcer::new(SecurityMode::Convenient);
         let class = make_classification(SensitivityLevel::Sensitive);
-        assert!(matches!(enforcer.enforce(&class, true), PolicyDecision::RequireAnonymization(_)));
+        assert!(matches!(
+            enforcer.enforce(&class, true),
+            PolicyDecision::RequireAnonymization(_)
+        ));
     }
 
     #[test]
     fn convenient_blocks_confidential() {
         let enforcer = SecurityPolicyEnforcer::new(SecurityMode::Convenient);
         let class = make_classification(SensitivityLevel::Confidential);
-        assert!(matches!(enforcer.enforce(&class, true), PolicyDecision::Block(_)));
+        assert!(matches!(
+            enforcer.enforce(&class, true),
+            PolicyDecision::Block(_)
+        ));
     }
 
     // ── 通用 ──
 
     #[test]
     fn local_route_always_allowed() {
-        for mode in [SecurityMode::Paranoid, SecurityMode::Balanced, SecurityMode::Convenient] {
+        for mode in [
+            SecurityMode::Paranoid,
+            SecurityMode::Balanced,
+            SecurityMode::Convenient,
+        ] {
             let enforcer = SecurityPolicyEnforcer::new(mode);
             for level in [SensitivityLevel::Public, SensitivityLevel::Confidential] {
                 let class = make_classification(level);
@@ -241,10 +263,25 @@ mod tests {
 
     #[test]
     fn from_str_config_parses_modes() {
-        assert_eq!(SecurityMode::from_str_config("paranoid"), SecurityMode::Paranoid);
-        assert_eq!(SecurityMode::from_str_config("convenient"), SecurityMode::Convenient);
-        assert_eq!(SecurityMode::from_str_config("balanced"), SecurityMode::Balanced);
-        assert_eq!(SecurityMode::from_str_config("unknown"), SecurityMode::Balanced);
-        assert_eq!(SecurityMode::from_str_config("偏执"), SecurityMode::Paranoid);
+        assert_eq!(
+            SecurityMode::from_str_config("paranoid"),
+            SecurityMode::Paranoid
+        );
+        assert_eq!(
+            SecurityMode::from_str_config("convenient"),
+            SecurityMode::Convenient
+        );
+        assert_eq!(
+            SecurityMode::from_str_config("balanced"),
+            SecurityMode::Balanced
+        );
+        assert_eq!(
+            SecurityMode::from_str_config("unknown"),
+            SecurityMode::Balanced
+        );
+        assert_eq!(
+            SecurityMode::from_str_config("偏执"),
+            SecurityMode::Paranoid
+        );
     }
 }

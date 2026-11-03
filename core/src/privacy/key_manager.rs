@@ -132,7 +132,8 @@ impl KeyManager {
         let salt = hkdf::Salt::new(hkdf::HKDF_SHA256, &[0u8; 32]);
         let prk = salt.extract(&self.master_key);
         let info_refs = [info];
-        let okm = prk.expand(&info_refs, HkdfLen(len))
+        let okm = prk
+            .expand(&info_refs, HkdfLen(len))
             .map_err(|_| anyhow::anyhow!("HKDF expand failed"))?;
         let mut out = vec![0u8; len];
         okm.fill(&mut out)
@@ -160,8 +161,8 @@ impl KeyManager {
     // ── 内部加密辅助 ──
 
     fn encrypt_with_master(&self, plaintext: &[u8]) -> Vec<u8> {
-        use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
         use aes_gcm::aead::Aead;
+        use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
         let cipher = Aes256Gcm::new_from_slice(&self.master_key).expect("invalid master key");
         let mut nonce_bytes = [0u8; 12];
         ring_rand::SecureRandom::fill(&ring_rand::SystemRandom::new(), &mut nonce_bytes)
@@ -174,8 +175,8 @@ impl KeyManager {
     }
 
     fn decrypt_with_master(&self, data: &[u8]) -> anyhow::Result<Vec<u8>> {
-        use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
         use aes_gcm::aead::Aead;
+        use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
         if data.len() < 12 {
             anyhow::bail!("encrypted data too short");
         }
@@ -183,7 +184,8 @@ impl KeyManager {
         let cipher = Aes256Gcm::new_from_slice(&self.master_key)
             .map_err(|_| anyhow::anyhow!("invalid master key"))?;
         let nonce = Nonce::from_slice(nonce_bytes);
-        cipher.decrypt(nonce, ciphertext)
+        cipher
+            .decrypt(nonce, ciphertext)
             .map_err(|_| anyhow::anyhow!("decryption failed"))
     }
 }
@@ -198,7 +200,9 @@ impl Drop for KeyManager {
 struct HkdfLen(usize);
 
 impl hkdf::KeyType for HkdfLen {
-    fn len(&self) -> usize { self.0 }
+    fn len(&self) -> usize {
+        self.0
+    }
 }
 
 #[cfg(test)]
@@ -222,7 +226,10 @@ mod tests {
         let mgr = KeyManager::new(db, test_master_key()).unwrap();
         mgr.generate_key(KeyPurpose::Sanitization).unwrap();
 
-        let (key_id, raw) = mgr.get_active_key(KeyPurpose::Sanitization).unwrap().unwrap();
+        let (key_id, raw) = mgr
+            .get_active_key(KeyPurpose::Sanitization)
+            .unwrap()
+            .unwrap();
         assert!(!key_id.is_empty());
         assert_eq!(raw.len(), 32);
     }

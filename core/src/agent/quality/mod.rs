@@ -6,6 +6,4 @@ pub mod gate;
 pub mod review;
 
 pub use gate::{GateKind, GateOutcome, GatePipeline};
-pub use review::{
-    RejectionAction, RejectionRecord, ReviewCategory, ReviewComment, ReviewResult,
-};
+pub use review::{RejectionAction, RejectionRecord, ReviewCategory, ReviewComment, ReviewResult};

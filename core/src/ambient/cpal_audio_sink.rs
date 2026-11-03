@@ -11,9 +11,9 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
-use crate::voice::AudioChunk;
 use super::audio_sink::AudioSink;
 use super::cpal_audio_source::CpalAudioConfig;
+use crate::voice::AudioChunk;
 
 /// 共享输出状态（Send + Sync 安全）
 struct SharedOutputState {
@@ -51,11 +51,8 @@ impl CpalAudioSink {
             .ok_or_else(|| anyhow::anyhow!("无可用输出设备"))?;
 
         let supported = device.supported_output_configs()?;
-        let stream_config = find_matching_output_config(
-            supported,
-            self.config.sample_rate,
-            self.config.channels,
-        )?;
+        let stream_config =
+            find_matching_output_config(supported, self.config.sample_rate, self.config.channels)?;
 
         let state = Arc::clone(&self.state);
         let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
@@ -132,7 +129,11 @@ impl AudioSink for CpalAudioSink {
 
     fn stop_playback(&self) {
         self.state.playing.store(false, Ordering::SeqCst);
-        self.state.buffer.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.state
+            .buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 
     fn is_playing(&self) -> bool {

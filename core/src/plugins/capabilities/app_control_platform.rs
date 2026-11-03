@@ -78,14 +78,19 @@ impl PlatformController for MockPlatformController {
 
     async fn close(&self, app_id: &str) -> anyhow::Result<()> {
         let mut apps = self.apps.lock().unwrap_or_else(|e| e.into_inner());
-        let idx = apps.iter().position(|a| a.name == app_id)
+        let idx = apps
+            .iter()
+            .position(|a| a.name == app_id)
             .ok_or_else(|| anyhow::anyhow!("应用未运行: {}", app_id))?;
         apps.remove(idx);
         Ok(())
     }
 
     async fn input_text(&self, text: &str) -> anyhow::Result<()> {
-        self.typed.lock().unwrap_or_else(|e| e.into_inner()).push(text.to_string());
+        self.typed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(text.to_string());
         Ok(())
     }
 

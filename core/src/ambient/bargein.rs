@@ -26,12 +26,7 @@ impl BargeInDetector {
     /// - `vad`: VAD 引擎
     /// - `chunk`: 当前音频块
     /// - `is_speaking`: 系统是否正在 TTS 播放
-    pub fn check(
-        &mut self,
-        vad: &dyn VadEngine,
-        chunk: &AudioChunk,
-        is_speaking: bool,
-    ) -> bool {
+    pub fn check(&mut self, vad: &dyn VadEngine, chunk: &AudioChunk, is_speaking: bool) -> bool {
         if !is_speaking {
             self.accumulated_speech_ms = 0;
             return false;

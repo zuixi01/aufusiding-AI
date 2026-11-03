@@ -5,13 +5,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use chrono::{Local, Datelike};
+use chrono::{Datelike, Local};
 use serde_json::Value;
 use tokio::sync::broadcast;
 
-use crate::iot::event_bus::{DeviceEvent, EventBus, EventKind};
 use super::proactive::{DeviceContextSignal, ProactiveDeviceReasoner, ProactiveSuggestion};
 use super::profile::SemanticProfileStore;
+use crate::iot::event_bus::{DeviceEvent, EventBus, EventKind};
 
 /// 主动推理监控器
 pub struct ProactiveMonitor {
@@ -131,16 +131,31 @@ impl ProactiveMonitor {
 }
 #[cfg(test)]
 mod tests {
+    use super::super::profile::{build_default_profile, SemanticProfileStore};
     use super::*;
     use crate::iot::event_bus::EventBus;
     use crate::iot::types::DeviceType;
-    use super::super::profile::{build_default_profile, SemanticProfileStore};
 
     fn make_store() -> Arc<SemanticProfileStore> {
         let mut store = SemanticProfileStore::new();
-        store.add(build_default_profile("light-001", "客厅灯", DeviceType::Light, Some("客厅")));
-        store.add(build_default_profile("thermo-001", "客厅空调", DeviceType::Thermostat, Some("客厅")));
-        store.add(build_default_profile("lock-001", "前门锁", DeviceType::Lock, None));
+        store.add(build_default_profile(
+            "light-001",
+            "客厅灯",
+            DeviceType::Light,
+            Some("客厅"),
+        ));
+        store.add(build_default_profile(
+            "thermo-001",
+            "客厅空调",
+            DeviceType::Thermostat,
+            Some("客厅"),
+        ));
+        store.add(build_default_profile(
+            "lock-001",
+            "前门锁",
+            DeviceType::Lock,
+            None,
+        ));
         Arc::new(store)
     }
 
@@ -178,11 +193,20 @@ mod tests {
         let bus = EventBus::new(16);
         let store = make_store();
         let mut monitor = ProactiveMonitor::new(&bus, store);
-        bus.publish(property_event("light-001", "brightness", serde_json::json!(80)));
+        bus.publish(property_event(
+            "light-001",
+            "brightness",
+            serde_json::json!(80),
+        ));
         monitor.process_pending();
         let state = monitor.device_states().get("light-001").unwrap();
         assert_eq!(
-            state.get("properties").unwrap().get("brightness").unwrap().as_i64(),
+            state
+                .get("properties")
+                .unwrap()
+                .get("brightness")
+                .unwrap()
+                .as_i64(),
             Some(80)
         );
     }
@@ -244,13 +268,22 @@ mod tests {
         let mut monitor = ProactiveMonitor::new(&bus, store);
         bus.publish(state_event("light-001", true));
         bus.publish(state_event("thermo-001", false));
-        bus.publish(property_event("light-001", "brightness", serde_json::json!(60)));
+        bus.publish(property_event(
+            "light-001",
+            "brightness",
+            serde_json::json!(60),
+        ));
         monitor.process_pending();
         assert_eq!(monitor.device_states().len(), 2);
         let light = monitor.device_states().get("light-001").unwrap();
         assert_eq!(light.get("powered").unwrap().as_bool(), Some(true));
         assert_eq!(
-            light.get("properties").unwrap().get("brightness").unwrap().as_i64(),
+            light
+                .get("properties")
+                .unwrap()
+                .get("brightness")
+                .unwrap()
+                .as_i64(),
             Some(60)
         );
     }

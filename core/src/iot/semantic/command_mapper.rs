@@ -61,10 +61,7 @@ impl DeviceCommandMapper {
             }
 
             ActionType::SetProperty(property) => {
-                let value = params
-                    .get("value")
-                    .cloned()
-                    .unwrap_or(serde_json::json!(0));
+                let value = params.get("value").cloned().unwrap_or(serde_json::json!(0));
 
                 let clamped = clamp_to_range(&value, affordances, property);
                 vec![SceneAction {
@@ -80,10 +77,7 @@ impl DeviceCommandMapper {
             }
 
             ActionType::Increase(property) => {
-                let delta = params
-                    .get("delta")
-                    .and_then(|v| v.as_i64())
-                    .unwrap_or(10);
+                let delta = params.get("delta").and_then(|v| v.as_i64()).unwrap_or(10);
                 let current = get_current_value(current_state, property);
                 let (_min, max) = find_param_range(affordances, property);
                 let new_value = std::cmp::min(current + delta, max);
@@ -100,10 +94,7 @@ impl DeviceCommandMapper {
                 }]
             }
             ActionType::Decrease(property) => {
-                let delta = params
-                    .get("delta")
-                    .and_then(|v| v.as_i64())
-                    .unwrap_or(10);
+                let delta = params.get("delta").and_then(|v| v.as_i64()).unwrap_or(10);
                 let current = get_current_value(current_state, property);
                 let (min, _max) = find_param_range(affordances, property);
                 let floor = if property == "brightness" {
@@ -255,9 +246,9 @@ fn property_label(property: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
+    use super::super::profile::ParameterDef;
     use super::*;
     use crate::iot::types::Capability;
-    use super::super::profile::ParameterDef;
 
     fn empty_affordances() -> Vec<CapabilityAffordance> {
         vec![]
@@ -293,9 +284,14 @@ mod tests {
     #[test]
     fn map_turn_on() {
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light, &ActionType::TurnOn,
-            &HashMap::new(), &empty_affordances(), None,
-        ).unwrap();
+            "light-001",
+            &DeviceType::Light,
+            &ActionType::TurnOn,
+            &HashMap::new(),
+            &empty_affordances(),
+            None,
+        )
+        .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].command, "turn_on");
         assert_eq!(result[0].device_id, "light-001");
@@ -304,9 +300,14 @@ mod tests {
     #[test]
     fn map_turn_off() {
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light, &ActionType::TurnOff,
-            &HashMap::new(), &empty_affordances(), None,
-        ).unwrap();
+            "light-001",
+            &DeviceType::Light,
+            &ActionType::TurnOff,
+            &HashMap::new(),
+            &empty_affordances(),
+            None,
+        )
+        .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].command, "turn_off");
     }
@@ -315,9 +316,14 @@ mod tests {
     fn map_toggle_on_to_off() {
         let state = make_state(true, vec![]);
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light, &ActionType::Toggle,
-            &HashMap::new(), &empty_affordances(), Some(&state),
-        ).unwrap();
+            "light-001",
+            &DeviceType::Light,
+            &ActionType::Toggle,
+            &HashMap::new(),
+            &empty_affordances(),
+            Some(&state),
+        )
+        .unwrap();
         assert_eq!(result[0].command, "turn_off");
     }
 
@@ -325,18 +331,28 @@ mod tests {
     fn map_toggle_off_to_on() {
         let state = make_state(false, vec![]);
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light, &ActionType::Toggle,
-            &HashMap::new(), &empty_affordances(), Some(&state),
-        ).unwrap();
+            "light-001",
+            &DeviceType::Light,
+            &ActionType::Toggle,
+            &HashMap::new(),
+            &empty_affordances(),
+            Some(&state),
+        )
+        .unwrap();
         assert_eq!(result[0].command, "turn_on");
     }
 
     #[test]
     fn map_toggle_no_state() {
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light, &ActionType::Toggle,
-            &HashMap::new(), &empty_affordances(), None,
-        ).unwrap();
+            "light-001",
+            &DeviceType::Light,
+            &ActionType::Toggle,
+            &HashMap::new(),
+            &empty_affordances(),
+            None,
+        )
+        .unwrap();
         assert_eq!(result[0].command, "turn_on");
     }
 
@@ -345,10 +361,14 @@ mod tests {
         let mut params = HashMap::new();
         params.insert("value".to_string(), serde_json::json!(80));
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light,
+            "light-001",
+            &DeviceType::Light,
             &ActionType::SetProperty("brightness".to_string()),
-            &params, &brightness_affordance(), None,
-        ).unwrap();
+            &params,
+            &brightness_affordance(),
+            None,
+        )
+        .unwrap();
         assert_eq!(result[0].command, "set_property");
         assert_eq!(result[0].params["value"], 80);
         assert_eq!(result[0].params["property"], "brightness");
@@ -360,10 +380,14 @@ mod tests {
         params.insert("delta".to_string(), serde_json::json!(10));
         let state = make_state(true, vec![("brightness", 70)]);
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light,
+            "light-001",
+            &DeviceType::Light,
             &ActionType::Increase("brightness".to_string()),
-            &params, &brightness_affordance(), Some(&state),
-        ).unwrap();
+            &params,
+            &brightness_affordance(),
+            Some(&state),
+        )
+        .unwrap();
         assert_eq!(result[0].command, "set_property");
         assert_eq!(result[0].params["value"], 80);
     }
@@ -374,10 +398,14 @@ mod tests {
         params.insert("delta".to_string(), serde_json::json!(20));
         let state = make_state(true, vec![("brightness", 90)]);
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light,
+            "light-001",
+            &DeviceType::Light,
             &ActionType::Increase("brightness".to_string()),
-            &params, &brightness_affordance(), Some(&state),
-        ).unwrap();
+            &params,
+            &brightness_affordance(),
+            Some(&state),
+        )
+        .unwrap();
         assert_eq!(result[0].params["value"], 100);
     }
 
@@ -387,10 +415,14 @@ mod tests {
         params.insert("delta".to_string(), serde_json::json!(10));
         let state = make_state(true, vec![("brightness", 50)]);
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light,
+            "light-001",
+            &DeviceType::Light,
             &ActionType::Decrease("brightness".to_string()),
-            &params, &brightness_affordance(), Some(&state),
-        ).unwrap();
+            &params,
+            &brightness_affordance(),
+            Some(&state),
+        )
+        .unwrap();
         assert_eq!(result[0].params["value"], 40);
     }
 
@@ -400,10 +432,14 @@ mod tests {
         params.insert("delta".to_string(), serde_json::json!(20));
         let state = make_state(true, vec![("brightness", 5)]);
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light,
+            "light-001",
+            &DeviceType::Light,
             &ActionType::Decrease("brightness".to_string()),
-            &params, &brightness_affordance(), Some(&state),
-        ).unwrap();
+            &params,
+            &brightness_affordance(),
+            Some(&state),
+        )
+        .unwrap();
         // brightness floor is 1, not 0
         assert_eq!(result[0].params["value"], 1);
     }
@@ -412,10 +448,14 @@ mod tests {
     fn map_increase_no_state_defaults() {
         let params = HashMap::new();
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light,
+            "light-001",
+            &DeviceType::Light,
             &ActionType::Increase("brightness".to_string()),
-            &params, &brightness_affordance(), None,
-        ).unwrap();
+            &params,
+            &brightness_affordance(),
+            None,
+        )
+        .unwrap();
         // default current=50, default delta=10 → 60
         assert_eq!(result[0].params["value"], 60);
     }
@@ -423,18 +463,22 @@ mod tests {
     #[test]
     fn map_get_state() {
         let result = DeviceCommandMapper::map(
-            "light-001", &DeviceType::Light, &ActionType::GetState,
-            &HashMap::new(), &empty_affordances(), None,
-        ).unwrap();
+            "light-001",
+            &DeviceType::Light,
+            &ActionType::GetState,
+            &HashMap::new(),
+            &empty_affordances(),
+            None,
+        )
+        .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].command, "get_state");
     }
 
     #[test]
     fn describe_action_turn_on() {
-        let desc = DeviceCommandMapper::describe_action(
-            "客厅灯", &ActionType::TurnOn, &HashMap::new(),
-        );
+        let desc =
+            DeviceCommandMapper::describe_action("客厅灯", &ActionType::TurnOn, &HashMap::new());
         assert_eq!(desc, "已打开客厅灯");
     }
 

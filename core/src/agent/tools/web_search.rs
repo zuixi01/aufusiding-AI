@@ -22,7 +22,11 @@ pub struct SearchResultEntry {
 /// 搜索后端 trait（解耦 BrowserCapability）
 #[async_trait]
 pub trait SearchBackend: Send + Sync {
-    async fn search(&self, query: &str, max_results: usize) -> anyhow::Result<Vec<SearchResultEntry>>;
+    async fn search(
+        &self,
+        query: &str,
+        max_results: usize,
+    ) -> anyhow::Result<Vec<SearchResultEntry>>;
 }
 
 /// Mock 搜索后端
@@ -30,7 +34,11 @@ pub struct MockSearchBackend;
 
 #[async_trait]
 impl SearchBackend for MockSearchBackend {
-    async fn search(&self, query: &str, max_results: usize) -> anyhow::Result<Vec<SearchResultEntry>> {
+    async fn search(
+        &self,
+        query: &str,
+        max_results: usize,
+    ) -> anyhow::Result<Vec<SearchResultEntry>> {
         let mut results = Vec::new();
         for i in 0..max_results.min(3) {
             results.push(SearchResultEntry {
@@ -54,7 +62,9 @@ impl WebSearchTool {
     }
 
     pub fn with_mock() -> Self {
-        Self { backend: Arc::new(MockSearchBackend) }
+        Self {
+            backend: Arc::new(MockSearchBackend),
+        }
     }
 }
 
@@ -84,18 +94,22 @@ impl AgentTool for WebSearchTool {
             Some(q) => q,
             None => return ToolResult::err("missing 'query' parameter"),
         };
-        let max_results = params.get("max_results")
+        let max_results = params
+            .get("max_results")
             .and_then(|v| v.as_u64())
             .unwrap_or(5) as usize;
 
         match self.backend.search(query, max_results).await {
             Ok(results) => {
-                let json_results: Vec<Value> = results.iter()
-                    .map(|r| serde_json::json!({
-                        "title": r.title,
-                        "url": r.url,
-                        "snippet": r.snippet,
-                    }))
+                let json_results: Vec<Value> = results
+                    .iter()
+                    .map(|r| {
+                        serde_json::json!({
+                            "title": r.title,
+                            "url": r.url,
+                            "snippet": r.snippet,
+                        })
+                    })
                     .collect();
                 ToolResult::ok(serde_json::json!({
                     "results": json_results,
@@ -114,22 +128,29 @@ mod tests {
     #[tokio::test]
     async fn execute_basic_search() {
         let tool = WebSearchTool::with_mock();
-        let result = tool.execute(serde_json::json!({
-            "query": "Rust programming"
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "query": "Rust programming"
+            }))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["count"], 3);
         let results = result.output["results"].as_array().unwrap();
-        assert!(results[0]["title"].as_str().unwrap().contains("Rust programming"));
+        assert!(results[0]["title"]
+            .as_str()
+            .unwrap()
+            .contains("Rust programming"));
     }
 
     #[tokio::test]
     async fn execute_with_max_results() {
         let tool = WebSearchTool::with_mock();
-        let result = tool.execute(serde_json::json!({
-            "query": "test",
-            "max_results": 2
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "query": "test",
+                "max_results": 2
+            }))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["count"], 2);
     }
@@ -164,7 +185,11 @@ mod tests {
 
     #[async_trait]
     impl SearchBackend for FailingBackend {
-        async fn search(&self, _query: &str, _max: usize) -> anyhow::Result<Vec<SearchResultEntry>> {
+        async fn search(
+            &self,
+            _query: &str,
+            _max: usize,
+        ) -> anyhow::Result<Vec<SearchResultEntry>> {
             anyhow::bail!("network error")
         }
     }

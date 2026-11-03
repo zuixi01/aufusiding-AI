@@ -88,10 +88,7 @@ impl HttpOcrEngine {
 
 #[async_trait]
 impl OcrEngine for HttpOcrEngine {
-    async fn recognize(
-        &self,
-        snapshot: &ScreenSnapshot,
-    ) -> anyhow::Result<Vec<TextRegion>> {
+    async fn recognize(&self, snapshot: &ScreenSnapshot) -> anyhow::Result<Vec<TextRegion>> {
         let body = Self::build_request(snapshot);
         let url = format!("{}/v1/ocr/recognize", self.config.base_url);
 
@@ -127,10 +124,7 @@ impl OcrEngine for HttpOcrEngine {
         Ok(regions)
     }
 
-    async fn extract_all_text(
-        &self,
-        snapshot: &ScreenSnapshot,
-    ) -> anyhow::Result<String> {
+    async fn extract_all_text(&self, snapshot: &ScreenSnapshot) -> anyhow::Result<String> {
         let body = Self::build_request(snapshot);
         let url = format!("{}/v1/ocr/extract", self.config.base_url);
 

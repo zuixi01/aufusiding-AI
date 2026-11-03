@@ -55,12 +55,20 @@ impl BrowserPool {
 
     /// 活跃实例数
     pub fn active_count(&self) -> usize {
-        self.instances.lock().unwrap_or_else(|e| e.into_inner()).iter().filter(|i| i.in_use).count()
+        self.instances
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .filter(|i| i.in_use)
+            .count()
     }
 
     /// 总实例数
     pub fn total_count(&self) -> usize {
-        self.instances.lock().unwrap_or_else(|e| e.into_inner()).len()
+        self.instances
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .len()
     }
 
     /// 最大实例数

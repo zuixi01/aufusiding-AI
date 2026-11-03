@@ -10,8 +10,8 @@ use chrono::Utc;
 use serde_json::Value;
 use tokio::sync::RwLock;
 
-use crate::storage::db::Database;
 use super::event_bus::{EventBus, EventKind};
+use crate::storage::db::Database;
 
 /// 持久化设备状态缓存
 pub struct PersistentDeviceStateCache {
@@ -68,7 +68,10 @@ impl PersistentDeviceStateCache {
         ) {
             tracing::warn!("persistent state cache write failed for {}: {}", device_id, e);
         }
-        self.states.write().await.insert(device_id.to_string(), state);
+        self.states
+            .write()
+            .await
+            .insert(device_id.to_string(), state);
     }
 
     /// 返回全量状态克隆
@@ -137,7 +140,9 @@ mod tests {
     #[tokio::test]
     async fn set_and_get() {
         let cache = make_cache();
-        cache.set("light-001", serde_json::json!({"brightness": 80})).await;
+        cache
+            .set("light-001", serde_json::json!({"brightness": 80}))
+            .await;
         let state = cache.get("light-001").await.unwrap();
         assert_eq!(state["brightness"], 80);
     }
@@ -188,7 +193,8 @@ mod tests {
             let cache = PersistentDeviceStateCache::new(&path).unwrap();
             cache.start(&bus).await;
             bus.publish(DeviceEvent::new(
-                "s1", DeviceType::Sensor,
+                "s1",
+                DeviceType::Sensor,
                 EventKind::PropertyChanged,
                 serde_json::json!({"temperature": 22}),
             ));
@@ -220,7 +226,8 @@ mod tests {
         for i in 0..10 {
             let c = Arc::clone(&cache);
             handles.push(tokio::spawn(async move {
-                c.set(&format!("dev-{}", i), serde_json::json!({"v": i})).await;
+                c.set(&format!("dev-{}", i), serde_json::json!({"v": i}))
+                    .await;
             }));
         }
         for h in handles {
@@ -238,7 +245,8 @@ mod tests {
         cache.start(&bus).await;
 
         bus.publish(DeviceEvent::new(
-            "s1", DeviceType::Sensor,
+            "s1",
+            DeviceType::Sensor,
             EventKind::PropertyChanged,
             serde_json::json!({"temperature": 22}),
         ));
@@ -247,7 +255,8 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_millis(30)).await;
 
         bus.publish(DeviceEvent::new(
-            "s1", DeviceType::Sensor,
+            "s1",
+            DeviceType::Sensor,
             EventKind::PropertyChanged,
             serde_json::json!({"humidity": 60}),
         ));

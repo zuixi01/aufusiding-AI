@@ -64,11 +64,16 @@ pub struct MockEmailProvider {
 
 impl MockEmailProvider {
     pub fn new() -> Self {
-        Self { messages: Mutex::new(HashMap::new()) }
+        Self {
+            messages: Mutex::new(HashMap::new()),
+        }
     }
 
     pub fn add_message(&self, msg: EmailMessage) {
-        self.messages.lock().unwrap_or_else(|e| e.into_inner()).insert(msg.id, msg);
+        self.messages
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(msg.id, msg);
     }
 }
 
@@ -84,20 +89,31 @@ impl EmailProvider for MockEmailProvider {
 
     async fn search(&self, query: &EmailSearchQuery) -> anyhow::Result<Vec<EmailMessage>> {
         let msgs = self.messages.lock().unwrap_or_else(|e| e.into_inner());
-        let results: Vec<EmailMessage> = msgs.values()
+        let results: Vec<EmailMessage> = msgs
+            .values()
             .filter(|m| {
-                if query.unread_only && m.is_read { return false; }
+                if query.unread_only && m.is_read {
+                    return false;
+                }
                 if let Some(kw) = &query.keyword {
-                    if !m.subject.contains(kw) && !m.body.contains(kw) { return false; }
+                    if !m.subject.contains(kw) && !m.body.contains(kw) {
+                        return false;
+                    }
                 }
                 if let Some(sender) = &query.sender {
-                    if !m.from.contains(sender) { return false; }
+                    if !m.from.contains(sender) {
+                        return false;
+                    }
                 }
                 if let Some(from) = query.date_from {
-                    if m.date < from { return false; }
+                    if m.date < from {
+                        return false;
+                    }
                 }
                 if let Some(to) = query.date_to {
-                    if m.date > to { return false; }
+                    if m.date > to {
+                        return false;
+                    }
                 }
                 true
             })
@@ -108,19 +124,28 @@ impl EmailProvider for MockEmailProvider {
 
     async fn get_message(&self, id: &Uuid) -> anyhow::Result<EmailMessage> {
         let msgs = self.messages.lock().unwrap_or_else(|e| e.into_inner());
-        msgs.get(id).cloned()
+        msgs.get(id)
+            .cloned()
             .ok_or_else(|| anyhow::anyhow!("message not found: {}", id))
     }
 
     async fn send(&self, to: &[String], subject: &str, body: &str) -> anyhow::Result<Uuid> {
         let id = Uuid::new_v4();
         let msg = EmailMessage {
-            id, from: "me@example.com".into(), to: to.to_vec(),
-            subject: subject.into(), body: body.into(),
-            date: Utc::now(), attachments: Vec::new(),
-            is_read: true, thread_id: None,
+            id,
+            from: "me@example.com".into(),
+            to: to.to_vec(),
+            subject: subject.into(),
+            body: body.into(),
+            date: Utc::now(),
+            attachments: Vec::new(),
+            is_read: true,
+            thread_id: None,
         };
-        self.messages.lock().unwrap_or_else(|e| e.into_inner()).insert(id, msg);
+        self.messages
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(id, msg);
         Ok(id)
     }
 
@@ -128,18 +153,27 @@ impl EmailProvider for MockEmailProvider {
         let original = self.get_message(message_id).await?;
         let id = Uuid::new_v4();
         let msg = EmailMessage {
-            id, from: "me@example.com".into(), to: vec![original.from],
-            subject: format!("Re: {}", original.subject), body: body.into(),
-            date: Utc::now(), attachments: Vec::new(),
-            is_read: true, thread_id: original.thread_id,
+            id,
+            from: "me@example.com".into(),
+            to: vec![original.from],
+            subject: format!("Re: {}", original.subject),
+            body: body.into(),
+            date: Utc::now(),
+            attachments: Vec::new(),
+            is_read: true,
+            thread_id: original.thread_id,
         };
-        self.messages.lock().unwrap_or_else(|e| e.into_inner()).insert(id, msg);
+        self.messages
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(id, msg);
         Ok(id)
     }
 
     async fn mark_read(&self, id: &Uuid) -> anyhow::Result<()> {
         let mut msgs = self.messages.lock().unwrap_or_else(|e| e.into_inner());
-        let msg = msgs.get_mut(id)
+        let msg = msgs
+            .get_mut(id)
             .ok_or_else(|| anyhow::anyhow!("message not found: {}", id))?;
         msg.is_read = true;
         Ok(())
@@ -163,24 +197,31 @@ impl EmailClient {
     }
 
     pub async fn search_by_keyword(&self, keyword: &str) -> anyhow::Result<Vec<EmailMessage>> {
-        self.provider.search(&EmailSearchQuery {
-            keyword: Some(keyword.to_string()),
-            ..Default::default()
-        }).await
+        self.provider
+            .search(&EmailSearchQuery {
+                keyword: Some(keyword.to_string()),
+                ..Default::default()
+            })
+            .await
     }
 
     pub async fn search_by_sender(&self, sender: &str) -> anyhow::Result<Vec<EmailMessage>> {
-        self.provider.search(&EmailSearchQuery {
-            sender: Some(sender.to_string()),
-            ..Default::default()
-        }).await
+        self.provider
+            .search(&EmailSearchQuery {
+                sender: Some(sender.to_string()),
+                ..Default::default()
+            })
+            .await
     }
 
     pub async fn unread_count(&self) -> anyhow::Result<usize> {
-        let results = self.provider.search(&EmailSearchQuery {
-            unread_only: true,
-            ..Default::default()
-        }).await?;
+        let results = self
+            .provider
+            .search(&EmailSearchQuery {
+                unread_only: true,
+                ..Default::default()
+            })
+            .await?;
         Ok(results.len())
     }
 
@@ -202,12 +243,24 @@ impl EmailClient {
 
     /// 从邮件正文提取待办关键词
     pub fn extract_action_items(message: &EmailMessage) -> Vec<String> {
-        let keywords = ["请", "需要", "务必", "deadline", "TODO", "action required",
-                        "请回复", "请确认", "提交", "审批"];
+        let keywords = [
+            "请",
+            "需要",
+            "务必",
+            "deadline",
+            "TODO",
+            "action required",
+            "请回复",
+            "请确认",
+            "提交",
+            "审批",
+        ];
         let mut items = Vec::new();
         for line in message.body.lines() {
             let trimmed = line.trim();
-            if trimmed.is_empty() { continue; }
+            if trimmed.is_empty() {
+                continue;
+            }
             for kw in &keywords {
                 if trimmed.to_lowercase().contains(&kw.to_lowercase()) {
                     items.push(trimmed.to_string());
@@ -220,10 +273,13 @@ impl EmailClient {
 
     /// 语音摘要
     pub async fn voice_summary(&self) -> anyhow::Result<String> {
-        let unread = self.provider.search(&EmailSearchQuery {
-            unread_only: true,
-            ..Default::default()
-        }).await?;
+        let unread = self
+            .provider
+            .search(&EmailSearchQuery {
+                unread_only: true,
+                ..Default::default()
+            })
+            .await?;
 
         if unread.is_empty() {
             return Ok("没有未读邮件。".into());
@@ -237,7 +293,8 @@ impl EmailClient {
             *sender_counts.entry(domain.to_string()).or_insert(0) += 1;
         }
 
-        let top_sender = sender_counts.iter()
+        let top_sender = sender_counts
+            .iter()
             .max_by_key(|(_, c)| *c)
             .map(|(d, c)| format!("其中 {} 封来自{}", c, d))
             .unwrap_or_default();
@@ -314,7 +371,10 @@ mod tests {
     #[tokio::test]
     async fn send_email() {
         let client = setup_client();
-        let id = client.send(&["bob@example.com".into()], "测试", "内容").await.unwrap();
+        let id = client
+            .send(&["bob@example.com".into()], "测试", "内容")
+            .await
+            .unwrap();
         let msg = client.get_message(&id).await.unwrap();
         assert_eq!(msg.subject, "测试");
     }
@@ -332,8 +392,14 @@ mod tests {
     #[tokio::test]
     async fn mark_read() {
         let provider = setup_provider();
-        let msgs: Vec<EmailMessage> = provider.messages.lock().unwrap().values()
-            .filter(|m| !m.is_read).cloned().collect();
+        let msgs: Vec<EmailMessage> = provider
+            .messages
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|m| !m.is_read)
+            .cloned()
+            .collect();
         let id = msgs[0].id;
         let client = EmailClient::new(Box::new(provider));
         client.mark_read(&id).await.unwrap();

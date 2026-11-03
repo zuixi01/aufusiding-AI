@@ -51,7 +51,9 @@ impl CapabilityRegistry {
 
     /// 启用能力
     pub fn enable(&mut self, name: &str) -> anyhow::Result<()> {
-        let cap = self.capabilities.get_mut(name)
+        let cap = self
+            .capabilities
+            .get_mut(name)
             .ok_or_else(|| anyhow::anyhow!("能力未注册: {}", name))?;
         cap.status = CapabilityStatus::Enabled;
         Ok(())
@@ -59,7 +61,9 @@ impl CapabilityRegistry {
 
     /// 禁用能力
     pub fn disable(&mut self, name: &str) -> anyhow::Result<()> {
-        let cap = self.capabilities.get_mut(name)
+        let cap = self
+            .capabilities
+            .get_mut(name)
             .ok_or_else(|| anyhow::anyhow!("能力未注册: {}", name))?;
         cap.status = CapabilityStatus::Disabled;
         Ok(())

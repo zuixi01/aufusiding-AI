@@ -142,11 +142,18 @@ impl SecurityAuditLog {
     }
 
     /// 查询特定客户端的事件
-    pub fn query_by_client(&self, client_id: &str, limit: usize) -> anyhow::Result<Vec<SecurityEvent>> {
+    pub fn query_by_client(
+        &self,
+        client_id: &str,
+        limit: usize,
+    ) -> anyhow::Result<Vec<SecurityEvent>> {
         self.db.query_map(
             "SELECT timestamp, event_type, severity, client_id, details, action_taken
              FROM security_events WHERE client_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
-            &[&client_id as &dyn rusqlite::ToSql, &(limit as i64) as &dyn rusqlite::ToSql],
+            &[
+                &client_id as &dyn rusqlite::ToSql,
+                &(limit as i64) as &dyn rusqlite::ToSql,
+            ],
             |row| {
                 Ok(SecurityEvent {
                     timestamp: chrono::DateTime::from_timestamp(row.get::<_, i64>(0)?, 0)
@@ -163,11 +170,11 @@ impl SecurityAuditLog {
 
     /// 统计事件数量
     pub fn count_events(&self) -> anyhow::Result<u64> {
-        let counts = self.db.query_map(
-            "SELECT COUNT(*) FROM security_events",
-            &[],
-            |row| row.get::<_, i64>(0),
-        )?;
+        let counts = self
+            .db
+            .query_map("SELECT COUNT(*) FROM security_events", &[], |row| {
+                row.get::<_, i64>(0)
+            })?;
         Ok(counts.first().copied().unwrap_or(0) as u64)
     }
 }

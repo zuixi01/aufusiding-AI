@@ -5,8 +5,8 @@ mod unit {
     use crate::plugins::capabilities::browser::BrowserCapability;
     use crate::plugins::capabilities::browser_actions::{BrowserAction, BrowserResult};
     use crate::plugins::capabilities::browser_pool::BrowserPool;
-    use crate::plugins::capability_registry::{CapabilityRegistry, CapabilityStatus};
     use crate::plugins::capability_bridge::CapabilityBridge;
+    use crate::plugins::capability_registry::{CapabilityRegistry, CapabilityStatus};
 
     // ─── BrowserPool ───────────────────────────────────
 
@@ -38,7 +38,9 @@ mod unit {
 
     #[test]
     fn browser_action_serde() {
-        let action = BrowserAction::Navigate { url: "https://example.com".into() };
+        let action = BrowserAction::Navigate {
+            url: "https://example.com".into(),
+        };
         let json = serde_json::to_string(&action).unwrap();
         let back: BrowserAction = serde_json::from_str(&json).unwrap();
         match back {
@@ -65,8 +67,7 @@ mod unit {
 
     #[tokio::test]
     async fn browser_domain_whitelist() {
-        let browser = BrowserCapability::new(2)
-            .with_allowed_domains(vec!["example.com".into()]);
+        let browser = BrowserCapability::new(2).with_allowed_domains(vec!["example.com".into()]);
 
         // 无远程服务时，白名单域名也应返回错误（需要配置远程浏览器）
         let result = browser.screenshot("https://example.com/page").await;
@@ -83,8 +84,12 @@ mod unit {
     async fn browser_execute_actions() {
         let browser = BrowserCapability::new(2);
         let actions = vec![
-            BrowserAction::Navigate { url: "https://example.com".into() },
-            BrowserAction::ExtractText { selector: "h1".into() },
+            BrowserAction::Navigate {
+                url: "https://example.com".into(),
+            },
+            BrowserAction::ExtractText {
+                selector: "h1".into(),
+            },
         ];
         let result = browser.execute_actions(&actions).await.unwrap();
         assert!(result.success);
@@ -93,14 +98,20 @@ mod unit {
     #[tokio::test]
     async fn browser_research() {
         let browser = BrowserCapability::new(2);
-        let result = browser.research("test", &["site1.com", "site2.com"]).await.unwrap();
+        let result = browser
+            .research("test", &["site1.com", "site2.com"])
+            .await
+            .unwrap();
         assert!(result.contains("site1.com"));
     }
 
     #[tokio::test]
     async fn browser_extract_text() {
         let browser = BrowserCapability::new(2);
-        let text = browser.extract_text("https://example.com", "h1").await.unwrap();
+        let text = browser
+            .extract_text("https://example.com", "h1")
+            .await
+            .unwrap();
         assert!(!text.is_empty());
     }
 

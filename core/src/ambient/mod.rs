@@ -9,26 +9,26 @@ pub mod bargein;
 pub mod biometrics;
 pub mod config;
 pub mod conversation;
-pub mod mode_manager;
+#[cfg(feature = "audio-capture")]
+pub mod cpal_audio_sink;
+#[cfg(feature = "audio-capture")]
+pub mod cpal_audio_source;
 pub mod daemon;
+pub mod daemon_builder;
+pub mod dispatcher_trait;
 pub mod intent;
 pub mod loop_runner;
+pub mod mode_manager;
+pub mod privacy_dispatcher;
 pub mod proactive;
 pub mod response;
-pub mod safety;
 pub mod room_context;
+pub mod safety;
+pub mod suggestion_announcer;
 pub mod system_audio_sink;
 pub mod system_audio_source;
 pub mod types;
 pub mod wakeword_enhanced;
-pub mod dispatcher_trait;
-pub mod privacy_dispatcher;
-pub mod suggestion_announcer;
-pub mod daemon_builder;
-#[cfg(feature = "audio-capture")]
-pub mod cpal_audio_source;
-#[cfg(feature = "audio-capture")]
-pub mod cpal_audio_sink;
 
 #[cfg(test)]
 mod tests;
@@ -41,10 +41,13 @@ pub use config::AmbientConfig;
 pub use daemon::AmbientDaemon;
 pub use intent::{DispatchResult, DispatchTarget, IntentDispatcher};
 pub use loop_runner::AmbientLoopRunner;
-pub use mode_manager::{ModeManager, ModeProfile, ModeTransition, ModeTransitionHook, MockModeTransitionHook, NotificationPolicy, SystemMode};
+pub use mode_manager::{
+    MockModeTransitionHook, ModeManager, ModeProfile, ModeTransition, ModeTransitionHook,
+    NotificationPolicy, SystemMode,
+};
 pub use response::ResponseFormatter;
 pub use room_context::RoomContext;
-pub use types::{AmbientState, ConversationTurn, ListeningMode};
-pub use wakeword_enhanced::EnhancedWakewordDetector;
 pub use system_audio_sink::{AudioSinkConfig, SystemAudioSink};
 pub use system_audio_source::{AudioSourceConfig, SystemAudioSource};
+pub use types::{AmbientState, ConversationTurn, ListeningMode};
+pub use wakeword_enhanced::EnhancedWakewordDetector;

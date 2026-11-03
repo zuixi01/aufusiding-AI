@@ -38,9 +38,8 @@ pub struct TokenVault {
 impl TokenVault {
     pub fn new() -> Self {
         let mut key = [0u8; 32];
-        ring::rand::SecureRandom::fill(
-            &ring::rand::SystemRandom::new(), &mut key,
-        ).expect("failed to generate random key");
+        ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut key)
+            .expect("failed to generate random key");
         // 默认签名密钥从 cipher_key 派生
         let signing_key = key.to_vec();
         Self {
@@ -69,16 +68,18 @@ impl TokenVault {
         let counter = self.counters.entry(type_name.clone()).or_insert(0);
         *counter += 1;
         let mut rand_bytes = [0u8; 2];
-        ring::rand::SecureRandom::fill(
-            &ring::rand::SystemRandom::new(), &mut rand_bytes,
-        ).expect("failed to generate random bytes");
+        ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut rand_bytes)
+            .expect("failed to generate random bytes");
         let hex = format!("{:02x}{:02x}", rand_bytes[0], rand_bytes[1]);
         let token = format!("[{}_{hex}]", type_name);
         self.forward.insert(entity.text.clone(), token.clone());
-        self.reverse.insert(token.clone(), VaultEntry {
-            original: entity.text.clone(),
-            created_at: Instant::now(),
-        });
+        self.reverse.insert(
+            token.clone(),
+            VaultEntry {
+                original: entity.text.clone(),
+                created_at: Instant::now(),
+            },
+        );
         token
     }
 
@@ -99,7 +100,8 @@ impl TokenVault {
     pub fn cleanup_expired(&mut self) -> Option<(Vec<String>, DestructionProof)> {
         let ttl = self.ttl?;
         let now = Instant::now();
-        let expired_tokens: Vec<String> = self.reverse
+        let expired_tokens: Vec<String> = self
+            .reverse
             .iter()
             .filter(|(_, entry)| now.duration_since(entry.created_at) >= ttl)
             .map(|(token, _)| token.clone())
@@ -130,15 +132,8 @@ impl TokenVault {
 
     /// 安全擦除所有映射和密钥，生成销毁证明
     pub fn destroy_with_proof(&mut self) -> DestructionProof {
-        let originals: Vec<String> = self.reverse
-            .values()
-            .map(|e| e.original.clone())
-            .collect();
-        let proof = DestructionProof::generate(
-            &self.signing_key,
-            &originals,
-            "zeroize",
-        );
+        let originals: Vec<String> = self.reverse.values().map(|e| e.original.clone()).collect();
+        let proof = DestructionProof::generate(&self.signing_key, &originals, "zeroize");
         self.destroy();
         proof
     }
@@ -166,16 +161,17 @@ impl TokenVault {
 
     /// 导出加密快照（AES-256-GCM）
     pub fn export_encrypted(&self) -> Vec<u8> {
-        use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
         use aes_gcm::aead::Aead;
+        use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
         let cipher = Aes256Gcm::new_from_slice(&self.cipher_key).expect("invalid key");
         let mut nonce_bytes = [0u8; 12];
-        ring::rand::SecureRandom::fill(
-            &ring::rand::SystemRandom::new(), &mut nonce_bytes,
-        ).expect("failed to generate nonce");
+        ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut nonce_bytes)
+            .expect("failed to generate nonce");
         let nonce = Nonce::from_slice(&nonce_bytes);
         let data = serde_json::to_vec(&self.forward).unwrap_or_default();
-        let encrypted = cipher.encrypt(nonce, data.as_ref()).expect("encryption failed");
+        let encrypted = cipher
+            .encrypt(nonce, data.as_ref())
+            .expect("encryption failed");
         let mut output = nonce_bytes.to_vec();
         output.extend(encrypted);
         output
@@ -184,7 +180,8 @@ impl TokenVault {
     /// 统计信息
     pub fn stats(&self) -> VaultStats {
         let now = Instant::now();
-        let expired_count = self.reverse
+        let expired_count = self
+            .reverse
             .values()
             .filter(|e| self.is_expired(now, e.created_at))
             .count();
@@ -197,11 +194,15 @@ impl TokenVault {
 }
 
 impl Default for TokenVault {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Drop for TokenVault {
-    fn drop(&mut self) { self.destroy(); }
+    fn drop(&mut self) {
+        self.destroy();
+    }
 }
 
 #[cfg(test)]

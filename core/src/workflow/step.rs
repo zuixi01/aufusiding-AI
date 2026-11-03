@@ -454,15 +454,11 @@ fn function_args(expression: &str, name: &str) -> anyhow::Result<Option<Vec<Stri
     }
 
     if in_quotes {
-        anyhow::bail!(
-            "malformed {name}() expression: unclosed quote in '{expression}'"
-        );
+        anyhow::bail!("malformed {name}() expression: unclosed quote in '{expression}'");
     }
 
     if depth != 0 {
-        anyhow::bail!(
-            "malformed {name}() expression: unbalanced parentheses in '{expression}'"
-        );
+        anyhow::bail!("malformed {name}() expression: unbalanced parentheses in '{expression}'");
     }
 
     if !current.trim().is_empty() {

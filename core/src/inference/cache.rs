@@ -41,7 +41,11 @@ impl CacheStats {
     /// 命中率
     pub fn hit_rate(&self) -> f64 {
         let total = self.hits + self.misses;
-        if total == 0 { 0.0 } else { self.hits as f64 / total as f64 }
+        if total == 0 {
+            0.0
+        } else {
+            self.hits as f64 / total as f64
+        }
     }
 
     /// 估算节省的成本
@@ -276,7 +280,11 @@ mod tests {
 
     #[test]
     fn hit_rate_calculation() {
-        let stats = CacheStats { hits: 3, misses: 7, ..Default::default() };
+        let stats = CacheStats {
+            hits: 3,
+            misses: 7,
+            ..Default::default()
+        };
         assert!((stats.hit_rate() - 0.3).abs() < 0.001);
     }
 
@@ -305,7 +313,13 @@ mod tests {
     fn mass_insert_preserves_lru_order() {
         let mut cache = PromptCache::new(100, Duration::from_secs(60));
         for i in 0..100 {
-            cache.put(&format!("prompt-{}", i), 0.0, 100, &format!("resp-{}", i), 10);
+            cache.put(
+                &format!("prompt-{}", i),
+                0.0,
+                100,
+                &format!("resp-{}", i),
+                10,
+            );
         }
         assert_eq!(cache.len(), 100);
         // Insert one more — should evict prompt-0 (oldest)

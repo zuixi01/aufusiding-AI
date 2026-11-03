@@ -132,7 +132,11 @@ fn generate_summary(messages: &[crate::session::history::Message]) -> String {
         topics.join("; ")
     } else {
         let first_three: Vec<&str> = topics.iter().take(3).map(|s| s.as_str()).collect();
-        format!("{}; ... and {} more", first_three.join("; "), topics.len() - 3)
+        format!(
+            "{}; ... and {} more",
+            first_three.join("; "),
+            topics.len() - 3
+        )
     };
 
     format!(

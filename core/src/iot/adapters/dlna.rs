@@ -66,19 +66,11 @@ fn soap_play() -> String {
 }
 
 fn soap_pause() -> String {
-    soap_envelope(
-        AVTRANSPORT_URN,
-        "Pause",
-        "<InstanceID>0</InstanceID>",
-    )
+    soap_envelope(AVTRANSPORT_URN, "Pause", "<InstanceID>0</InstanceID>")
 }
 
 fn soap_stop() -> String {
-    soap_envelope(
-        AVTRANSPORT_URN,
-        "Stop",
-        "<InstanceID>0</InstanceID>",
-    )
+    soap_envelope(AVTRANSPORT_URN, "Stop", "<InstanceID>0</InstanceID>")
 }
 
 fn soap_set_volume(volume: u64) -> String {
@@ -119,7 +111,7 @@ fn extract_xml_value(xml: &str, tag: &str) -> Option<String> {
         let slice = &xml[..i + colon_tag.len()];
         if let Some(lt) = slice.rfind('<') {
             let content_start = i + colon_tag.len();
-            let close_colon = format!(":{}>" , tag);
+            let close_colon = format!(":{}>", tag);
             if let Some(close_pos) = xml[content_start..].find("</") {
                 let after = &xml[content_start + close_pos..];
                 if after.contains(&close_colon) {
@@ -196,7 +188,12 @@ impl DlnaAdapter {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            anyhow::bail!("DLNA SOAP {} failed ({}): {}", action, status.as_u16(), text);
+            anyhow::bail!(
+                "DLNA SOAP {} failed ({}): {}",
+                action,
+                status.as_u16(),
+                text
+            );
         }
         Ok(text)
     }
@@ -219,7 +216,8 @@ impl DlnaAdapter {
         let device = self.get_device(device_id)?;
         let url = self.control_url(device, "/AVTransport/Control");
         let body = soap_pause();
-        self.soap_action(&url, AVTRANSPORT_URN, "Pause", &body).await?;
+        self.soap_action(&url, AVTRANSPORT_URN, "Pause", &body)
+            .await?;
         Ok(())
     }
 
@@ -228,7 +226,8 @@ impl DlnaAdapter {
         let device = self.get_device(device_id)?;
         let url = self.control_url(device, "/AVTransport/Control");
         let body = soap_stop();
-        self.soap_action(&url, AVTRANSPORT_URN, "Stop", &body).await?;
+        self.soap_action(&url, AVTRANSPORT_URN, "Stop", &body)
+            .await?;
         Ok(())
     }
 
@@ -299,7 +298,10 @@ impl DeviceController for DlnaAdapter {
 
     async fn get_state(&self, device_id: &str) -> anyhow::Result<Value> {
         let device = self.get_device(device_id)?;
-        let transport_state = self.get_transport_info(device_id).await.unwrap_or_else(|_| "UNKNOWN".to_string());
+        let transport_state = self
+            .get_transport_info(device_id)
+            .await
+            .unwrap_or_else(|_| "UNKNOWN".to_string());
         Ok(serde_json::json!({
             "name": device.friendly_name,
             "transport_state": transport_state,

@@ -74,7 +74,11 @@ impl PersistentSemanticProfileStore {
             "DELETE FROM semantic_profiles WHERE device_id = ?1",
             &[&device_id as &dyn rusqlite::types::ToSql],
         ) {
-            tracing::warn!("persistent profile store delete failed for {}: {}", device_id, e);
+            tracing::warn!(
+                "persistent profile store delete failed for {}: {}",
+                device_id,
+                e
+            );
         }
         self.inner.remove(device_id)
     }
@@ -151,8 +155,18 @@ mod tests {
     #[test]
     fn query_by_room() {
         let mut store = make_store();
-        store.add(build_default_profile("d1", "客厅灯", DeviceType::Light, Some("客厅")));
-        store.add(build_default_profile("d2", "卧室灯", DeviceType::Light, Some("卧室")));
+        store.add(build_default_profile(
+            "d1",
+            "客厅灯",
+            DeviceType::Light,
+            Some("客厅"),
+        ));
+        store.add(build_default_profile(
+            "d2",
+            "卧室灯",
+            DeviceType::Light,
+            Some("卧室"),
+        ));
         let results = store.query_by_room("客厅");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].device_id, "d1");
@@ -169,8 +183,18 @@ mod tests {
     #[test]
     fn find_by_name() {
         let mut store = make_store();
-        store.add(build_default_profile("d1", "客厅灯", DeviceType::Light, Some("客厅")));
-        store.add(build_default_profile("d2", "卧室灯", DeviceType::Light, Some("卧室")));
+        store.add(build_default_profile(
+            "d1",
+            "客厅灯",
+            DeviceType::Light,
+            Some("客厅"),
+        ));
+        store.add(build_default_profile(
+            "d2",
+            "卧室灯",
+            DeviceType::Light,
+            Some("卧室"),
+        ));
         let results = store.find_by_name("客厅灯");
         assert!(!results.is_empty());
         assert_eq!(results[0].0.device_id, "d1");
@@ -181,7 +205,12 @@ mod tests {
         let path = crate::test_support::temp_db_path("profile-persist");
         {
             let mut store = PersistentSemanticProfileStore::new(&path).unwrap();
-            store.add(build_default_profile("d1", "客厅灯", DeviceType::Light, Some("客厅")));
+            store.add(build_default_profile(
+                "d1",
+                "客厅灯",
+                DeviceType::Light,
+                Some("客厅"),
+            ));
         }
         {
             let store = PersistentSemanticProfileStore::new(&path).unwrap();

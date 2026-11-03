@@ -110,7 +110,11 @@ impl MiHomeAdapter {
 
         let parsed: MiResponse<Vec<MiDevice>> = resp.json().await?;
         if parsed.code != 0 {
-            anyhow::bail!("list_devices error (code {}): {}", parsed.code, parsed.message);
+            anyhow::bail!(
+                "list_devices error (code {}): {}",
+                parsed.code,
+                parsed.message
+            );
         }
         Ok(parsed.result.unwrap_or_default())
     }
@@ -226,11 +230,7 @@ impl MiHomeAdapter {
 
         let parsed: MiResponse<Value> = resp.json().await?;
         if parsed.code != 0 {
-            anyhow::bail!(
-                "rpc_call error (code {}): {}",
-                parsed.code,
-                parsed.message
-            );
+            anyhow::bail!("rpc_call error (code {}): {}", parsed.code, parsed.message);
         }
         Ok(parsed.result.unwrap_or(Value::Null))
     }
@@ -275,9 +275,24 @@ impl DeviceController for MiHomeAdapter {
 
     async fn get_state(&self, device_id: &str) -> anyhow::Result<Value> {
         let queries = vec![
-            MiProperty { did: device_id.to_string(), siid: 2, piid: 1, value: Value::Null },
-            MiProperty { did: device_id.to_string(), siid: 2, piid: 2, value: Value::Null },
-            MiProperty { did: device_id.to_string(), siid: 2, piid: 3, value: Value::Null },
+            MiProperty {
+                did: device_id.to_string(),
+                siid: 2,
+                piid: 1,
+                value: Value::Null,
+            },
+            MiProperty {
+                did: device_id.to_string(),
+                siid: 2,
+                piid: 2,
+                value: Value::Null,
+            },
+            MiProperty {
+                did: device_id.to_string(),
+                siid: 2,
+                piid: 3,
+                value: Value::Null,
+            },
         ];
         let results = self.get_properties(&queries).await?;
         let props: Vec<Value> = results
@@ -436,8 +451,18 @@ mod tests {
         });
         let adapter = setup(&server);
         let props = vec![
-            MiProperty { did: "dev-001".into(), siid: 2, piid: 1, value: Value::Null },
-            MiProperty { did: "dev-001".into(), siid: 2, piid: 2, value: Value::Null },
+            MiProperty {
+                did: "dev-001".into(),
+                siid: 2,
+                piid: 1,
+                value: Value::Null,
+            },
+            MiProperty {
+                did: "dev-001".into(),
+                siid: 2,
+                piid: 2,
+                value: Value::Null,
+            },
         ];
         let result = adapter.get_properties(&props).await.unwrap();
         assert_eq!(result.len(), 2);
@@ -493,7 +518,8 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(POST).path("/device/prop");
-            then.status(200).json_body(error_response(-704, "device offline"));
+            then.status(200)
+                .json_body(error_response(-704, "device offline"));
         });
         let adapter = setup(&server);
         let prop = MiProperty {
@@ -511,11 +537,9 @@ mod tests {
     async fn turn_on_sends_correct_property() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(POST)
-                .path("/device/prop")
-                .json_body(json!({
-                    "params": [{"did": "dev-001", "siid": 2, "piid": 1, "value": true}]
-                }));
+            when.method(POST).path("/device/prop").json_body(json!({
+                "params": [{"did": "dev-001", "siid": 2, "piid": 1, "value": true}]
+            }));
             then.status(200).json_body(ok_response(json!([])));
         });
         let adapter = setup(&server);
@@ -528,11 +552,9 @@ mod tests {
     async fn turn_off_sends_correct_property() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(POST)
-                .path("/device/prop")
-                .json_body(json!({
-                    "params": [{"did": "dev-001", "siid": 2, "piid": 1, "value": false}]
-                }));
+            when.method(POST).path("/device/prop").json_body(json!({
+                "params": [{"did": "dev-001", "siid": 2, "piid": 1, "value": false}]
+            }));
             then.status(200).json_body(ok_response(json!([])));
         });
         let adapter = setup(&server);
@@ -567,15 +589,16 @@ mod tests {
     async fn set_property_brightness_maps_correctly() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(POST)
-                .path("/device/prop")
-                .json_body(json!({
-                    "params": [{"did": "dev-001", "siid": 2, "piid": 2, "value": 60}]
-                }));
+            when.method(POST).path("/device/prop").json_body(json!({
+                "params": [{"did": "dev-001", "siid": 2, "piid": 2, "value": 60}]
+            }));
             then.status(200).json_body(ok_response(json!([])));
         });
         let adapter = setup(&server);
-        adapter.set_property("dev-001", "brightness", json!(60)).await.unwrap();
+        adapter
+            .set_property("dev-001", "brightness", json!(60))
+            .await
+            .unwrap();
         mock.assert();
     }
 
@@ -584,15 +607,16 @@ mod tests {
     async fn set_property_temperature_maps_correctly() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(POST)
-                .path("/device/prop")
-                .json_body(json!({
-                    "params": [{"did": "dev-001", "siid": 2, "piid": 3, "value": 24}]
-                }));
+            when.method(POST).path("/device/prop").json_body(json!({
+                "params": [{"did": "dev-001", "siid": 2, "piid": 3, "value": 24}]
+            }));
             then.status(200).json_body(ok_response(json!([])));
         });
         let adapter = setup(&server);
-        adapter.set_property("dev-001", "temperature", json!(24)).await.unwrap();
+        adapter
+            .set_property("dev-001", "temperature", json!(24))
+            .await
+            .unwrap();
         mock.assert();
     }
 

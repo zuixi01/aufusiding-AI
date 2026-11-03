@@ -165,9 +165,9 @@ impl ChatBackend for HttpChatBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::router::capability::ModelId;
     use crate::router::classifier::IntentType;
     use crate::router::strategy::{RouteDecision, RouteTarget};
-    use crate::router::capability::ModelId;
     use httpmock::prelude::*;
 
     fn stub_classification() -> ClassificationResult {
@@ -213,12 +213,10 @@ mod tests {
             when.method(POST)
                 .path("/v1/chat/completions")
                 .header("Authorization", "Bearer test-key");
-            then.status(200)
-                .json_body(mock_chat_response("Hello!", 20));
+            then.status(200).json_body(mock_chat_response("Hello!", 20));
         });
 
-        let backend =
-            HttpChatBackend::with_base_url("test-key", "gpt-4o", &server.base_url());
+        let backend = HttpChatBackend::with_base_url("test-key", "gpt-4o", &server.base_url());
         let reply = backend
             .chat("Hi", &[], &stub_classification(), &stub_decision())
             .await
@@ -249,8 +247,7 @@ mod tests {
             timestamp: chrono::Utc::now(),
         }];
 
-        let backend =
-            HttpChatBackend::with_base_url("key", "model", &server.base_url());
+        let backend = HttpChatBackend::with_base_url("key", "model", &server.base_url());
         let reply = backend
             .chat("hello", &context, &stub_classification(), &stub_decision())
             .await
@@ -268,8 +265,7 @@ mod tests {
             then.status(500).body("internal server error");
         });
 
-        let backend =
-            HttpChatBackend::with_base_url("key", "model", &server.base_url());
+        let backend = HttpChatBackend::with_base_url("key", "model", &server.base_url());
         let result = backend
             .chat("test", &[], &stub_classification(), &stub_decision())
             .await;
@@ -285,12 +281,10 @@ mod tests {
             when.method(POST)
                 .path("/v1/chat/completions")
                 .header("Authorization", "Bearer sk-my-secret");
-            then.status(200)
-                .json_body(mock_chat_response("ok", 10));
+            then.status(200).json_body(mock_chat_response("ok", 10));
         });
 
-        let backend =
-            HttpChatBackend::with_base_url("sk-my-secret", "gpt-4o", &server.base_url());
+        let backend = HttpChatBackend::with_base_url("sk-my-secret", "gpt-4o", &server.base_url());
         backend
             .chat("hi", &[], &stub_classification(), &stub_decision())
             .await
@@ -312,8 +306,7 @@ mod tests {
             }));
         });
 
-        let backend =
-            HttpChatBackend::with_base_url("key", "model", &server.base_url());
+        let backend = HttpChatBackend::with_base_url("key", "model", &server.base_url());
         let reply = backend
             .chat("test", &[], &stub_classification(), &stub_decision())
             .await

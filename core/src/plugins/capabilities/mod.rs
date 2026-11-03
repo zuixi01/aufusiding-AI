@@ -7,12 +7,12 @@ pub mod app_control_platform;
 pub mod browser;
 pub mod browser_actions;
 pub mod browser_pool;
+pub mod email_client;
+pub mod email_rest;
 pub mod file_indexer;
 pub mod file_manager;
 pub mod navigation;
 pub mod navigation_provider;
-pub mod email_client;
-pub mod email_rest;
 
 #[cfg(test)]
 mod tests_browser;

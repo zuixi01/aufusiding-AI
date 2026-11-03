@@ -168,11 +168,7 @@ impl AccessibilityBridge for SystemAccessibilityBridge {
         }))
     }
 
-    async fn perform_action(
-        &self,
-        element_id: &str,
-        action: AccessAction,
-    ) -> anyhow::Result<()> {
+    async fn perform_action(&self, element_id: &str, action: AccessAction) -> anyhow::Result<()> {
         let action_name = Self::action_to_atspi_name(&action);
 
         let status = Command::new("dbus-send")
@@ -204,9 +200,7 @@ impl AccessibilityBridge for SystemAccessibilityBridge {
 
         let matched = tree
             .into_iter()
-            .filter(|e| {
-                e.label.to_lowercase().contains(&q) || e.id.to_lowercase().contains(&q)
-            })
+            .filter(|e| e.label.to_lowercase().contains(&q) || e.id.to_lowercase().contains(&q))
             .collect();
 
         Ok(matched)
@@ -287,9 +281,7 @@ mod tests {
             "focus"
         );
         assert_eq!(
-            SystemAccessibilityBridge::action_to_atspi_name(&AccessAction::SetValue(
-                "test".into()
-            )),
+            SystemAccessibilityBridge::action_to_atspi_name(&AccessAction::SetValue("test".into())),
             "set_value"
         );
         assert_eq!(

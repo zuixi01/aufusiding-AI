@@ -196,7 +196,9 @@ impl WolAdapter {
             Some(pw) => config.mac.magic_packet_with_password(pw),
             None => config.mac.magic_packet(),
         };
-        self.transport.send_to(&packet, &config.broadcast_addr).await
+        self.transport
+            .send_to(&packet, &config.broadcast_addr)
+            .await
     }
 }
 
@@ -330,8 +332,8 @@ mod tests {
     async fn turn_on_with_secure_on_password() {
         let (mut adapter, mock) = WolAdapter::with_mock();
         let pw = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF];
-        let config = WolDeviceConfig::new(MacAddress::parse("11:22:33:44:55:66").unwrap())
-            .with_password(pw);
+        let config =
+            WolDeviceConfig::new(MacAddress::parse("11:22:33:44:55:66").unwrap()).with_password(pw);
         adapter.register_device_config("pc-003", config);
         adapter.turn_on("pc-003").await.unwrap();
         let sends = mock.sends().await;

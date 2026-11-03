@@ -2,7 +2,9 @@
 
 use prometheus_core::agent::tools::registry::AgentTool;
 use prometheus_core::safety::classification::{DataClassifier, SensitivityLevel};
-use prometheus_core::safety::security_mode::{PolicyDecision, SecurityMode, SecurityPolicyEnforcer};
+use prometheus_core::safety::security_mode::{
+    PolicyDecision, SecurityMode, SecurityPolicyEnforcer,
+};
 
 // ── 场景 1: 数据分级驱动安全策略 ──
 
@@ -18,12 +20,18 @@ fn classification_drives_security_policy() {
     // 含邮箱 → L2 → 强制本地
     let class = DataClassifier::classify("发送到 user@example.com");
     assert_eq!(class.level, SensitivityLevel::Sensitive);
-    assert!(matches!(enforcer.enforce(&class, true), PolicyDecision::ForceLocal(_)));
+    assert!(matches!(
+        enforcer.enforce(&class, true),
+        PolicyDecision::ForceLocal(_)
+    ));
 
     // 含密码 → L3 → 强制本地
     let class = DataClassifier::classify("我的密码是 hunter2");
     assert_eq!(class.level, SensitivityLevel::Confidential);
-    assert!(matches!(enforcer.enforce(&class, true), PolicyDecision::ForceLocal(_)));
+    assert!(matches!(
+        enforcer.enforce(&class, true),
+        PolicyDecision::ForceLocal(_)
+    ));
 }
 
 // ── 场景 2: 偏执模式阻止所有云端路由 ──
@@ -137,6 +145,9 @@ fn e2e_classification_to_routing() {
     // 含手机号 → L2 → 云端被拒，本地允许
     let class = DataClassifier::classify("给 13800138000 发消息");
     assert_eq!(class.level, SensitivityLevel::Sensitive);
-    assert!(matches!(enforcer.enforce(&class, true), PolicyDecision::ForceLocal(_)));
+    assert!(matches!(
+        enforcer.enforce(&class, true),
+        PolicyDecision::ForceLocal(_)
+    ));
     assert_eq!(enforcer.enforce(&class, false), PolicyDecision::Allow);
 }

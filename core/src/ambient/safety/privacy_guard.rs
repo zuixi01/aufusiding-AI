@@ -50,11 +50,17 @@ impl PrivacyGuard {
     /// 检查文本是否包含敏感信息
     pub fn contains_sensitive(&self, text: &str) -> bool {
         // 手机号
-        if regex::Regex::new(r"1[3-9]\d{9}").map(|re| re.is_match(text)).unwrap_or(false) {
+        if regex::Regex::new(r"1[3-9]\d{9}")
+            .map(|re| re.is_match(text))
+            .unwrap_or(false)
+        {
             return true;
         }
         // 身份证
-        if regex::Regex::new(r"\d{17}[\dXx]").map(|re| re.is_match(text)).unwrap_or(false) {
+        if regex::Regex::new(r"\d{17}[\dXx]")
+            .map(|re| re.is_match(text))
+            .unwrap_or(false)
+        {
             return true;
         }
         false

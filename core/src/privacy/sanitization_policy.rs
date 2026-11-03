@@ -4,9 +4,9 @@
 
 use std::collections::HashSet;
 
-use crate::safety::classification::{DataClassification, DataClassifier, SensitivityLevel};
 use super::pii_detector::{PiiEntity, PiiType};
 use super::sanitization_strategy::StrategyKind;
+use crate::safety::classification::{DataClassification, DataClassifier, SensitivityLevel};
 
 /// 单个实体的策略决议
 #[derive(Debug, Clone)]
@@ -63,10 +63,8 @@ impl SanitizationPolicy {
         classification: &DataClassification,
         entities: &[PiiEntity],
     ) -> SensitivityLevel {
-        let distinct_types: HashSet<String> = entities
-            .iter()
-            .map(|e| e.entity_type.to_string())
-            .collect();
+        let distinct_types: HashSet<String> =
+            entities.iter().map(|e| e.entity_type.to_string()).collect();
 
         let base = classification.level;
         if distinct_types.len() >= 3 {
@@ -94,11 +92,15 @@ impl SanitizationPolicy {
                 PiiType::PrivateKey | PiiType::CloudCredential | PiiType::DbConnectionString => {
                     StrategyKind::Redact
                 }
-                PiiType::Email | PiiType::ChinesePhone | PiiType::InternationalPhone
+                PiiType::Email
+                | PiiType::ChinesePhone
+                | PiiType::InternationalPhone
                 | PiiType::ChineseIdCard => StrategyKind::StaticMask,
                 // 地理/设备标识 → StaticMask
-                PiiType::GeoCoordinate | PiiType::PhysicalAddress
-                | PiiType::MacAddress | PiiType::Imei => StrategyKind::StaticMask,
+                PiiType::GeoCoordinate
+                | PiiType::PhysicalAddress
+                | PiiType::MacAddress
+                | PiiType::Imei => StrategyKind::StaticMask,
                 PiiType::BankCard => StrategyKind::PartialMask,
                 // 加密货币/JWT → PartialMask
                 PiiType::CryptoAddress | PiiType::JwtToken => StrategyKind::PartialMask,

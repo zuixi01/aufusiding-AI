@@ -39,7 +39,10 @@ impl MockAccessibilityBridge {
     }
 
     pub fn actions(&self) -> Vec<(String, AccessAction)> {
-        self.actions_log.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.actions_log
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 

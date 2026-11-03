@@ -50,13 +50,17 @@ pub trait SanitizationStrategy: Send + Sync {
 pub struct TokenStrategy;
 
 impl SanitizationStrategy for TokenStrategy {
-    fn kind(&self) -> StrategyKind { StrategyKind::Tokenize }
+    fn kind(&self) -> StrategyKind {
+        StrategyKind::Tokenize
+    }
 
     fn sanitize(&self, entity: &PiiEntity, vault: &mut TokenVault) -> String {
         vault.tokenize(entity)
     }
 
-    fn is_reversible(&self) -> bool { true }
+    fn is_reversible(&self) -> bool {
+        true
+    }
 }
 
 // ── 2. StaticMaskStrategy（不可逆，格式保留虚假数据）─────────
@@ -92,13 +96,17 @@ impl StaticMaskStrategy {
 }
 
 impl SanitizationStrategy for StaticMaskStrategy {
-    fn kind(&self) -> StrategyKind { StrategyKind::StaticMask }
+    fn kind(&self) -> StrategyKind {
+        StrategyKind::StaticMask
+    }
 
     fn sanitize(&self, entity: &PiiEntity, _vault: &mut TokenVault) -> String {
         Self::fake_for(entity)
     }
 
-    fn is_reversible(&self) -> bool { false }
+    fn is_reversible(&self) -> bool {
+        false
+    }
 }
 
 // ── 3. PartialMaskStrategy（不可逆，保留首尾）────────────────
@@ -112,19 +120,27 @@ pub struct PartialMaskStrategy {
 
 impl Default for PartialMaskStrategy {
     fn default() -> Self {
-        Self { keep_prefix: 3, keep_suffix: 4 }
+        Self {
+            keep_prefix: 3,
+            keep_suffix: 4,
+        }
     }
 }
 
 impl PartialMaskStrategy {
     /// 银行卡专用：前6后4
     pub fn bank_card() -> Self {
-        Self { keep_prefix: 6, keep_suffix: 4 }
+        Self {
+            keep_prefix: 6,
+            keep_suffix: 4,
+        }
     }
 }
 
 impl SanitizationStrategy for PartialMaskStrategy {
-    fn kind(&self) -> StrategyKind { StrategyKind::PartialMask }
+    fn kind(&self) -> StrategyKind {
+        StrategyKind::PartialMask
+    }
 
     fn sanitize(&self, entity: &PiiEntity, _vault: &mut TokenVault) -> String {
         let chars: Vec<char> = entity.text.chars().collect();
@@ -138,7 +154,9 @@ impl SanitizationStrategy for PartialMaskStrategy {
         format!("{}{}{}", prefix, "*".repeat(mask_len), suffix)
     }
 
-    fn is_reversible(&self) -> bool { false }
+    fn is_reversible(&self) -> bool {
+        false
+    }
 }
 
 // ── 4. RedactStrategy（不可逆，完全替换）─────────────────────
@@ -146,13 +164,17 @@ impl SanitizationStrategy for PartialMaskStrategy {
 pub struct RedactStrategy;
 
 impl SanitizationStrategy for RedactStrategy {
-    fn kind(&self) -> StrategyKind { StrategyKind::Redact }
+    fn kind(&self) -> StrategyKind {
+        StrategyKind::Redact
+    }
 
     fn sanitize(&self, _entity: &PiiEntity, _vault: &mut TokenVault) -> String {
         "[REDACTED]".to_string()
     }
 
-    fn is_reversible(&self) -> bool { false }
+    fn is_reversible(&self) -> bool {
+        false
+    }
 }
 
 // ── 5. FpeStrategy（可逆，AES-based Feistel 格式保留加密，仅数字）──
@@ -219,7 +241,9 @@ impl FpeStrategy {
 }
 
 impl SanitizationStrategy for FpeStrategy {
-    fn kind(&self) -> StrategyKind { StrategyKind::Fpe }
+    fn kind(&self) -> StrategyKind {
+        StrategyKind::Fpe
+    }
 
     fn sanitize(&self, entity: &PiiEntity, vault: &mut TokenVault) -> String {
         // 提取数字部分做 FPE，非数字保留
@@ -229,11 +253,16 @@ impl SanitizationStrategy for FpeStrategy {
         encrypted
     }
 
-    fn is_reversible(&self) -> bool { true }
+    fn is_reversible(&self) -> bool {
+        true
+    }
 }
 
 /// 根据 StrategyKind 创建默认策略实例
-pub fn create_strategy(kind: StrategyKind, fpe_key: Option<&[u8]>) -> Box<dyn SanitizationStrategy> {
+pub fn create_strategy(
+    kind: StrategyKind,
+    fpe_key: Option<&[u8]>,
+) -> Box<dyn SanitizationStrategy> {
     match kind {
         StrategyKind::Tokenize => Box::new(TokenStrategy),
         StrategyKind::StaticMask => Box::new(StaticMaskStrategy),

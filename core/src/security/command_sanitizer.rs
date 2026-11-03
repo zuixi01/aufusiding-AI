@@ -43,7 +43,10 @@ impl CommandSanitizer {
         }
 
         // 白名单验证：只允许字母、数字、连字符、下划线
-        if !id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if !id
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             tracing::warn!(device_id = id, "检测到无效的设备 ID");
             return Err(SecurityError::InvalidDeviceId);
         }
@@ -105,9 +108,8 @@ impl CommandSanitizer {
         // 检测常见命令注入关键词
         let lower = input.to_lowercase();
         let dangerous_keywords = [
-            "rm ", "cat ", "ls ", "cd ", "chmod ", "chown ",
-            "wget ", "curl ", "nc ", "bash ", "sh ", "python ",
-            "/bin/", "/usr/", "/etc/", "/tmp/",
+            "rm ", "cat ", "ls ", "cd ", "chmod ", "chown ", "wget ", "curl ", "nc ", "bash ",
+            "sh ", "python ", "/bin/", "/usr/", "/etc/", "/tmp/",
         ];
 
         for keyword in dangerous_keywords {

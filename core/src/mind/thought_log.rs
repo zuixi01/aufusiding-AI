@@ -241,16 +241,12 @@ impl ThoughtLogger {
             return ThoughtSummary::default();
         }
 
-        let avg_confidence =
-            recent.iter().map(|e| e.confidence).sum::<f64>() / total as f64;
-        let avg_duration =
-            recent.iter().map(|e| e.duration_ms).sum::<u64>() / total as u64;
+        let avg_confidence = recent.iter().map(|e| e.confidence).sum::<f64>() / total as f64;
+        let avg_duration = recent.iter().map(|e| e.duration_ms).sum::<u64>() / total as u64;
 
         let mut phase_counts: HashMap<String, usize> = HashMap::new();
         for e in &recent {
-            *phase_counts
-                .entry(format!("{:?}", e.phase))
-                .or_insert(0) += 1;
+            *phase_counts.entry(format!("{:?}", e.phase)).or_insert(0) += 1;
         }
 
         ThoughtSummary {
@@ -345,7 +341,10 @@ mod tests {
 
         let chain = logger.get_chain(&chain_id).unwrap();
         assert_eq!(chain.entries.len(), 2);
-        assert_eq!(chain.final_output.as_deref(), Some("你好！有什么可以帮你的？"));
+        assert_eq!(
+            chain.final_output.as_deref(),
+            Some("你好！有什么可以帮你的？")
+        );
         assert!(chain.ended_at.is_some());
     }
 
@@ -442,7 +441,11 @@ mod tests {
                 "s1",
                 ThinkingPhase::Perceive,
                 &format!("entry_{}", i),
-                "", "", None, 0.5, 10,
+                "",
+                "",
+                None,
+                0.5,
+                10,
             );
         }
         assert_eq!(logger.len(), 5);

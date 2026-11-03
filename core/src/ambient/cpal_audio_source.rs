@@ -11,8 +11,8 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
-use crate::voice::AudioChunk;
 use super::audio_source::AudioSource;
+use crate::voice::AudioChunk;
 
 /// cpal 音频配置
 #[derive(Debug, Clone)]
@@ -71,11 +71,8 @@ impl CpalAudioSource {
             .ok_or_else(|| anyhow::anyhow!("无可用输入设备"))?;
 
         let supported = device.supported_input_configs()?;
-        let stream_config = find_matching_config(
-            supported,
-            self.config.sample_rate,
-            self.config.channels,
-        )?;
+        let stream_config =
+            find_matching_config(supported, self.config.sample_rate, self.config.channels)?;
 
         let state = Arc::clone(&self.state);
         let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
@@ -164,7 +161,11 @@ impl AudioSource for CpalAudioSource {
                 let mut buf = self.state.buffer.lock().unwrap_or_else(|e| e.into_inner());
                 if buf.len() >= needed {
                     let samples: Vec<f32> = buf.drain(..needed).collect();
-                    let mut seq = self.state.sequence.lock().unwrap_or_else(|e| e.into_inner());
+                    let mut seq = self
+                        .state
+                        .sequence
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
                     let seq_id = *seq;
                     *seq += 1;
                     return Ok(AudioChunk::new(
@@ -183,10 +184,19 @@ impl AudioSource for CpalAudioSource {
     fn stop(&self) {
         self.state.active.store(false, Ordering::SeqCst);
         // 发送停止信号
-        if let Some(tx) = self._stop_tx.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        if let Some(tx) = self
+            ._stop_tx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
             let _ = tx.send(());
         }
-        self.state.buffer.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.state
+            .buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 
     fn is_active(&self) -> bool {

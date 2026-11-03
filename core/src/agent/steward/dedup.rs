@@ -69,7 +69,11 @@ fn jaccard_similarity(a: &str, b: &str) -> f64 {
     let intersection = bigrams_a.intersection(&bigrams_b).count();
     let union = bigrams_a.union(&bigrams_b).count();
 
-    if union == 0 { 0.0 } else { intersection as f64 / union as f64 }
+    if union == 0 {
+        0.0
+    } else {
+        intersection as f64 / union as f64
+    }
 }
 
 #[cfg(test)]
@@ -102,8 +106,14 @@ mod tests {
     fn similar_tasks_are_merged() {
         let dedup = TaskDeduplicator::new(0.7);
         let tasks = vec![
-            make_task("implement user login feature", "implement user login feature with form validation and error handling"),
-            make_task("implement user login feature module", "implement user login feature with form validation and error handling support"),
+            make_task(
+                "implement user login feature",
+                "implement user login feature with form validation and error handling",
+            ),
+            make_task(
+                "implement user login feature module",
+                "implement user login feature with form validation and error handling support",
+            ),
         ];
         let dups = dedup.find_duplicates(&tasks);
         assert!(!dups.is_empty());
@@ -113,8 +123,14 @@ mod tests {
     fn dissimilar_tasks_preserved() {
         let dedup = TaskDeduplicator::new(0.7);
         let tasks = vec![
-            make_task("design database schema", "design PostgreSQL database table structure for users"),
-            make_task("write frontend components", "use React to build user interface components with styling"),
+            make_task(
+                "design database schema",
+                "design PostgreSQL database table structure for users",
+            ),
+            make_task(
+                "write frontend components",
+                "use React to build user interface components with styling",
+            ),
         ];
         let dups = dedup.find_duplicates(&tasks);
         assert!(dups.is_empty());
@@ -124,8 +140,14 @@ mod tests {
     fn merge_preserves_dependencies() {
         let dedup = TaskDeduplicator::new(0.7);
         let mut tasks = vec![
-            make_task("implement user authentication", "implement user authentication with JWT tokens and session management"),
-            make_task("implement user authentication module", "implement user authentication with JWT tokens and session management support"),
+            make_task(
+                "implement user authentication",
+                "implement user authentication with JWT tokens and session management",
+            ),
+            make_task(
+                "implement user authentication module",
+                "implement user authentication with JWT tokens and session management support",
+            ),
             make_task("write unit tests", "write unit tests for the application"),
         ];
         let dups = dedup.find_duplicates(&tasks);

@@ -17,7 +17,10 @@ pub struct CronScheduler {
 
 impl CronScheduler {
     pub fn new(engine: Arc<AutomationEngine>, state_cache: Arc<DeviceStateCache>) -> Self {
-        Self { engine, state_cache }
+        Self {
+            engine,
+            state_cache,
+        }
     }
 
     /// 启动后台调度循环，每 interval_secs 秒检查一次
@@ -66,7 +69,9 @@ impl CronScheduler {
             }
 
             // Evaluate conditions
-            let conditions_met = rule.conditions.iter()
+            let conditions_met = rule
+                .conditions
+                .iter()
                 .all(|c| AutomationEngine::evaluate_condition(c, &device_states));
             if !conditions_met {
                 continue;
@@ -90,7 +95,9 @@ mod tests {
             id: id.to_string(),
             name: format!("Schedule {}", id),
             enabled: true,
-            triggers: vec![Trigger::Schedule { cron: cron.to_string() }],
+            triggers: vec![Trigger::Schedule {
+                cron: cron.to_string(),
+            }],
             conditions: vec![],
             actions: vec![Action::Notify {
                 message: format!("cron fired {}", id),
@@ -141,8 +148,14 @@ mod tests {
         let engine = Arc::new(AutomationEngine::new(bus));
         let cache = Arc::new(DeviceStateCache::new());
 
-        engine.add_rule(make_schedule_rule("r1", "* * * * * * *")).await.unwrap();
-        engine.add_rule(make_schedule_rule("r2", "* * * * * * *")).await.unwrap();
+        engine
+            .add_rule(make_schedule_rule("r1", "* * * * * * *"))
+            .await
+            .unwrap();
+        engine
+            .add_rule(make_schedule_rule("r2", "* * * * * * *"))
+            .await
+            .unwrap();
 
         CronScheduler::check_schedules(&engine, &cache).await;
 

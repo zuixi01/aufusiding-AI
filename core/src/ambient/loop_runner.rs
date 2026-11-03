@@ -53,10 +53,7 @@ impl AmbientLoopRunner {
         dispatcher: Box<dyn Dispatcher>,
         config: AmbientConfig,
     ) -> Self {
-        let room = RoomContext::new(
-            config.default_room.clone(),
-            config.device_id.clone(),
-        );
+        let room = RoomContext::new(config.default_room.clone(), config.device_id.clone());
         Self {
             audio_source,
             audio_sink,
@@ -113,25 +110,17 @@ impl AmbientLoopRunner {
         let vad_result = self.vad.classify(&chunk)?;
 
         match self.state {
-            AmbientState::Idle => {
-                self.handle_idle(vad_result, &chunk).await
-            }
+            AmbientState::Idle => self.handle_idle(vad_result, &chunk).await,
             AmbientState::WakewordDetected => {
                 self.handle_wakeword_detected(vad_result, &chunk).await
             }
-            AmbientState::Listening => {
-                self.handle_listening(vad_result, &chunk).await
-            }
+            AmbientState::Listening => self.handle_listening(vad_result, &chunk).await,
             AmbientState::Processing => {
                 // Processing 由 handle_listening 内部触发，不应在此停留
                 Ok(None)
             }
-            AmbientState::Speaking => {
-                self.handle_speaking(vad_result).await
-            }
-            AmbientState::Conversation => {
-                self.handle_conversation(vad_result, &chunk).await
-            }
+            AmbientState::Speaking => self.handle_speaking(vad_result).await,
+            AmbientState::Conversation => self.handle_conversation(vad_result, &chunk).await,
         }
     }
 
@@ -216,7 +205,9 @@ impl AmbientLoopRunner {
             let transcript = self.stt.finalize().await?;
 
             if transcript.trim().is_empty() {
-                tracing::warn!("STT returned empty transcript after speech detection, resetting to Idle");
+                tracing::warn!(
+                    "STT returned empty transcript after speech detection, resetting to Idle"
+                );
                 self.state = AmbientState::Idle;
                 self.silence_count = 0;
                 self.speech_count = 0;
@@ -235,10 +226,8 @@ impl AmbientLoopRunner {
             }
 
             // 记录对话轮次
-            self.conversation_turns.push(ConversationTurn::new(
-                transcript,
-                tts_text,
-            ));
+            self.conversation_turns
+                .push(ConversationTurn::new(transcript, tts_text));
 
             // 决定下一状态
             if result.needs_followup

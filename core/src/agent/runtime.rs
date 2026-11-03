@@ -37,11 +37,7 @@ impl AgentRuntime {
     }
 
     /// 创建 Agent，注入身份，返回 AgentId
-    pub async fn spawn(
-        &self,
-        role: &Role,
-        task_context: &str,
-    ) -> Result<AgentId, AgentError> {
+    pub async fn spawn(&self, role: &Role, task_context: &str) -> Result<AgentId, AgentError> {
         let identity = self.injector.inject(role, task_context)?;
         let id = AgentId::new();
         let agent = LiveAgent {
@@ -88,11 +84,7 @@ impl AgentRuntime {
     }
 
     /// 更新 Agent 状态
-    pub async fn update_state(
-        &self,
-        id: &AgentId,
-        state: AgentState,
-    ) -> Result<(), AgentError> {
+    pub async fn update_state(&self, id: &AgentId, state: AgentState) -> Result<(), AgentError> {
         let mut agents = self.agents.write().await;
         let agent = agents
             .get_mut(id)
@@ -146,8 +138,14 @@ mod tests {
     async fn spawn_all_eight_roles() {
         let rt = test_runtime();
         let roles = [
-            Role::Architect, Role::Engineer, Role::Security, Role::QA,
-            Role::ProductManager, Role::Researcher, Role::DevOps, Role::DataAnalyst,
+            Role::Architect,
+            Role::Engineer,
+            Role::Security,
+            Role::QA,
+            Role::ProductManager,
+            Role::Researcher,
+            Role::DevOps,
+            Role::DataAnalyst,
         ];
         for role in &roles {
             rt.spawn(role, "test").await.unwrap();
@@ -214,9 +212,7 @@ mod tests {
     #[tokio::test]
     async fn update_state_nonexistent_fails() {
         let rt = test_runtime();
-        let result = rt
-            .update_state(&AgentId::new(), AgentState::Idle)
-            .await;
+        let result = rt.update_state(&AgentId::new(), AgentState::Idle).await;
         assert!(matches!(result, Err(AgentError::NotFound(_))));
     }
 

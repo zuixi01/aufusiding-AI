@@ -3,13 +3,11 @@
 //! 在 Provider trait 边界拦截所有云端请求，自动脱敏 PII 并还原响应。
 //! 军工级模式集成 DataClassifier、多策略引擎、审计日志和密钥管理。
 
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
-use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-use crate::providers::traits::{ChatRequest, ChatResponse, Provider};
-use crate::safety::classification::{DataClassifier, SensitivityLevel};
 use super::audit_log::{AuditOperation, SanitizationAuditLog};
 use super::context_leak_detector::ContextLeakDetector;
 use super::key_manager::{KeyManager, KeyPurpose};
@@ -19,6 +17,8 @@ use super::sanitization_strategy::{self, SanitizationStrategy, StrategyKind};
 use super::sanitizer_config::SanitizerConfig;
 use super::sensitive_dictionary::SensitiveDictionary;
 use super::token_vault::TokenVault;
+use crate::providers::traits::{ChatRequest, ChatResponse, Provider};
+use crate::safety::classification::{DataClassifier, SensitivityLevel};
 
 /// Provider Decorator：自动脱敏 PII
 pub struct SanitizingProvider {
@@ -78,10 +78,7 @@ impl SanitizingProvider {
     }
 
     /// 带自定义词典路径的构造器
-    pub fn wrap_with_dictionaries(
-        inner: Arc<dyn Provider>,
-        config: SanitizerConfig,
-    ) -> Self {
+    pub fn wrap_with_dictionaries(inner: Arc<dyn Provider>, config: SanitizerConfig) -> Self {
         let strategies = Self::build_default_strategies(None);
         let detector = Self::build_detector(&config);
         Self {
@@ -121,13 +118,30 @@ impl SanitizingProvider {
         detector
     }
 
-    fn build_default_strategies(fpe_key: Option<&[u8]>) -> HashMap<StrategyKind, Box<dyn SanitizationStrategy>> {
+    fn build_default_strategies(
+        fpe_key: Option<&[u8]>,
+    ) -> HashMap<StrategyKind, Box<dyn SanitizationStrategy>> {
         let mut map: HashMap<StrategyKind, Box<dyn SanitizationStrategy>> = HashMap::new();
-        map.insert(StrategyKind::Tokenize, sanitization_strategy::create_strategy(StrategyKind::Tokenize, None));
-        map.insert(StrategyKind::StaticMask, sanitization_strategy::create_strategy(StrategyKind::StaticMask, None));
-        map.insert(StrategyKind::PartialMask, sanitization_strategy::create_strategy(StrategyKind::PartialMask, None));
-        map.insert(StrategyKind::Redact, sanitization_strategy::create_strategy(StrategyKind::Redact, None));
-        map.insert(StrategyKind::Fpe, sanitization_strategy::create_strategy(StrategyKind::Fpe, fpe_key));
+        map.insert(
+            StrategyKind::Tokenize,
+            sanitization_strategy::create_strategy(StrategyKind::Tokenize, None),
+        );
+        map.insert(
+            StrategyKind::StaticMask,
+            sanitization_strategy::create_strategy(StrategyKind::StaticMask, None),
+        );
+        map.insert(
+            StrategyKind::PartialMask,
+            sanitization_strategy::create_strategy(StrategyKind::PartialMask, None),
+        );
+        map.insert(
+            StrategyKind::Redact,
+            sanitization_strategy::create_strategy(StrategyKind::Redact, None),
+        );
+        map.insert(
+            StrategyKind::Fpe,
+            sanitization_strategy::create_strategy(StrategyKind::Fpe, fpe_key),
+        );
         map
     }
 
@@ -190,12 +204,13 @@ impl SanitizingProvider {
         let decisions = if let Some(ref cls) = classification {
             self.policy.resolve(cls, &filtered)
         } else {
-            filtered.iter().map(|e| {
-                super::sanitization_policy::PolicyDecision {
+            filtered
+                .iter()
+                .map(|e| super::sanitization_policy::PolicyDecision {
                     entity: e.clone(),
                     strategy: self.config.default_strategy,
-                }
-            }).collect()
+                })
+                .collect()
         };
 
         // 从后往前替换，避免偏移错乱
@@ -204,7 +219,8 @@ impl SanitizingProvider {
 
         let mut result = text.to_string();
         for decision in &sorted_decisions {
-            let strategy = self.strategies
+            let strategy = self
+                .strategies
                 .get(&decision.strategy)
                 .expect("strategy not registered");
             let replacement = strategy.sanitize(&decision.entity, vault);
@@ -260,9 +276,11 @@ impl Provider for SanitizingProvider {
             for msg in &mut sanitized.messages {
                 match self.sanitize_text(&msg.content, &mut vault) {
                     Some(sanitized_content) => msg.content = sanitized_content,
-                    None => return Err(anyhow::anyhow!(
-                        "Request blocked: high-risk confidential data detected"
-                    )),
+                    None => {
+                        return Err(anyhow::anyhow!(
+                            "Request blocked: high-risk confidential data detected"
+                        ))
+                    }
                 }
             }
         }
@@ -287,9 +305,11 @@ impl Provider for SanitizingProvider {
             let mut vault = self.vault.lock().await;
             match self.sanitize_text(text, &mut vault) {
                 Some(s) => s,
-                None => return Err(anyhow::anyhow!(
-                    "Request blocked: high-risk confidential data detected"
-                )),
+                None => {
+                    return Err(anyhow::anyhow!(
+                        "Request blocked: high-risk confidential data detected"
+                    ))
+                }
             }
         };
         self.inner.embed(&sanitized).await
@@ -311,24 +331,45 @@ mod tests {
 
     impl CaptureMockProvider {
         fn new() -> Self {
-            Self { captured: Mutex::new(Vec::new()) }
+            Self {
+                captured: Mutex::new(Vec::new()),
+            }
         }
     }
 
     #[async_trait]
     impl Provider for CaptureMockProvider {
-        fn name(&self) -> &str { "capture-mock" }
-        fn available_models(&self) -> Vec<String> { vec!["mock-1".into()] }
+        fn name(&self) -> &str {
+            "capture-mock"
+        }
+        fn available_models(&self) -> Vec<String> {
+            vec!["mock-1".into()]
+        }
         async fn chat(&self, request: &ChatRequest) -> anyhow::Result<ChatResponse> {
             self.captured.lock().await.push(request.clone());
             Ok(ChatResponse {
-                content: format!("echo: {}", request.messages.last().map(|m| m.content.as_str()).unwrap_or("")),
+                content: format!(
+                    "echo: {}",
+                    request
+                        .messages
+                        .last()
+                        .map(|m| m.content.as_str())
+                        .unwrap_or("")
+                ),
                 model: "mock-1".into(),
-                usage: TokenUsage { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+                usage: TokenUsage {
+                    prompt_tokens: 0,
+                    completion_tokens: 0,
+                    total_tokens: 0,
+                },
             })
         }
-        async fn embed(&self, _text: &str) -> anyhow::Result<Vec<f32>> { Ok(vec![0.0]) }
-        async fn validate_key(&self) -> anyhow::Result<bool> { Ok(true) }
+        async fn embed(&self, _text: &str) -> anyhow::Result<Vec<f32>> {
+            Ok(vec![0.0])
+        }
+        async fn validate_key(&self) -> anyhow::Result<bool> {
+            Ok(true)
+        }
     }
 
     #[tokio::test]
@@ -348,8 +389,14 @@ mod tests {
         let _ = provider.chat(&request).await.unwrap();
         let captured = mock.captured.lock().await;
         let sent_content = &captured[0].messages[0].content;
-        assert!(!sent_content.contains("test@example.com"), "PII should be sanitized");
-        assert!(sent_content.contains("[EMAIL_"), "Should contain email token");
+        assert!(
+            !sent_content.contains("test@example.com"),
+            "PII should be sanitized"
+        );
+        assert!(
+            sent_content.contains("[EMAIL_"),
+            "Should contain email token"
+        );
     }
 
     #[tokio::test]
@@ -423,6 +470,9 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains("blocked"));
         // 确认请求没有发送到内部 provider
         let captured = mock.captured.lock().await;
-        assert!(captured.is_empty(), "No request should reach inner provider");
+        assert!(
+            captured.is_empty(),
+            "No request should reach inner provider"
+        );
     }
 }

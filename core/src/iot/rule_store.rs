@@ -38,10 +38,9 @@ impl RuleStore {
 
     /// 删除规则
     pub fn delete(&self, rule_id: &str) -> anyhow::Result<bool> {
-        let affected = self.db.execute(
-            "DELETE FROM automation_rules WHERE id = ?1",
-            &[&rule_id],
-        )?;
+        let affected = self
+            .db
+            .execute("DELETE FROM automation_rules WHERE id = ?1", &[&rule_id])?;
         Ok(affected > 0)
     }
 
@@ -83,9 +82,9 @@ impl RuleStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use crate::iot::automation::*;
     use crate::iot::event_bus::{EventBus, EventKind};
+    use std::sync::Arc;
 
     fn temp_store() -> RuleStore {
         let path = format!("/tmp/prometheus-rules-{}.db", uuid::Uuid::new_v4());

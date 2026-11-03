@@ -76,7 +76,7 @@ impl HistoryStore {
         self.db.execute_batch(
             "INSERT OR IGNORE INTO messages_fts(id, content)
              SELECT id, content FROM messages
-             WHERE id NOT IN (SELECT id FROM messages_fts);"
+             WHERE id NOT IN (SELECT id FROM messages_fts);",
         )?;
         Ok(())
     }
@@ -347,20 +347,26 @@ mod tests {
         let store = HistoryStore::new(db);
         let session_id = Uuid::new_v4();
 
-        store.append(&Message {
-            id: Uuid::new_v4(),
-            session_id,
-            role: Role::User,
-            content: "Rust programming language".to_string(),
-            timestamp: Utc::now(),
-        }).await.unwrap();
-        store.append(&Message {
-            id: Uuid::new_v4(),
-            session_id,
-            role: Role::User,
-            content: "Python scripting".to_string(),
-            timestamp: Utc::now(),
-        }).await.unwrap();
+        store
+            .append(&Message {
+                id: Uuid::new_v4(),
+                session_id,
+                role: Role::User,
+                content: "Rust programming language".to_string(),
+                timestamp: Utc::now(),
+            })
+            .await
+            .unwrap();
+        store
+            .append(&Message {
+                id: Uuid::new_v4(),
+                session_id,
+                role: Role::User,
+                content: "Python scripting".to_string(),
+                timestamp: Utc::now(),
+            })
+            .await
+            .unwrap();
 
         let found = store.search("Rust", 10).await.unwrap();
         assert_eq!(found.len(), 1);
@@ -373,20 +379,26 @@ mod tests {
         let store = HistoryStore::new(db);
         let session_id = Uuid::new_v4();
 
-        store.append(&Message {
-            id: Uuid::new_v4(),
-            session_id,
-            role: Role::User,
-            content: "数据库优化技巧".to_string(),
-            timestamp: Utc::now(),
-        }).await.unwrap();
-        store.append(&Message {
-            id: Uuid::new_v4(),
-            session_id,
-            role: Role::User,
-            content: "网络编程基础".to_string(),
-            timestamp: Utc::now(),
-        }).await.unwrap();
+        store
+            .append(&Message {
+                id: Uuid::new_v4(),
+                session_id,
+                role: Role::User,
+                content: "数据库优化技巧".to_string(),
+                timestamp: Utc::now(),
+            })
+            .await
+            .unwrap();
+        store
+            .append(&Message {
+                id: Uuid::new_v4(),
+                session_id,
+                role: Role::User,
+                content: "网络编程基础".to_string(),
+                timestamp: Utc::now(),
+            })
+            .await
+            .unwrap();
 
         // FTS5 unicode61 tokenizer handles CJK
         let found = store.search("数据库优化技巧", 10).await.unwrap();
@@ -400,26 +412,38 @@ mod tests {
         let session_id = Uuid::new_v4();
 
         for idx in 0..10 {
-            store.append(&Message {
-                id: Uuid::new_v4(),
-                session_id,
-                role: Role::User,
-                content: format!("message {}", idx),
-                timestamp: Utc::now(),
-            }).await.unwrap();
+            store
+                .append(&Message {
+                    id: Uuid::new_v4(),
+                    session_id,
+                    role: Role::User,
+                    content: format!("message {}", idx),
+                    timestamp: Utc::now(),
+                })
+                .await
+                .unwrap();
         }
 
-        let page1 = store.get_session_messages_paginated(session_id, 0, 3).await.unwrap();
+        let page1 = store
+            .get_session_messages_paginated(session_id, 0, 3)
+            .await
+            .unwrap();
         assert_eq!(page1.len(), 3);
 
-        let page2 = store.get_session_messages_paginated(session_id, 3, 3).await.unwrap();
+        let page2 = store
+            .get_session_messages_paginated(session_id, 3, 3)
+            .await
+            .unwrap();
         assert_eq!(page2.len(), 3);
 
         // 不同页不重叠
         assert_ne!(page1[0].content, page2[0].content);
 
         // 超出范围返回空
-        let page_end = store.get_session_messages_paginated(session_id, 100, 3).await.unwrap();
+        let page_end = store
+            .get_session_messages_paginated(session_id, 100, 3)
+            .await
+            .unwrap();
         assert!(page_end.is_empty());
     }
 
@@ -438,8 +462,9 @@ mod tests {
                     role TEXT NOT NULL,
                     content TEXT NOT NULL,
                     timestamp_ms INTEGER NOT NULL
-                );"
-            ).unwrap();
+                );",
+            )
+            .unwrap();
             let id = Uuid::new_v4().to_string();
             let sid = session_id.to_string();
             db.execute(

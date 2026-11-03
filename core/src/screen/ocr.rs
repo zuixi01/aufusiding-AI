@@ -235,7 +235,11 @@ impl LocalOcrEngine {
     }
 
     /// 过滤出字符候选分量（基于几何启发式）
-    fn filter_char_blobs(blobs: Vec<BlobBounds>, img_width: u32, img_height: u32) -> Vec<BlobBounds> {
+    fn filter_char_blobs(
+        blobs: Vec<BlobBounds>,
+        img_width: u32,
+        img_height: u32,
+    ) -> Vec<BlobBounds> {
         let max_blob_w = img_width / 2;
         let max_blob_h = img_height / 2;
 
@@ -245,8 +249,7 @@ impl LocalOcrEngine {
                 let w = b.width();
                 let h = b.height();
                 // 排除过大（非字符）和过小（噪点）的分量
-                w >= 2 && h >= 3 && w <= max_blob_w && h <= max_blob_h
-                    && b.aspect_ratio() < 10.0
+                w >= 2 && h >= 3 && w <= max_blob_w && h <= max_blob_h && b.aspect_ratio() < 10.0
             })
             .collect()
     }
@@ -266,11 +269,7 @@ impl LocalOcrEngine {
 
         for blob in sorted.iter().skip(1) {
             let blob_center_y = (blob.min_y + blob.max_y) / 2;
-            let line_height = current_line
-                .iter()
-                .map(|b| b.height())
-                .max()
-                .unwrap_or(10);
+            let line_height = current_line.iter().map(|b| b.height()).max().unwrap_or(10);
             let tolerance = (line_height / 2).max(4);
 
             if blob_center_y.abs_diff(line_center_y) <= tolerance {
@@ -406,11 +405,13 @@ impl TesseractOcrEngine {
     }
 
     /// 将 RGBA 数据写为 PGM (灰度) 临时文件供 tesseract 读取
-    fn write_pgm_temp(gray: &[u8], width: u32, height: u32) -> anyhow::Result<tempfile::NamedTempFile> {
+    fn write_pgm_temp(
+        gray: &[u8],
+        width: u32,
+        height: u32,
+    ) -> anyhow::Result<tempfile::NamedTempFile> {
         use std::io::Write;
-        let mut tmp = tempfile::Builder::new()
-            .suffix(".pgm")
-            .tempfile()?;
+        let mut tmp = tempfile::Builder::new().suffix(".pgm").tempfile()?;
         // PGM P5 header
         write!(tmp, "P5\n{} {}\n255\n", width, height)?;
         tmp.write_all(gray)?;
@@ -464,17 +465,11 @@ impl OcrEngine for TesseractOcrEngine {
         }
 
         if !Self::is_tesseract_available().await {
-            tracing::warn!(
-                "tesseract 未安装，回退到 LocalOcrEngine 像素密度分析"
-            );
+            tracing::warn!("tesseract 未安装，回退到 LocalOcrEngine 像素密度分析");
             return self.fallback.recognize(snapshot).await;
         }
 
-        let gray = ImagePreprocessor::to_grayscale(
-            &snapshot.data,
-            snapshot.width,
-            snapshot.height,
-        );
+        let gray = ImagePreprocessor::to_grayscale(&snapshot.data, snapshot.width, snapshot.height);
 
         let tmp = Self::write_pgm_temp(&gray, snapshot.width, snapshot.height)?;
         let tmp_path = tmp.path().to_string_lossy().to_string();
@@ -575,8 +570,11 @@ mod tests {
     async fn ocr_empty_snapshot() {
         let engine = LocalOcrEngine::new(0.8);
         let snap = ScreenSnapshot {
-            width: 0, height: 0, data: vec![],
-            format: ImageFormat::Raw, captured_at: Utc::now(),
+            width: 0,
+            height: 0,
+            data: vec![],
+            format: ImageFormat::Raw,
+            captured_at: Utc::now(),
         };
         let regions = engine.recognize(&snap).await.unwrap();
         assert!(regions.is_empty());
@@ -586,7 +584,7 @@ mod tests {
     async fn ocr_detects_text_rows() {
         // 创建 10x10 RGBA 图像，中间行有暗像素（模拟文本）
         let mut data = vec![255u8; 10 * 10 * 4]; // 全白
-        // 第 3-6 行设为黑色
+                                                 // 第 3-6 行设为黑色
         for y in 3..7 {
             for x in 0..10 {
                 let base = (y * 10 + x) * 4;
@@ -596,8 +594,11 @@ mod tests {
             }
         }
         let snap = ScreenSnapshot {
-            width: 10, height: 10, data,
-            format: ImageFormat::Raw, captured_at: Utc::now(),
+            width: 10,
+            height: 10,
+            data,
+            format: ImageFormat::Raw,
+            captured_at: Utc::now(),
         };
         let engine = LocalOcrEngine::new(0.7);
         let regions = engine.recognize(&snap).await.unwrap();
@@ -629,9 +630,27 @@ mod tests {
 
     #[test]
     fn filter_char_blobs_removes_noise() {
-        let tiny = BlobBounds { min_x: 0, min_y: 0, max_x: 0, max_y: 0, pixel_count: 1 };
-        let good = BlobBounds { min_x: 0, min_y: 0, max_x: 5, max_y: 8, pixel_count: 30 };
-        let huge = BlobBounds { min_x: 0, min_y: 0, max_x: 99, max_y: 99, pixel_count: 5000 };
+        let tiny = BlobBounds {
+            min_x: 0,
+            min_y: 0,
+            max_x: 0,
+            max_y: 0,
+            pixel_count: 1,
+        };
+        let good = BlobBounds {
+            min_x: 0,
+            min_y: 0,
+            max_x: 5,
+            max_y: 8,
+            pixel_count: 30,
+        };
+        let huge = BlobBounds {
+            min_x: 0,
+            min_y: 0,
+            max_x: 99,
+            max_y: 99,
+            pixel_count: 5000,
+        };
 
         let filtered = LocalOcrEngine::filter_char_blobs(vec![tiny, good, huge], 100, 100);
         assert_eq!(filtered.len(), 1);
@@ -640,9 +659,27 @@ mod tests {
 
     #[test]
     fn group_blobs_into_lines_clusters_by_y() {
-        let b1 = BlobBounds { min_x: 0, min_y: 10, max_x: 5, max_y: 20, pixel_count: 20 };
-        let b2 = BlobBounds { min_x: 10, min_y: 11, max_x: 15, max_y: 21, pixel_count: 20 };
-        let b3 = BlobBounds { min_x: 0, min_y: 50, max_x: 5, max_y: 60, pixel_count: 20 };
+        let b1 = BlobBounds {
+            min_x: 0,
+            min_y: 10,
+            max_x: 5,
+            max_y: 20,
+            pixel_count: 20,
+        };
+        let b2 = BlobBounds {
+            min_x: 10,
+            min_y: 11,
+            max_x: 15,
+            max_y: 21,
+            pixel_count: 20,
+        };
+        let b3 = BlobBounds {
+            min_x: 0,
+            min_y: 50,
+            max_x: 5,
+            max_y: 60,
+            pixel_count: 20,
+        };
 
         let blobs = vec![b1, b2, b3];
         let lines = LocalOcrEngine::group_blobs_into_lines(&blobs);
@@ -659,31 +696,48 @@ mod tests {
         for y in 2..6 {
             for x in 2..5 {
                 let base = (y * 20 + x) * 4;
-                data[base] = 0; data[base + 1] = 0; data[base + 2] = 0;
+                data[base] = 0;
+                data[base + 1] = 0;
+                data[base + 2] = 0;
             }
             for x in 8..11 {
                 let base = (y * 20 + x) * 4;
-                data[base] = 0; data[base + 1] = 0; data[base + 2] = 0;
+                data[base] = 0;
+                data[base + 1] = 0;
+                data[base + 2] = 0;
             }
         }
         // 行2: y=12..16, 一个块
         for y in 12..17 {
             for x in 3..7 {
                 let base = (y * 20 + x) * 4;
-                data[base] = 0; data[base + 1] = 0; data[base + 2] = 0;
+                data[base] = 0;
+                data[base + 1] = 0;
+                data[base + 2] = 0;
             }
         }
 
         let snap = ScreenSnapshot {
-            width: 20, height: 20, data,
-            format: ImageFormat::Raw, captured_at: Utc::now(),
+            width: 20,
+            height: 20,
+            data,
+            format: ImageFormat::Raw,
+            captured_at: Utc::now(),
         };
         let engine = LocalOcrEngine::new(0.7);
         let regions = engine.recognize(&snap).await.unwrap();
         // 应检测到 2 行
-        assert!(regions.len() >= 2, "应检测到至少 2 行，实际: {}", regions.len());
+        assert!(
+            regions.len() >= 2,
+            "应检测到至少 2 行，实际: {}",
+            regions.len()
+        );
         // 第一行应包含 2 个字符
-        assert!(regions[0].text.contains("chars_2"), "第一行应有 2 个字符: {}", regions[0].text);
+        assert!(
+            regions[0].text.contains("chars_2"),
+            "第一行应有 2 个字符: {}",
+            regions[0].text
+        );
         // 包围盒应有合理的 x 偏移（不再是 x=0 全宽）
         assert!(regions[0].bounds.x > 0 || regions[0].bounds.width < 20);
     }
@@ -694,8 +748,11 @@ mod tests {
     async fn tesseract_engine_empty_snapshot() {
         let engine = TesseractOcrEngine::new();
         let snap = ScreenSnapshot {
-            width: 0, height: 0, data: vec![],
-            format: ImageFormat::Raw, captured_at: Utc::now(),
+            width: 0,
+            height: 0,
+            data: vec![],
+            format: ImageFormat::Raw,
+            captured_at: Utc::now(),
         };
         let regions = engine.recognize(&snap).await.unwrap();
         assert!(regions.is_empty());
@@ -708,16 +765,25 @@ mod tests {
         for y in 3..7 {
             for x in 0..20 {
                 let base = (y * 20 + x) * 4;
-                data[base] = 0; data[base + 1] = 0; data[base + 2] = 0;
+                data[base] = 0;
+                data[base + 1] = 0;
+                data[base + 2] = 0;
             }
         }
         let snap = ScreenSnapshot {
-            width: 20, height: 20, data,
-            format: ImageFormat::Raw, captured_at: Utc::now(),
+            width: 20,
+            height: 20,
+            data,
+            format: ImageFormat::Raw,
+            captured_at: Utc::now(),
         };
         let engine = TesseractOcrEngine::new();
         let result = engine.recognize(&snap).await;
-        assert!(result.is_ok(), "应优雅处理（回退或成功）: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "应优雅处理（回退或成功）: {:?}",
+            result.err()
+        );
         assert!(!result.unwrap().is_empty());
     }
 
@@ -727,12 +793,17 @@ mod tests {
         for y in 3..7 {
             for x in 0..20 {
                 let base = (y * 20 + x) * 4;
-                data[base] = 0; data[base + 1] = 0; data[base + 2] = 0;
+                data[base] = 0;
+                data[base + 1] = 0;
+                data[base + 2] = 0;
             }
         }
         let snap = ScreenSnapshot {
-            width: 20, height: 20, data,
-            format: ImageFormat::Raw, captured_at: Utc::now(),
+            width: 20,
+            height: 20,
+            data,
+            format: ImageFormat::Raw,
+            captured_at: Utc::now(),
         };
         let engine = TesseractOcrEngine::new();
         let text = engine.extract_all_text(&snap).await;
@@ -765,9 +836,7 @@ mod tests {
 
     #[test]
     fn tesseract_builder_methods() {
-        let engine = TesseractOcrEngine::new()
-            .with_lang("eng")
-            .with_psm(3);
+        let engine = TesseractOcrEngine::new().with_lang("eng").with_psm(3);
         assert_eq!(engine.lang, "eng");
         assert_eq!(engine.psm, 3);
     }

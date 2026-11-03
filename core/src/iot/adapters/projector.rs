@@ -66,7 +66,12 @@ impl DeviceController for ProjectorAdapter {
         Ok(())
     }
 
-    async fn set_property(&self, _device_id: &str, property: &str, value: Value) -> anyhow::Result<()> {
+    async fn set_property(
+        &self,
+        _device_id: &str,
+        property: &str,
+        value: Value,
+    ) -> anyhow::Result<()> {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         match property {
             "input_source" => {

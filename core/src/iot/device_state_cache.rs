@@ -29,7 +29,10 @@ impl DeviceStateCache {
 
     /// 手动设置设备状态（测试用）
     pub async fn set(&self, device_id: &str, state: Value) {
-        self.states.write().await.insert(device_id.to_string(), state);
+        self.states
+            .write()
+            .await
+            .insert(device_id.to_string(), state);
     }
 
     /// 返回全量状态克隆
@@ -75,7 +78,9 @@ mod tests {
     #[tokio::test]
     async fn set_and_get() {
         let cache = DeviceStateCache::new();
-        cache.set("light-001", serde_json::json!({"brightness": 80})).await;
+        cache
+            .set("light-001", serde_json::json!({"brightness": 80}))
+            .await;
         let state = cache.get("light-001").await.unwrap();
         assert_eq!(state["brightness"], 80);
     }
@@ -100,9 +105,16 @@ mod tests {
     #[tokio::test]
     async fn merge_multiple_updates() {
         let cache = DeviceStateCache::new();
-        cache.set("light-001", serde_json::json!({"brightness": 80})).await;
+        cache
+            .set("light-001", serde_json::json!({"brightness": 80}))
+            .await;
         // Simulate merge by setting a combined object
-        cache.set("light-001", serde_json::json!({"brightness": 80, "color": "red"})).await;
+        cache
+            .set(
+                "light-001",
+                serde_json::json!({"brightness": 80, "color": "red"}),
+            )
+            .await;
         let state = cache.get("light-001").await.unwrap();
         assert_eq!(state["brightness"], 80);
         assert_eq!(state["color"], "red");
@@ -116,7 +128,8 @@ mod tests {
 
         // First event
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor,
+            "sensor-001",
+            DeviceType::Sensor,
             EventKind::PropertyChanged,
             serde_json::json!({"temperature": 25}),
         ));
@@ -125,7 +138,8 @@ mod tests {
 
         // Second event — should merge
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor,
+            "sensor-001",
+            DeviceType::Sensor,
             EventKind::PropertyChanged,
             serde_json::json!({"humidity": 60}),
         ));
@@ -144,7 +158,8 @@ mod tests {
         cache.start(&bus).await;
 
         bus.publish(DeviceEvent::new(
-            "light-001", DeviceType::Light,
+            "light-001",
+            DeviceType::Light,
             EventKind::StateChanged,
             serde_json::json!({"powered": true}),
         ));
@@ -162,7 +177,8 @@ mod tests {
         cache.start(&bus).await;
 
         bus.publish(DeviceEvent::new(
-            "light-001", DeviceType::Light,
+            "light-001",
+            DeviceType::Light,
             EventKind::DeviceDiscovered,
             serde_json::json!({"name": "Living Room Light"}),
         ));
@@ -180,7 +196,8 @@ mod tests {
         for i in 0..20 {
             let c = Arc::clone(&cache);
             handles.push(tokio::spawn(async move {
-                c.set(&format!("dev-{}", i), serde_json::json!({"val": i})).await;
+                c.set(&format!("dev-{}", i), serde_json::json!({"val": i}))
+                    .await;
             }));
         }
         for h in handles {

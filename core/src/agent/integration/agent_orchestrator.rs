@@ -118,9 +118,7 @@ impl AgentOrchestrator {
         let tasks_completed = graph
             .tasks
             .iter()
-            .filter(|t| {
-                t.status == crate::agent::steward::planner::SubTaskStatus::Completed
-            })
+            .filter(|t| t.status == crate::agent::steward::planner::SubTaskStatus::Completed)
             .count();
 
         // 4. 运行质量门禁
@@ -237,7 +235,9 @@ impl AgentOrchestrator {
         }
 
         // 2. 执行任务
-        let result = self.execute_subtask_inner(title, description, blackboard_summary).await;
+        let result = self
+            .execute_subtask_inner(title, description, blackboard_summary)
+            .await;
 
         // 3. 存入缓存
         {
@@ -268,7 +268,10 @@ impl AgentOrchestrator {
             };
             let mut ctx = AgentContext::new(system_prompt);
             ctx.push_task(description);
-            let outcome = self.executor.execute(&mut ctx, &*backend, &self.tools).await;
+            let outcome = self
+                .executor
+                .execute(&mut ctx, &*backend, &self.tools)
+                .await;
             match outcome {
                 ExecutionOutcome::Completed { output, .. } => output,
                 ExecutionOutcome::MaxStepsReached { .. } => {
@@ -348,7 +351,12 @@ mod tests {
     #[tokio::test]
     async fn execute_multi_role_dag() {
         let orch = make_orchestrator().await;
-        let roles = vec![Role::ProductManager, Role::Architect, Role::Engineer, Role::QA];
+        let roles = vec![
+            Role::ProductManager,
+            Role::Architect,
+            Role::Engineer,
+            Role::QA,
+        ];
         let result = orch.execute("实现用户认证系统", &roles).await.unwrap();
 
         assert_eq!(result.tasks_completed, 4);
@@ -359,10 +367,7 @@ mod tests {
     #[tokio::test]
     async fn quality_gates_pass() {
         let orch = make_orchestrator().await;
-        let result = orch
-            .execute("写一个函数", &[Role::Engineer])
-            .await
-            .unwrap();
+        let result = orch.execute("写一个函数", &[Role::Engineer]).await.unwrap();
         assert!(result.quality_passed);
     }
 
@@ -380,10 +385,7 @@ mod tests {
     async fn execute_without_model_still_works() {
         let pool = Arc::new(ModelPool::new()); // no models registered
         let orch = AgentOrchestrator::new(pool);
-        let result = orch
-            .execute("简单任务", &[Role::Engineer])
-            .await
-            .unwrap();
+        let result = orch.execute("简单任务", &[Role::Engineer]).await.unwrap();
 
         assert!(result.tasks_completed > 0);
         assert!(!result.output.is_empty());

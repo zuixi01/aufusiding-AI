@@ -5,9 +5,9 @@
 
 use anyhow::{anyhow, Result};
 
-use crate::iot::types::DeviceType;
 use super::intent_parser::{ActionType, DeviceReference};
 use super::profile::{DeviceSemanticProfile, SemanticProfileStore};
+use crate::iot::types::DeviceType;
 
 /// 解析后的设备
 #[derive(Debug, Clone)]
@@ -98,9 +98,7 @@ impl<'a> DeviceResolver<'a> {
         match (device_type, current_room) {
             (Some(dt), Some(room)) => {
                 let room_devices = self.store.query_by_room(room);
-                let matched = room_devices
-                    .into_iter()
-                    .find(|p| p.device_type == dt);
+                let matched = room_devices.into_iter().find(|p| p.device_type == dt);
                 match matched {
                     Some(profile) => Ok(ResolvedDevice {
                         device_id: profile.device_id.clone(),
@@ -133,41 +131,56 @@ impl<'a> DeviceResolver<'a> {
 /// 从动作类型推断设备类型
 fn infer_device_type(action: &ActionType) -> Option<DeviceType> {
     match action {
-        ActionType::Increase(prop)
-        | ActionType::Decrease(prop)
-        | ActionType::SetProperty(prop) => match prop.as_str() {
-            "brightness" | "color" => Some(DeviceType::Light),
-            "temperature" => Some(DeviceType::Thermostat),
-            "volume" => Some(DeviceType::Speaker),
-            _ => None,
-        },
+        ActionType::Increase(prop) | ActionType::Decrease(prop) | ActionType::SetProperty(prop) => {
+            match prop.as_str() {
+                "brightness" | "color" => Some(DeviceType::Light),
+                "temperature" => Some(DeviceType::Thermostat),
+                "volume" => Some(DeviceType::Speaker),
+                _ => None,
+            }
+        }
         _ => None,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::super::profile::{build_default_profile, SemanticProfileStore};
     use super::super::intent_parser::{ActionType, DeviceReference};
+    use super::super::profile::{build_default_profile, SemanticProfileStore};
+    use super::*;
     use crate::iot::types::DeviceType;
 
     fn build_test_store() -> SemanticProfileStore {
         let mut store = SemanticProfileStore::new();
         store.add(build_default_profile(
-            "light-001", "客厅灯", DeviceType::Light, Some("客厅"),
+            "light-001",
+            "客厅灯",
+            DeviceType::Light,
+            Some("客厅"),
         ));
         store.add(build_default_profile(
-            "light-002", "卧室灯", DeviceType::Light, Some("卧室"),
+            "light-002",
+            "卧室灯",
+            DeviceType::Light,
+            Some("卧室"),
         ));
         store.add(build_default_profile(
-            "thermo-001", "客厅空调", DeviceType::Thermostat, Some("客厅"),
+            "thermo-001",
+            "客厅空调",
+            DeviceType::Thermostat,
+            Some("客厅"),
         ));
         store.add(build_default_profile(
-            "lock-001", "前门锁", DeviceType::Lock, None,
+            "lock-001",
+            "前门锁",
+            DeviceType::Lock,
+            None,
         ));
         store.add(build_default_profile(
-            "speaker-001", "客厅音箱", DeviceType::Speaker, Some("客厅"),
+            "speaker-001",
+            "客厅音箱",
+            DeviceType::Speaker,
+            Some("客厅"),
         ));
         store
     }
@@ -202,11 +215,7 @@ mod tests {
     fn resolve_by_name_not_found() {
         let store = build_test_store();
         let resolver = DeviceResolver::new(&store);
-        let result = resolver.resolve(
-            &DeviceReference::ByName("书房灯".into()),
-            None,
-            None,
-        );
+        let result = resolver.resolve(&DeviceReference::ByName("书房灯".into()), None, None);
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("找不到设备"));
@@ -255,11 +264,7 @@ mod tests {
     fn resolve_by_id_not_found() {
         let store = build_test_store();
         let resolver = DeviceResolver::new(&store);
-        let result = resolver.resolve(
-            &DeviceReference::ById("nonexistent".into()),
-            None,
-            None,
-        );
+        let result = resolver.resolve(&DeviceReference::ById("nonexistent".into()), None, None);
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("设备ID不存在"));
@@ -317,11 +322,7 @@ mod tests {
     fn resolve_ambient_no_action() {
         let store = build_test_store();
         let resolver = DeviceResolver::new(&store);
-        let result = resolver.resolve(
-            &DeviceReference::Ambient,
-            Some("客厅"),
-            None,
-        );
+        let result = resolver.resolve(&DeviceReference::Ambient, Some("客厅"), None);
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("请指定要控制的设备"));

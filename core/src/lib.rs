@@ -10,15 +10,14 @@
 #![allow(clippy::field_reassign_with_default)]
 #![allow(clippy::useless_vec)]
 
-pub mod ambient;
 pub mod agent;
+pub mod ambient;
 pub mod channels;
 pub mod coding;
 pub mod config;
 pub mod daemon;
 pub mod error;
 pub mod inference;
-pub mod retry;
 pub mod iot;
 pub mod logging;
 pub mod memory;
@@ -29,6 +28,7 @@ pub mod persona;
 pub mod plugins;
 pub mod privacy;
 pub mod providers;
+pub mod retry;
 pub mod router;
 pub mod safety;
 pub mod screen;

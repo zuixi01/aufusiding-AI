@@ -178,7 +178,11 @@ mod mqtt_codec {
     }
 
     /// Build a CONNECT packet (MQTT v3.1.1).
-    pub fn build_connect_packet(client_id: &str, username: Option<&str>, password: Option<&str>) -> Vec<u8> {
+    pub fn build_connect_packet(
+        client_id: &str,
+        username: Option<&str>,
+        password: Option<&str>,
+    ) -> Vec<u8> {
         let mut var_header = Vec::new();
         // Protocol Name
         var_header.extend_from_slice(&[0x00, 0x04]); // length
@@ -352,11 +356,7 @@ impl MqttTransport for TokioMqttTransport {
 
         // Try to read a response with a short timeout
         let mut buf = [0u8; 4096];
-        match tokio::time::timeout(
-            tokio::time::Duration::from_secs(2),
-            stream.read(&mut buf),
-        )
-        .await
+        match tokio::time::timeout(tokio::time::Duration::from_secs(2), stream.read(&mut buf)).await
         {
             Ok(Ok(n)) if n > 0 => Ok(Some(buf[..n].to_vec())),
             _ => Ok(None),
@@ -610,7 +610,10 @@ mod tests {
     #[test]
     fn mqtt_command_topic_format() {
         let (adapter, _) = setup();
-        assert_eq!(adapter.command_topic("bulb-001"), "zigbee2mqtt/bulb-001/set");
+        assert_eq!(
+            adapter.command_topic("bulb-001"),
+            "zigbee2mqtt/bulb-001/set"
+        );
     }
 
     // 12. state topic format
@@ -688,7 +691,10 @@ mod tests {
     fn mqtt_codec_remaining_length() {
         assert_eq!(super::mqtt_codec::encode_remaining_length(0), vec![0x00]);
         assert_eq!(super::mqtt_codec::encode_remaining_length(127), vec![0x7F]);
-        assert_eq!(super::mqtt_codec::encode_remaining_length(128), vec![0x80, 0x01]);
+        assert_eq!(
+            super::mqtt_codec::encode_remaining_length(128),
+            vec![0x80, 0x01]
+        );
     }
 
     // 18. MQTT codec: CONNECT packet structure
@@ -696,7 +702,7 @@ mod tests {
     fn mqtt_codec_connect_packet() {
         let packet = super::mqtt_codec::build_connect_packet("test-client", None, None);
         assert_eq!(packet[0], 0x10); // CONNECT type
-        // Protocol name "MQTT"
+                                     // Protocol name "MQTT"
         let remaining_start = 2; // 1 byte type + 1 byte remaining length (small)
         assert_eq!(&packet[remaining_start + 2..remaining_start + 6], b"MQTT");
         assert_eq!(packet[remaining_start + 6], 0x04); // Protocol level v3.1.1

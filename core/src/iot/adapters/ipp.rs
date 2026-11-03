@@ -512,12 +512,16 @@ mod tests {
             when.method(POST)
                 .path("/ipp/print")
                 .header("Content-Type", IPP_CONTENT_TYPE);
-            then.status(200).body(ipp_ok_response(1, &[
-                (TAG_INTEGER, "job-id", &42i32.to_be_bytes()),
-            ]));
+            then.status(200).body(ipp_ok_response(
+                1,
+                &[(TAG_INTEGER, "job-id", &42i32.to_be_bytes())],
+            ));
         });
         let a = adapter(&server);
-        let job_id = a.print_job("hp-001", "test-doc", b"Hello World").await.unwrap();
+        let job_id = a
+            .print_job("hp-001", "test-doc", b"Hello World")
+            .await
+            .unwrap();
         assert_eq!(job_id, 42);
         mock.assert();
     }
@@ -543,10 +547,13 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(POST).path("/ipp/print");
-            then.status(200).body(ipp_ok_response(3, &[
-                (TAG_INTEGER, "job-id", &1i32.to_be_bytes()),
-                (TAG_INTEGER, "job-id", &2i32.to_be_bytes()),
-            ]));
+            then.status(200).body(ipp_ok_response(
+                3,
+                &[
+                    (TAG_INTEGER, "job-id", &1i32.to_be_bytes()),
+                    (TAG_INTEGER, "job-id", &2i32.to_be_bytes()),
+                ],
+            ));
         });
         let a = adapter(&server);
         let count = a.get_jobs("hp-001").await.unwrap();
@@ -646,7 +653,10 @@ mod tests {
         assert_eq!(body[0], 1);
         assert_eq!(body[1], 1);
         // Operation: Get-Printer-Attributes (0x000B)
-        assert_eq!(u16::from_be_bytes([body[2], body[3]]), OP_GET_PRINTER_ATTRIBUTES);
+        assert_eq!(
+            u16::from_be_bytes([body[2], body[3]]),
+            OP_GET_PRINTER_ATTRIBUTES
+        );
         // Request ID: 1
         assert_eq!(i32::from_be_bytes([body[4], body[5], body[6], body[7]]), 1);
     }

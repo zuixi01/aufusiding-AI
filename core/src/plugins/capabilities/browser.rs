@@ -59,7 +59,10 @@ impl BrowserCapability {
     }
 
     /// 执行浏览器动作序列
-    pub async fn execute_actions(&self, actions: &[BrowserAction]) -> anyhow::Result<BrowserResult> {
+    pub async fn execute_actions(
+        &self,
+        actions: &[BrowserAction],
+    ) -> anyhow::Result<BrowserResult> {
         let instance_id = self.pool.acquire()?;
 
         let result = self.run_actions(actions).await;
@@ -75,7 +78,8 @@ impl BrowserCapability {
                 "query": query,
                 "sites": sites,
             });
-            let resp = remote.client
+            let resp = remote
+                .client
                 .post(format!("{}/research", remote.base_url))
                 .bearer_auth(&remote.api_key)
                 .json(&body)
@@ -108,7 +112,8 @@ impl BrowserCapability {
         }
         if let Some(remote) = &self.remote {
             let body = serde_json::json!({"url": url});
-            let resp = remote.client
+            let resp = remote
+                .client
                 .post(format!("{}/screenshot", remote.base_url))
                 .bearer_auth(&remote.api_key)
                 .json(&body)
@@ -129,7 +134,8 @@ impl BrowserCapability {
         }
         if let Some(remote) = &self.remote {
             let body = serde_json::json!({"url": url, "selector": selector});
-            let resp = remote.client
+            let resp = remote
+                .client
                 .post(format!("{}/extract", remote.base_url))
                 .bearer_auth(&remote.api_key)
                 .json(&body)
@@ -157,7 +163,10 @@ impl BrowserCapability {
                 }
             }
         }
-        Ok(BrowserResult::ok(format!("执行了 {} 个动作", actions.len())))
+        Ok(BrowserResult::ok(format!(
+            "执行了 {} 个动作",
+            actions.len()
+        )))
     }
 }
 
@@ -171,10 +180,14 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(POST).path("/research");
-            then.status(200).json_body(serde_json::json!({"content": "research result"}));
+            then.status(200)
+                .json_body(serde_json::json!({"content": "research result"}));
         });
         let cap = BrowserCapability::with_remote_browser(&server.base_url(), "test-key");
-        let result = cap.research("rust", &["https://example.com"]).await.unwrap();
+        let result = cap
+            .research("rust", &["https://example.com"])
+            .await
+            .unwrap();
         assert_eq!(result, "research result");
     }
 
@@ -195,7 +208,8 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(POST).path("/extract");
-            then.status(200).json_body(serde_json::json!({"text": "extracted content"}));
+            then.status(200)
+                .json_body(serde_json::json!({"text": "extracted content"}));
         });
         let cap = BrowserCapability::with_remote_browser(&server.base_url(), "key");
         let text = cap.extract_text("https://example.com", "h1").await.unwrap();

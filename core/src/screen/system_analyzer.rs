@@ -128,10 +128,7 @@ impl HttpScreenAnalyzer {
 
 #[async_trait]
 impl ScreenAnalyzer for HttpScreenAnalyzer {
-    async fn detect_elements(
-        &self,
-        snapshot: &ScreenSnapshot,
-    ) -> anyhow::Result<Vec<UIElement>> {
+    async fn detect_elements(&self, snapshot: &ScreenSnapshot) -> anyhow::Result<Vec<UIElement>> {
         let body = self.build_request(snapshot, "detect_elements");
         let url = format!("{}/v1/vision/elements", self.config.base_url);
 
@@ -170,10 +167,7 @@ impl ScreenAnalyzer for HttpScreenAnalyzer {
         Ok(elements)
     }
 
-    async fn extract_text(
-        &self,
-        snapshot: &ScreenSnapshot,
-    ) -> anyhow::Result<Vec<TextRegion>> {
+    async fn extract_text(&self, snapshot: &ScreenSnapshot) -> anyhow::Result<Vec<TextRegion>> {
         let body = self.build_request(snapshot, "extract_text");
         let url = format!("{}/v1/vision/text", self.config.base_url);
 
@@ -209,10 +203,7 @@ impl ScreenAnalyzer for HttpScreenAnalyzer {
         Ok(regions)
     }
 
-    async fn detect_app(
-        &self,
-        snapshot: &ScreenSnapshot,
-    ) -> anyhow::Result<AppInfo> {
+    async fn detect_app(&self, snapshot: &ScreenSnapshot) -> anyhow::Result<AppInfo> {
         let body = self.build_request(snapshot, "detect_app");
         let url = format!("{}/v1/vision/app", self.config.base_url);
 

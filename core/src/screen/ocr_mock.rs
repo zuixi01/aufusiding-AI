@@ -83,12 +83,22 @@ mod tests {
         let engine = MockOcrEngine::new(vec![
             TextRegion {
                 text: "行一".into(),
-                bounds: ScreenRegion { x: 0, y: 0, width: 100, height: 20 },
+                bounds: ScreenRegion {
+                    x: 0,
+                    y: 0,
+                    width: 100,
+                    height: 20,
+                },
                 confidence: 0.9,
             },
             TextRegion {
                 text: "行二".into(),
-                bounds: ScreenRegion { x: 0, y: 20, width: 100, height: 20 },
+                bounds: ScreenRegion {
+                    x: 0,
+                    y: 20,
+                    width: 100,
+                    height: 20,
+                },
                 confidence: 0.9,
             },
         ]);

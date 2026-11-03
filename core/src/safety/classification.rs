@@ -40,10 +40,24 @@ pub struct DataClassifier;
 
 // L3 机密关键词
 const CONFIDENTIAL_KEYWORDS: &[&str] = &[
-    "password", "passwd", "密码", "secret", "密钥",
-    "api_key", "apikey", "api key", "token", "access_token",
-    "private_key", "私钥", "银行卡", "信用卡", "借记卡",
-    "cvv", "pin码", "pin code",
+    "password",
+    "passwd",
+    "密码",
+    "secret",
+    "密钥",
+    "api_key",
+    "apikey",
+    "api key",
+    "token",
+    "access_token",
+    "private_key",
+    "私钥",
+    "银行卡",
+    "信用卡",
+    "借记卡",
+    "cvv",
+    "pin码",
+    "pin code",
 ];
 
 // L3 机密模式前缀
@@ -51,14 +65,22 @@ const CONFIDENTIAL_PREFIXES: &[&str] = &["sk-", "pk-", "ghp_", "gho_", "Bearer "
 
 // L2 敏感关键词
 const SENSITIVE_KEYWORDS: &[&str] = &[
-    "健康", "病历", "medical", "health", "诊断", "处方",
-    "身份证", "护照", "passport", "驾照", "社保",
+    "健康",
+    "病历",
+    "medical",
+    "health",
+    "诊断",
+    "处方",
+    "身份证",
+    "护照",
+    "passport",
+    "驾照",
+    "社保",
 ];
 
 // L0 公开话题关键词
 const PUBLIC_KEYWORDS: &[&str] = &[
-    "天气", "weather", "新闻", "news", "时间", "time",
-    "日期", "date", "你好", "hello", "hi", "嗨",
+    "天气", "weather", "新闻", "news", "时间", "time", "日期", "date", "你好", "hello", "hi", "嗨",
 ];
 
 impl DataClassifier {
@@ -175,9 +197,19 @@ impl DataClassifier {
             if lower.contains(kw) {
                 let ptype = if *kw == "password" || *kw == "passwd" || *kw == "密码" {
                     "PASSWORD"
-                } else if kw.contains("api") || kw.contains("token") || kw.contains("key") || kw.contains("密钥") || kw.contains("私钥") {
+                } else if kw.contains("api")
+                    || kw.contains("token")
+                    || kw.contains("key")
+                    || kw.contains("密钥")
+                    || kw.contains("私钥")
+                {
                     "API_KEY"
-                } else if kw.contains("银行") || kw.contains("信用") || kw.contains("借记") || kw.contains("cvv") || kw.contains("pin") {
+                } else if kw.contains("银行")
+                    || kw.contains("信用")
+                    || kw.contains("借记")
+                    || kw.contains("cvv")
+                    || kw.contains("pin")
+                {
                     "BANK_CARD"
                 } else {
                     "SECRET"
@@ -202,7 +234,9 @@ impl DataClassifier {
         }
 
         // 检测银行卡号模式 (16-19位连续数字)
-        if Self::has_bank_card_pattern(text) && patterns.iter().all(|p| p.pattern_type != "BANK_CARD") {
+        if Self::has_bank_card_pattern(text)
+            && patterns.iter().all(|p| p.pattern_type != "BANK_CARD")
+        {
             patterns.push(DetectedPattern {
                 pattern_type: "BANK_CARD".to_string(),
                 confidence: 0.85,
@@ -258,8 +292,7 @@ impl DataClassifier {
     /// 是否为公开话题
     fn is_public_topic(text: &str) -> bool {
         let lower = text.to_lowercase();
-        PUBLIC_KEYWORDS.iter().any(|kw| lower.contains(kw))
-            && text.len() < 50
+        PUBLIC_KEYWORDS.iter().any(|kw| lower.contains(kw)) && text.len() < 50
     }
 
     /// 邮箱模式检测
@@ -302,7 +335,11 @@ impl DataClassifier {
             if chars[i].is_ascii_digit() {
                 let candidate: String = chars[i..i + 18].iter().collect();
                 let first_17_digits = candidate[..17].chars().all(|c| c.is_ascii_digit());
-                let last_valid = candidate.chars().last().map(|c| c.is_ascii_digit() || c == 'X' || c == 'x').unwrap_or(false);
+                let last_valid = candidate
+                    .chars()
+                    .last()
+                    .map(|c| c.is_ascii_digit() || c == 'X' || c == 'x')
+                    .unwrap_or(false);
                 if first_17_digits && last_valid {
                     return true;
                 }
@@ -365,28 +402,40 @@ mod tests {
     fn classify_email_as_sensitive() {
         let result = DataClassifier::classify("我的邮箱是 test@example.com");
         assert_eq!(result.level, SensitivityLevel::Sensitive);
-        assert!(result.detected_patterns.iter().any(|p| p.pattern_type == "EMAIL"));
+        assert!(result
+            .detected_patterns
+            .iter()
+            .any(|p| p.pattern_type == "EMAIL"));
     }
 
     #[test]
     fn classify_phone_as_sensitive() {
         let result = DataClassifier::classify("联系电话 13912345678");
         assert_eq!(result.level, SensitivityLevel::Sensitive);
-        assert!(result.detected_patterns.iter().any(|p| p.pattern_type == "PHONE"));
+        assert!(result
+            .detected_patterns
+            .iter()
+            .any(|p| p.pattern_type == "PHONE"));
     }
 
     #[test]
     fn classify_id_card_as_sensitive() {
         let result = DataClassifier::classify("身份证号 110101199001011234");
         assert_eq!(result.level, SensitivityLevel::Sensitive);
-        assert!(result.detected_patterns.iter().any(|p| p.pattern_type == "ID_CARD"));
+        assert!(result
+            .detected_patterns
+            .iter()
+            .any(|p| p.pattern_type == "ID_CARD"));
     }
 
     #[test]
     fn classify_password_as_confidential() {
         let result = DataClassifier::classify("我的密码是 abc123456");
         assert_eq!(result.level, SensitivityLevel::Confidential);
-        assert!(result.detected_patterns.iter().any(|p| p.pattern_type == "PASSWORD"));
+        assert!(result
+            .detected_patterns
+            .iter()
+            .any(|p| p.pattern_type == "PASSWORD"));
     }
 
     #[test]
@@ -416,7 +465,9 @@ mod tests {
 
         // 创建临时词典 TOML
         let mut f = NamedTempFile::new().unwrap();
-        writeln!(f, r#"
+        writeln!(
+            f,
+            r#"
 [metadata]
 name = "test"
 category = "MILITARY"
@@ -424,13 +475,18 @@ sensitivity = 3
 
 [[keywords]]
 terms = ["导弹", "核武器"]
-"#).unwrap();
+"#
+        )
+        .unwrap();
 
         let dict = SensitiveDictionary::load_from_paths(&[f.path().to_path_buf()]).unwrap();
         let result = DataClassifier::classify_with_dict("这里有导弹发射基地", &dict);
         // 词典命中 L3 关键词，应提升到 Confidential
         assert_eq!(result.level, SensitivityLevel::Confidential);
-        assert!(result.detected_patterns.iter().any(|p| p.pattern_type.contains("DICT_")));
+        assert!(result
+            .detected_patterns
+            .iter()
+            .any(|p| p.pattern_type.contains("DICT_")));
     }
 
     #[test]

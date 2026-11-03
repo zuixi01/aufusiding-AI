@@ -25,12 +25,7 @@ pub fn template() -> RoleTemplate {
         decision_scope: DecisionScope::Implementation,
         quality_standards: QualityStandards::engineering_default(),
         can_veto: false,
-        collaborates_with: vec![
-            Role::Architect,
-            Role::Security,
-            Role::QA,
-            Role::DevOps,
-        ],
+        collaborates_with: vec![Role::Architect, Role::Security, Role::QA, Role::DevOps],
         watches: &["task_assigned", "review_result", "code_review"],
     }
 }

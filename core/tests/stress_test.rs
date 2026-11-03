@@ -2,6 +2,8 @@
 //!
 //! 验证核心组件在高负载下的稳定性和正确性。
 
+use prometheus_core::iot::event_bus::{DeviceEvent, EventBus, EventKind};
+use prometheus_core::iot::types::DeviceType;
 use prometheus_core::memory::{KnowledgeBase, WorkingMemory};
 use prometheus_core::orchestrator::{ChatOrchestrator, ProviderChatBackend};
 use prometheus_core::providers::mock::MockProvider;
@@ -9,8 +11,6 @@ use prometheus_core::providers::registry::ProviderRegistry;
 use prometheus_core::router::fallback::FallbackRouter;
 use prometheus_core::router::runtime::RoutingRuntime;
 use prometheus_core::session::HistoryStore;
-use prometheus_core::iot::event_bus::{DeviceEvent, EventBus, EventKind};
-use prometheus_core::iot::types::DeviceType;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::task::JoinSet;
@@ -38,7 +38,7 @@ async fn concurrent_chat_sessions_100() {
     let history = HistoryStore::new(history_db);
 
     let orchestrator = Arc::new(tokio::sync::RwLock::new(
-        ChatOrchestrator::new_with_persistence(session_db, history, backend).unwrap()
+        ChatOrchestrator::new_with_persistence(session_db, history, backend).unwrap(),
     ));
 
     // 100 并发会话创建
@@ -70,7 +70,10 @@ async fn concurrent_memory_writes_50() {
         let wm_clone = Arc::clone(&wm);
         tasks.spawn(async move {
             let mut w = wm_clone.write().await;
-            w.add(format!("concurrent item {}", i), 0.5 + ((i % 10) as f64) / 20.0);
+            w.add(
+                format!("concurrent item {}", i),
+                0.5 + ((i % 10) as f64) / 20.0,
+            );
         });
     }
 
@@ -88,9 +91,12 @@ async fn concurrent_knowledge_search_50() {
 
     // 预先插入数据
     for i in 0..10 {
-        kb.add_document(&format!("doc-{}", i), &format!("Document {} content about testing", i))
-            .await
-            .unwrap();
+        kb.add_document(
+            &format!("doc-{}", i),
+            &format!("Document {} content about testing", i),
+        )
+        .await
+        .unwrap();
     }
 
     let kb = Arc::new(tokio::sync::RwLock::new(kb));
@@ -193,16 +199,24 @@ async fn session_creation_throughput() {
     let backend = ProviderChatBackend::new(runtime);
     let history = HistoryStore::new(history_db);
 
-    let mut orchestrator = ChatOrchestrator::new_with_persistence(session_db, history, backend).unwrap();
+    let mut orchestrator =
+        ChatOrchestrator::new_with_persistence(session_db, history, backend).unwrap();
 
     let start = Instant::now();
     for i in 0..1000 {
-        orchestrator.create_session(Some(&format!("throughput-{}", i))).await.unwrap();
+        orchestrator
+            .create_session(Some(&format!("throughput-{}", i)))
+            .await
+            .unwrap();
     }
     let elapsed = start.elapsed();
 
     println!("1000 会话创建耗时: {:?}", elapsed);
-    assert!(elapsed.as_secs() < 5, "1000 会话创建应在 5 秒内完成，实际: {:?}", elapsed);
+    assert!(
+        elapsed.as_secs() < 5,
+        "1000 会话创建应在 5 秒内完成，实际: {:?}",
+        elapsed
+    );
 }
 
 #[tokio::test]
@@ -219,17 +233,27 @@ async fn message_throughput() {
     let backend = ProviderChatBackend::new(runtime);
     let history = HistoryStore::new(history_db);
 
-    let mut orchestrator = ChatOrchestrator::new_with_persistence(session_db, history, backend).unwrap();
-    let session = orchestrator.create_session(Some("msg-throughput")).await.unwrap();
+    let mut orchestrator =
+        ChatOrchestrator::new_with_persistence(session_db, history, backend).unwrap();
+    let session = orchestrator
+        .create_session(Some("msg-throughput"))
+        .await
+        .unwrap();
 
     let start = Instant::now();
     for i in 0..500 {
-        let _ = orchestrator.send_message(session.id, &format!("message {}", i)).await;
+        let _ = orchestrator
+            .send_message(session.id, &format!("message {}", i))
+            .await;
     }
     let elapsed = start.elapsed();
 
     println!("500 消息发送耗时: {:?}", elapsed);
-    assert!(elapsed.as_secs() < 15, "单会话 500 消息应在 15 秒内完成，实际: {:?}", elapsed);
+    assert!(
+        elapsed.as_secs() < 15,
+        "单会话 500 消息应在 15 秒内完成，实际: {:?}",
+        elapsed
+    );
 }
 
 #[tokio::test]
@@ -252,7 +276,11 @@ async fn vector_store_bulk_insert() {
     let elapsed = start.elapsed();
 
     println!("10000 向量插入耗时: {:?}", elapsed);
-    assert!(elapsed.as_secs() < 10, "10000 向量插入应在 10 秒内完成，实际: {:?}", elapsed);
+    assert!(
+        elapsed.as_secs() < 10,
+        "10000 向量插入应在 10 秒内完成，实际: {:?}",
+        elapsed
+    );
 }
 
 #[tokio::test]
@@ -272,7 +300,11 @@ async fn routing_throughput() {
     let elapsed = start.elapsed();
 
     println!("10000 路由决策耗时: {:?}", elapsed);
-    assert!(elapsed.as_secs() < 2, "10000 路由决策应在 2 秒内完成，实际: {:?}", elapsed);
+    assert!(
+        elapsed.as_secs() < 2,
+        "10000 路由决策应在 2 秒内完成，实际: {:?}",
+        elapsed
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -293,16 +325,23 @@ async fn no_memory_leak_sessions() {
     let backend = ProviderChatBackend::new(runtime);
     let history = HistoryStore::new(history_db);
 
-    let mut orchestrator = ChatOrchestrator::new_with_persistence(session_db, history, backend).unwrap();
+    let mut orchestrator =
+        ChatOrchestrator::new_with_persistence(session_db, history, backend).unwrap();
 
     // 创建 1000 个会话（不删除，因为 ChatOrchestrator 没有 delete_session 方法）
     for i in 0..1000 {
-        let _ = orchestrator.create_session(Some(&format!("leak-test-{}", i))).await;
+        let _ = orchestrator
+            .create_session(Some(&format!("leak-test-{}", i)))
+            .await;
     }
 
     // 验证会话数
     let session_count = orchestrator.sessions().len();
-    assert!(session_count <= 1000, "会话数应不超过 1000，实际: {}", session_count);
+    assert!(
+        session_count <= 1000,
+        "会话数应不超过 1000，实际: {}",
+        session_count
+    );
 }
 
 #[tokio::test]
@@ -310,7 +349,9 @@ async fn no_fd_leak_databases() {
     use prometheus_core::storage::db::Database;
 
     fn count_open_fds() -> usize {
-        std::fs::read_dir("/proc/self/fd").map(|d| d.count()).unwrap_or(0)
+        std::fs::read_dir("/proc/self/fd")
+            .map(|d| d.count())
+            .unwrap_or(0)
     }
 
     let before = count_open_fds();
@@ -319,13 +360,19 @@ async fn no_fd_leak_databases() {
     for i in 0..100 {
         let db_path = temp_path(&format!("stress-fd-leak-{}", i));
         let db = Database::open(db_path.clone()).unwrap();
-        db.execute_batch("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)").unwrap();
+        db.execute_batch("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)")
+            .unwrap();
         drop(db);
         let _ = std::fs::remove_file(&db_path);
     }
 
     let after = count_open_fds();
-    assert!(after <= before + 10, "FD 泄漏: before={}, after={}", before, after);
+    assert!(
+        after <= before + 10,
+        "FD 泄漏: before={}, after={}",
+        before,
+        after
+    );
 }
 
 #[tokio::test]
@@ -382,7 +429,9 @@ async fn event_bus_subscriber_cleanup() {
     // 验证新订阅仍然可用（旧订阅者释放后不影响新订阅）
     let mut new_rx = bus.subscribe();
     bus.publish(DeviceEvent::new(
-        "cleanup-test", DeviceType::Light, EventKind::StateChanged,
+        "cleanup-test",
+        DeviceType::Light,
+        EventKind::StateChanged,
         serde_json::json!({"test": true}),
     ));
     let received = new_rx.try_recv();

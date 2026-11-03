@@ -56,9 +56,18 @@ impl TerminationDetector {
     /// 检测放弃信号关键词
     fn detect_giving_up(thought: &str) -> bool {
         const GIVE_UP_SIGNALS: &[&str] = &[
-            "无法", "不确定", "重试", "失败", "cannot", "unable", "give up", "stuck",
+            "无法",
+            "不确定",
+            "重试",
+            "失败",
+            "cannot",
+            "unable",
+            "give up",
+            "stuck",
         ];
-        GIVE_UP_SIGNALS.iter().any(|signal| thought.contains(signal))
+        GIVE_UP_SIGNALS
+            .iter()
+            .any(|signal| thought.contains(signal))
     }
 }
 
@@ -80,7 +89,11 @@ fn jaccard_similarity(a: &str, b: &str) -> f64 {
     let intersection = bigrams_a.intersection(&bigrams_b).count();
     let union = bigrams_a.union(&bigrams_b).count();
 
-    if union == 0 { 0.0 } else { intersection as f64 / union as f64 }
+    if union == 0 {
+        0.0
+    } else {
+        intersection as f64 / union as f64
+    }
 }
 
 #[cfg(test)]

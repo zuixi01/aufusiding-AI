@@ -8,12 +8,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::{json, Value};
 
-use crate::agent::tools::registry::{AgentTool, ToolDescriptor, ToolResult};
-use crate::iot::control::GenericController;
-use crate::iot::types::Capability;
 use super::profile::{
     CapabilityAffordance, DeviceSemanticProfile, ParamType, SemanticProfileStore,
 };
+use crate::agent::tools::registry::{AgentTool, ToolDescriptor, ToolResult};
+use crate::iot::control::GenericController;
+use crate::iot::types::Capability;
 
 // ─── DeviceControlTool ──────────────────────────────────────
 
@@ -285,17 +285,22 @@ fn push_unique(vec: &mut Vec<String>, val: &str) {
 
 #[cfg(test)]
 mod tests {
+    use super::super::profile::build_default_profile;
     use super::*;
     use crate::iot::control::MockDeviceController;
     use crate::iot::types::DeviceType;
-    use super::super::profile::build_default_profile;
 
     fn make_light_profile() -> DeviceSemanticProfile {
         build_default_profile("light-001", "客厅照明", DeviceType::Light, Some("客厅"))
     }
 
     fn make_thermostat_profile() -> DeviceSemanticProfile {
-        build_default_profile("thermo-001", "卧室温控", DeviceType::Thermostat, Some("卧室"))
+        build_default_profile(
+            "thermo-001",
+            "卧室温控",
+            DeviceType::Thermostat,
+            Some("卧室"),
+        )
     }
 
     fn make_speaker_profile() -> DeviceSemanticProfile {
@@ -407,7 +412,9 @@ mod tests {
         let profile = make_light_profile();
         let controller = setup_controller("light-001", "Light");
         let tool = DeviceControlTool::new(profile, controller);
-        let result = tool.execute(json!({"action": "set_brightness", "brightness": 80})).await;
+        let result = tool
+            .execute(json!({"action": "set_brightness", "brightness": 80}))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["status"], "ok");
     }
@@ -423,4 +430,3 @@ mod tests {
         assert!(result.error.unwrap().contains("unknown action"));
     }
 }
-

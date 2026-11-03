@@ -77,21 +77,38 @@ impl AgentTool for DocumentTool {
 
         match action {
             "create_markdown" => {
-                let title = params.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
+                let title = params
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Untitled");
                 let body = params.get("body").and_then(|v| v.as_str()).unwrap_or("");
                 let doc = Self::create_markdown(title, body);
                 ToolResult::ok(serde_json::json!({"document": doc}))
             }
             "create_report" => {
-                let title = params.get("title").and_then(|v| v.as_str()).unwrap_or("Report");
-                let sections: Vec<(String, String)> = params.get("sections")
+                let title = params
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Report");
+                let sections: Vec<(String, String)> = params
+                    .get("sections")
                     .and_then(|v| v.as_array())
                     .map(|arr| {
-                        arr.iter().map(|s| {
-                            let h = s.get("heading").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                            let c = s.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                            (h, c)
-                        }).collect()
+                        arr.iter()
+                            .map(|s| {
+                                let h = s
+                                    .get("heading")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string();
+                                let c = s
+                                    .get("content")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string();
+                                (h, c)
+                            })
+                            .collect()
                     })
                     .unwrap_or_default();
                 let doc = Self::create_report(title, &sections);
@@ -102,7 +119,10 @@ impl AgentTool for DocumentTool {
                     Some(d) => d,
                     None => return ToolResult::err("missing 'document' for modify"),
                 };
-                let modify_action = params.get("modify_action").and_then(|v| v.as_str()).unwrap_or("append");
+                let modify_action = params
+                    .get("modify_action")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("append");
                 let result = match modify_action {
                     "append" => {
                         let content = params.get("content").and_then(|v| v.as_str()).unwrap_or("");
@@ -110,10 +130,15 @@ impl AgentTool for DocumentTool {
                     }
                     "replace" => {
                         let search = params.get("search").and_then(|v| v.as_str()).unwrap_or("");
-                        let replacement = params.get("replacement").and_then(|v| v.as_str()).unwrap_or("");
+                        let replacement = params
+                            .get("replacement")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
                         Self::replace(document, search, replacement)
                     }
-                    _ => return ToolResult::err(format!("unknown modify_action: {}", modify_action)),
+                    _ => {
+                        return ToolResult::err(format!("unknown modify_action: {}", modify_action))
+                    }
                 };
                 ToolResult::ok(serde_json::json!({"document": result}))
             }
@@ -176,23 +201,30 @@ mod tests {
     #[tokio::test]
     async fn execute_create_markdown() {
         let tool = DocumentTool::new();
-        let result = tool.execute(serde_json::json!({
-            "action": "create_markdown",
-            "title": "测试",
-            "body": "内容"
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "create_markdown",
+                "title": "测试",
+                "body": "内容"
+            }))
+            .await;
         assert!(result.success);
-        assert!(result.output["document"].as_str().unwrap().contains("# 测试"));
+        assert!(result.output["document"]
+            .as_str()
+            .unwrap()
+            .contains("# 测试"));
     }
 
     #[tokio::test]
     async fn execute_create_report() {
         let tool = DocumentTool::new();
-        let result = tool.execute(serde_json::json!({
-            "action": "create_report",
-            "title": "报告",
-            "sections": [{"heading": "摘要", "content": "内容"}]
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "create_report",
+                "title": "报告",
+                "sections": [{"heading": "摘要", "content": "内容"}]
+            }))
+            .await;
         assert!(result.success);
         let doc = result.output["document"].as_str().unwrap();
         assert!(doc.contains("## 摘要"));
@@ -201,12 +233,14 @@ mod tests {
     #[tokio::test]
     async fn execute_modify_append() {
         let tool = DocumentTool::new();
-        let result = tool.execute(serde_json::json!({
-            "action": "modify",
-            "document": "原始内容",
-            "modify_action": "append",
-            "content": "新增内容"
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "modify",
+                "document": "原始内容",
+                "modify_action": "append",
+                "content": "新增内容"
+            }))
+            .await;
         assert!(result.success);
         let doc = result.output["document"].as_str().unwrap();
         assert!(doc.contains("原始内容"));
@@ -216,13 +250,15 @@ mod tests {
     #[tokio::test]
     async fn execute_modify_replace() {
         let tool = DocumentTool::new();
-        let result = tool.execute(serde_json::json!({
-            "action": "modify",
-            "document": "Hello World",
-            "modify_action": "replace",
-            "search": "World",
-            "replacement": "Rust"
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "modify",
+                "document": "Hello World",
+                "modify_action": "replace",
+                "search": "World",
+                "replacement": "Rust"
+            }))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["document"], "Hello Rust");
     }
@@ -244,11 +280,13 @@ mod tests {
     #[tokio::test]
     async fn execute_modify_missing_document() {
         let tool = DocumentTool::new();
-        let result = tool.execute(serde_json::json!({
-            "action": "modify",
-            "modify_action": "append",
-            "content": "test"
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "modify",
+                "modify_action": "append",
+                "content": "test"
+            }))
+            .await;
         assert!(!result.success);
     }
 

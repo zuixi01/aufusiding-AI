@@ -35,11 +35,11 @@ pub struct RoborockDevice {
 /// 设备状态
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceStatus {
-    pub state: u8,           // 5=cleaning, 6=returning, 8=charging, etc.
-    pub battery: u8,         // 0-100
-    pub fan_power: u16,      // 101=quiet, 102=balanced, 103=turbo, 104=max
-    pub clean_area: u32,     // m² × 100
-    pub clean_time: u32,     // seconds
+    pub state: u8,       // 5=cleaning, 6=returning, 8=charging, etc.
+    pub battery: u8,     // 0-100
+    pub fan_power: u16,  // 101=quiet, 102=balanced, 103=turbo, 104=max
+    pub clean_area: u32, // m² × 100
+    pub clean_time: u32, // seconds
     pub error_code: u16,
 }
 
@@ -109,13 +109,18 @@ impl RoborockAdapter {
 
         let parsed: RoborockResponse<Vec<RoborockDevice>> = resp.json().await?;
         if parsed.code != 0 {
-            anyhow::bail!("list_devices error (code {}): {}", parsed.code, parsed.message);
+            anyhow::bail!(
+                "list_devices error (code {}): {}",
+                parsed.code,
+                parsed.message
+            );
         }
 
         let devices = parsed.data.unwrap_or_default();
         // Cache devices
         for device in &devices {
-            self.devices.insert(device.device_id.clone(), device.clone());
+            self.devices
+                .insert(device.device_id.clone(), device.clone());
         }
 
         Ok(devices)
@@ -146,10 +151,16 @@ impl RoborockAdapter {
 
         let parsed: RoborockResponse<DeviceStatus> = resp.json().await?;
         if parsed.code != 0 {
-            anyhow::bail!("get_status error (code {}): {}", parsed.code, parsed.message);
+            anyhow::bail!(
+                "get_status error (code {}): {}",
+                parsed.code,
+                parsed.message
+            );
         }
 
-        parsed.data.ok_or_else(|| anyhow::anyhow!("no status data returned"))
+        parsed
+            .data
+            .ok_or_else(|| anyhow::anyhow!("no status data returned"))
     }
 
     /// 发送命令
@@ -188,7 +199,11 @@ impl RoborockAdapter {
 
         let parsed: RoborockResponse<Value> = resp.json().await?;
         if parsed.code != 0 {
-            anyhow::bail!("send_command error (code {}): {}", parsed.code, parsed.message);
+            anyhow::bail!(
+                "send_command error (code {}): {}",
+                parsed.code,
+                parsed.message
+            );
         }
 
         Ok(parsed.data.unwrap_or(json!({})))
@@ -464,11 +479,15 @@ mod tests {
                 .path("/api/v1/device/vac-001/command")
                 .header("authorization", "Bearer test-token")
                 .json_body(json!({"method": "app_start"}));
-            then.status(200).json_body(ok_response(json!({"result": "ok"})));
+            then.status(200)
+                .json_body(ok_response(json!({"result": "ok"})));
         });
 
         let adapter = setup(&server);
-        adapter.send_command("vac-001", "app_start", None).await.unwrap();
+        adapter
+            .send_command("vac-001", "app_start", None)
+            .await
+            .unwrap();
         mock.assert();
     }
 

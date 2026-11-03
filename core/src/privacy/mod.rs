@@ -19,9 +19,9 @@ pub mod sanitization_strategy;
 pub mod sanitizer_config;
 pub mod sanitizing_provider;
 pub mod sensitive_dictionary;
-pub mod token_vault;
 #[cfg(test)]
 mod tests_sanitizer;
+pub mod token_vault;
 
 pub use anonymization::Anonymizer;
 pub use audit_log::{AuditOperation, SanitizationAuditLog};

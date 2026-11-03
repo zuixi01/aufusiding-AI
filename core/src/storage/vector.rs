@@ -160,7 +160,13 @@ impl VectorStore {
             if let Some(mut vec) = vec_opt {
                 if vec.len() == self.dimension {
                     normalize_vector(&mut vec);
-                    cache.insert(id, CachedEntry { vector: vec, metadata: meta });
+                    cache.insert(
+                        id,
+                        CachedEntry {
+                            vector: vec,
+                            metadata: meta,
+                        },
+                    );
                 }
             }
         }
@@ -356,9 +362,8 @@ impl VectorStore {
                 metadata: meta,
             })
             .collect();
-        results.sort_unstable_by(|a, b| {
-            OrderedFloat(b.similarity).cmp(&OrderedFloat(a.similarity))
-        });
+        results
+            .sort_unstable_by(|a, b| OrderedFloat(b.similarity).cmp(&OrderedFloat(a.similarity)));
         Ok(results)
     }
 
