@@ -20,7 +20,7 @@ serde_json = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 chrono = { workspace = true }
 uuid = { workspace = true }
-rustyline = { version = "15", features = ["derive"] }
+rustyline = { version = "18", features = ["derive"] }
 colored = "3"
 tabled = "0.17"
 toml = "0.8"
