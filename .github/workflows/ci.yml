@@ -55,7 +55,7 @@ jobs:
       - name: Generate Swift and Kotlin bindings with the locked UniFFI version
         run: bash scripts/generate-bindings.sh "$RUNNER_TEMP/uniffi-bindings"
       - name: Save generated bindings for verification
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: uniffi-bindings-${{ github.sha }}
           path: ${{ runner.temp }}/uniffi-bindings
