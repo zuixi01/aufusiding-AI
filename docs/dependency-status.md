@@ -13,6 +13,8 @@
 
 Rust 锁文件 SHA256：`3f0a464f05ed9750dac071e5f585fe1d2aa0b4043e801dcaec24c43780f43067`。锁文件变化后，此处的快照不能替代重新审计。
 
+UniFFI 0.31 的生成代码使用 32 KiB 的编译期元数据暂存缓冲区，随后导出实际大小的静态字节数组。该缓冲区不能直接改为 `static`，因为 `into_array(self)` 会消耗其值。`ffi/build.rs` 仅对唯一的生成常量附加 `clippy::large_const_arrays` 的 `expect`，保留 workspace 的 `-D warnings`；声明不再匹配或告警消失时会要求重新处理。Swift/Kotlin 绑定保持同版生成器的原始输出，CI 检查重新生成结果与提交文件一致。
+
 ## 尚未消除的上游警告
 
 | 依赖 | 类型与公告 | 引入路径 | 后续处理 |

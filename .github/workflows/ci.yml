@@ -61,6 +61,8 @@ jobs:
           path: ${{ runner.temp }}/uniffi-bindings
           if-no-files-found: error
           retention-days: 7
+      - name: Verify checked-in Swift and Kotlin bindings
+        run: diff -ru ffi/generated "$RUNNER_TEMP/uniffi-bindings"
       - run: cargo check --workspace --all-targets --keep-going --locked
       - run: cargo clippy --workspace --all-targets --keep-going --locked --features prometheus-core/audio-capture -- -D warnings
       - run: cargo test --workspace --all-targets --locked

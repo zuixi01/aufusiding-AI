@@ -7,3 +7,6 @@
 *.ttf binary
 *.woff binary
 *.woff2 binary
+
+# Preserve the upstream generator's exact output; CI verifies regeneration.
+ffi/generated/** linguist-generated=true whitespace=-blank-at-eol

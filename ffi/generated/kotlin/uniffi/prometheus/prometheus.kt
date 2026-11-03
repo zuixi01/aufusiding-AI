@@ -59,7 +59,7 @@ open class RustBuffer : Structure() {
     companion object {
         internal fun alloc(size: ULong = 0UL) = uniffiRustCall() { status ->
             // Note: need to convert the size to a `Long` value to make this work with JVM.
-            UniffiLib.INSTANCE.ffi_prometheus_ffi_rustbuffer_alloc(size.toLong(), status)
+            UniffiLib.ffi_prometheus_ffi_rustbuffer_alloc(size.toLong(), status)
         }.also {
             if(it.data == null) {
                throw RuntimeException("RustBuffer.alloc() returned null data pointer (size=${size})")
@@ -75,49 +75,15 @@ open class RustBuffer : Structure() {
         }
 
         internal fun free(buf: RustBuffer.ByValue) = uniffiRustCall() { status ->
-            UniffiLib.INSTANCE.ffi_prometheus_ffi_rustbuffer_free(buf, status)
+            UniffiLib.ffi_prometheus_ffi_rustbuffer_free(buf, status)
         }
     }
 
     @Suppress("TooGenericExceptionThrown")
     fun asByteBuffer() =
-        this.data?.getByteBuffer(0, this.len.toLong())?.also {
+        this.data?.getByteBuffer(0, this.len)?.also {
             it.order(ByteOrder.BIG_ENDIAN)
         }
-}
-
-/**
- * The equivalent of the `*mut RustBuffer` type.
- * Required for callbacks taking in an out pointer.
- *
- * Size is the sum of all values in the struct.
- *
- * @suppress
- */
-class RustBufferByReference : ByReference(16) {
-    /**
-     * Set the pointed-to `RustBuffer` to the given value.
-     */
-    fun setValue(value: RustBuffer.ByValue) {
-        // NOTE: The offsets are as they are in the C-like struct.
-        val pointer = getPointer()
-        pointer.setLong(0, value.capacity)
-        pointer.setLong(8, value.len)
-        pointer.setPointer(16, value.data)
-    }
-
-    /**
-     * Get a `RustBuffer.ByValue` from this reference.
-     */
-    fun getValue(): RustBuffer.ByValue {
-        val pointer = getPointer()
-        val value = RustBuffer.ByValue()
-        value.writeField("capacity", pointer.getLong(0))
-        value.writeField("len", pointer.getLong(8))
-        value.writeField("data", pointer.getLong(16))
-
-        return value
-    }
 }
 
 // This is a helper for safely passing byte references into the rust code.
@@ -316,8 +282,9 @@ internal inline fun<T> uniffiTraitInterfaceCall(
     try {
         writeReturn(makeCall())
     } catch(e: kotlin.Exception) {
+        val err = try { e.stackTraceToString() } catch(_: Throwable) { "" }
         callStatus.code = UNIFFI_CALL_UNEXPECTED_ERROR
-        callStatus.error_buf = FfiConverterString.lower(e.toString())
+        callStatus.error_buf = FfiConverterString.lower(err)
     }
 }
 
@@ -334,26 +301,39 @@ internal inline fun<T, reified E: Throwable> uniffiTraitInterfaceCallWithError(
             callStatus.code = UNIFFI_CALL_ERROR
             callStatus.error_buf = lowerError(e)
         } else {
+            val err = try { e.stackTraceToString() } catch(_: Throwable) { "" }
             callStatus.code = UNIFFI_CALL_UNEXPECTED_ERROR
-            callStatus.error_buf = FfiConverterString.lower(e.toString())
+            callStatus.error_buf = FfiConverterString.lower(err)
         }
     }
 }
+// Initial value and increment amount for handles. 
+// These ensure that Kotlin-generated handles always have the lowest bit set
+private const val UNIFFI_HANDLEMAP_INITIAL = 1.toLong()
+private const val UNIFFI_HANDLEMAP_DELTA = 2.toLong()
+
 // Map handles to objects
 //
 // This is used pass an opaque 64-bit handle representing a foreign object to the Rust code.
 internal class UniffiHandleMap<T: Any> {
     private val map = ConcurrentHashMap<Long, T>()
-    private val counter = java.util.concurrent.atomic.AtomicLong(0)
+    // Start 
+    private val counter = java.util.concurrent.atomic.AtomicLong(UNIFFI_HANDLEMAP_INITIAL)
 
     val size: Int
         get() = map.size
 
     // Insert a new object into the handle map and get a handle for it
     fun insert(obj: T): Long {
-        val handle = counter.getAndAdd(1)
+        val handle = counter.getAndAdd(UNIFFI_HANDLEMAP_DELTA)
         map.put(handle, obj)
         return handle
+    }
+
+    // Clone a handle, creating a new one
+    fun clone(handle: Long): Long {
+        val obj = map.get(handle) ?: throw InternalException("UniffiHandleMap.clone: Invalid handle")
+        return insert(obj)
     }
 
     // Get an object from the handle map
@@ -378,572 +358,670 @@ private fun findLibraryName(componentName: String): String {
     return "prometheus_ffi"
 }
 
-private inline fun <reified Lib : Library> loadIndirect(
-    componentName: String
-): Lib {
-    return Native.load<Lib>(findLibraryName(componentName), Lib::class.java)
-}
-
 // Define FFI callback types
 internal interface UniffiRustFutureContinuationCallback : com.sun.jna.Callback {
     fun callback(`data`: Long,`pollResult`: Byte,)
 }
-internal interface UniffiForeignFutureFree : com.sun.jna.Callback {
+internal interface UniffiForeignFutureDroppedCallback : com.sun.jna.Callback {
     fun callback(`handle`: Long,)
 }
 internal interface UniffiCallbackInterfaceFree : com.sun.jna.Callback {
     fun callback(`handle`: Long,)
 }
+internal interface UniffiCallbackInterfaceClone : com.sun.jna.Callback {
+    fun callback(`handle`: Long,)
+    : Long
+}
 @Structure.FieldOrder("handle", "free")
-internal open class UniffiForeignFuture(
+internal open class UniffiForeignFutureDroppedCallbackStruct(
     @JvmField internal var `handle`: Long = 0.toLong(),
-    @JvmField internal var `free`: UniffiForeignFutureFree? = null,
+    @JvmField internal var `free`: UniffiForeignFutureDroppedCallback? = null,
 ) : Structure() {
     class UniffiByValue(
         `handle`: Long = 0.toLong(),
-        `free`: UniffiForeignFutureFree? = null,
-    ): UniffiForeignFuture(`handle`,`free`,), Structure.ByValue
+        `free`: UniffiForeignFutureDroppedCallback? = null,
+    ): UniffiForeignFutureDroppedCallbackStruct(`handle`,`free`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFuture) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureDroppedCallbackStruct) {
         `handle` = other.`handle`
         `free` = other.`free`
     }
 
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructU8(
+internal open class UniffiForeignFutureResultU8(
     @JvmField internal var `returnValue`: Byte = 0.toByte(),
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: Byte = 0.toByte(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructU8(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultU8(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructU8) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultU8) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteU8 : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructU8.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultU8.UniffiByValue,)
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructI8(
+internal open class UniffiForeignFutureResultI8(
     @JvmField internal var `returnValue`: Byte = 0.toByte(),
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: Byte = 0.toByte(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructI8(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultI8(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructI8) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultI8) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteI8 : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructI8.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultI8.UniffiByValue,)
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructU16(
+internal open class UniffiForeignFutureResultU16(
     @JvmField internal var `returnValue`: Short = 0.toShort(),
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: Short = 0.toShort(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructU16(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultU16(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructU16) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultU16) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteU16 : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructU16.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultU16.UniffiByValue,)
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructI16(
+internal open class UniffiForeignFutureResultI16(
     @JvmField internal var `returnValue`: Short = 0.toShort(),
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: Short = 0.toShort(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructI16(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultI16(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructI16) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultI16) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteI16 : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructI16.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultI16.UniffiByValue,)
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructU32(
+internal open class UniffiForeignFutureResultU32(
     @JvmField internal var `returnValue`: Int = 0,
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: Int = 0,
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructU32(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultU32(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructU32) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultU32) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteU32 : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructU32.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultU32.UniffiByValue,)
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructI32(
+internal open class UniffiForeignFutureResultI32(
     @JvmField internal var `returnValue`: Int = 0,
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: Int = 0,
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructI32(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultI32(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructI32) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultI32) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteI32 : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructI32.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultI32.UniffiByValue,)
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructU64(
+internal open class UniffiForeignFutureResultU64(
     @JvmField internal var `returnValue`: Long = 0.toLong(),
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: Long = 0.toLong(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructU64(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultU64(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructU64) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultU64) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteU64 : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructU64.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultU64.UniffiByValue,)
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructI64(
+internal open class UniffiForeignFutureResultI64(
     @JvmField internal var `returnValue`: Long = 0.toLong(),
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: Long = 0.toLong(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructI64(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultI64(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructI64) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultI64) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteI64 : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructI64.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultI64.UniffiByValue,)
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructF32(
+internal open class UniffiForeignFutureResultF32(
     @JvmField internal var `returnValue`: Float = 0.0f,
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: Float = 0.0f,
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructF32(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultF32(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructF32) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultF32) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteF32 : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructF32.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultF32.UniffiByValue,)
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructF64(
+internal open class UniffiForeignFutureResultF64(
     @JvmField internal var `returnValue`: Double = 0.0,
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: Double = 0.0,
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructF64(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultF64(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructF64) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultF64) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteF64 : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructF64.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultF64.UniffiByValue,)
 }
 @Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructPointer(
-    @JvmField internal var `returnValue`: Pointer = Pointer.NULL,
-    @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-) : Structure() {
-    class UniffiByValue(
-        `returnValue`: Pointer = Pointer.NULL,
-        `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructPointer(`returnValue`,`callStatus`,), Structure.ByValue
-
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructPointer) {
-        `returnValue` = other.`returnValue`
-        `callStatus` = other.`callStatus`
-    }
-
-}
-internal interface UniffiForeignFutureCompletePointer : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructPointer.UniffiByValue,)
-}
-@Structure.FieldOrder("returnValue", "callStatus")
-internal open class UniffiForeignFutureStructRustBuffer(
+internal open class UniffiForeignFutureResultRustBuffer(
     @JvmField internal var `returnValue`: RustBuffer.ByValue = RustBuffer.ByValue(),
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `returnValue`: RustBuffer.ByValue = RustBuffer.ByValue(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructRustBuffer(`returnValue`,`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultRustBuffer(`returnValue`,`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructRustBuffer) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultRustBuffer) {
         `returnValue` = other.`returnValue`
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteRustBuffer : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructRustBuffer.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultRustBuffer.UniffiByValue,)
 }
 @Structure.FieldOrder("callStatus")
-internal open class UniffiForeignFutureStructVoid(
+internal open class UniffiForeignFutureResultVoid(
     @JvmField internal var `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
 ) : Structure() {
     class UniffiByValue(
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureStructVoid(`callStatus`,), Structure.ByValue
+    ): UniffiForeignFutureResultVoid(`callStatus`,), Structure.ByValue
 
-   internal fun uniffiSetValue(other: UniffiForeignFutureStructVoid) {
+   internal fun uniffiSetValue(other: UniffiForeignFutureResultVoid) {
         `callStatus` = other.`callStatus`
     }
 
 }
 internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
-    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureStructVoid.UniffiByValue,)
+    fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultVoid.UniffiByValue,)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
-internal interface UniffiLib : Library {
-    companion object {
-        internal val INSTANCE: UniffiLib by lazy {
-            loadIndirect<UniffiLib>(componentName = "prometheus")
-            .also { lib: UniffiLib ->
-                uniffiCheckContractApiVersion(lib)
-                uniffiCheckApiChecksums(lib)
-                }
-        }
-        
-        // The Cleaner for the whole library
-        internal val CLEANER: UniffiCleaner by lazy {
-            UniffiCleaner.create()
-        }
+// For large crates we prevent `MethodTooLargeException` (see #2340)
+// N.B. the name of the extension is very misleading, since it is
+// rather `InterfaceTooLargeException`, caused by too many methods
+// in the interface for large crates.
+//
+// By splitting the otherwise huge interface into two parts
+// * UniffiLib (this)
+// * IntegrityCheckingUniffiLib
+// And all checksum methods are put into `IntegrityCheckingUniffiLib`
+// we allow for ~2x as many methods in the UniffiLib interface.
+//
+// Note: above all written when we used JNA's `loadIndirect` etc.
+// We now use JNA's "direct mapping" - unclear if same considerations apply exactly.
+internal object IntegrityCheckingUniffiLib {
+    init {
+        Native.register(IntegrityCheckingUniffiLib::class.java, findLibraryName(componentName = "prometheus"))
+        uniffiCheckContractApiVersion(this)
+        uniffiCheckApiChecksums(this)
     }
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_add_knowledge(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_add_working_memory(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_anonymize_text(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_control_device(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_delete_user_data(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_episodic_count(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_export_user_data(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_get_active_model(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_get_conversation(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_get_screen_context(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_get_setting(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_get_sync_status(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_get_working_memory(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_is_paused(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_is_shutdown(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_knowledge_count(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_list_personas(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_pause(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_record_consent(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_resume(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_scan_iot_devices(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_search_episodes(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_search_knowledge(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_send_message(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_set_active_model(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_set_setting(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_shutdown(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_switch_persona(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_enginehandle_working_memory_count(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_prometheusapi_create_engine(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_prometheusapi_list_model_info(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_method_prometheusapi_list_models(
+    ): Int
+    external fun uniffi_prometheus_ffi_checksum_constructor_prometheusapi_new(
+    ): Int
+    external fun ffi_prometheus_ffi_uniffi_contract_version(
+    ): Int
 
-    fun uniffi_prometheus_ffi_fn_clone_enginehandle(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
-    ): Pointer
-    fun uniffi_prometheus_ffi_fn_free_enginehandle(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    fun uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    fun uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    fun uniffi_prometheus_ffi_fn_method_enginehandle_send_message(`ptr`: Pointer,`message`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    fun uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(`ptr`: Pointer,`model`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    fun uniffi_prometheus_ffi_fn_clone_prometheusapi(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
-    ): Pointer
-    fun uniffi_prometheus_ffi_fn_free_prometheusapi(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    fun uniffi_prometheus_ffi_fn_constructor_prometheusapi_new(uniffi_out_err: UniffiRustCallStatus, 
-    ): Pointer
-    fun uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
-    ): Pointer
-    fun uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    fun uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    fun ffi_prometheus_ffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    fun ffi_prometheus_ffi_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    fun ffi_prometheus_ffi_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    fun ffi_prometheus_ffi_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    fun ffi_prometheus_ffi_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_u8(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_u8(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    fun ffi_prometheus_ffi_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_i8(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_i8(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    fun ffi_prometheus_ffi_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_u16(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_u16(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Short
-    fun ffi_prometheus_ffi_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_i16(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_i16(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Short
-    fun ffi_prometheus_ffi_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_u32(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_u32(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Int
-    fun ffi_prometheus_ffi_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_i32(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_i32(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Int
-    fun ffi_prometheus_ffi_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_u64(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_u64(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    fun ffi_prometheus_ffi_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_i64(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_i64(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    fun ffi_prometheus_ffi_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_f32(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_f32(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Float
-    fun ffi_prometheus_ffi_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_f64(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_f64(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Double
-    fun ffi_prometheus_ffi_rust_future_poll_pointer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_pointer(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_pointer(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_pointer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Pointer
-    fun ffi_prometheus_ffi_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_rust_buffer(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_rust_buffer(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    fun ffi_prometheus_ffi_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_cancel_void(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_free_void(`handle`: Long,
-    ): Unit
-    fun ffi_prometheus_ffi_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    fun uniffi_prometheus_ffi_checksum_method_enginehandle_get_active_model(
-    ): Short
-    fun uniffi_prometheus_ffi_checksum_method_enginehandle_get_conversation(
-    ): Short
-    fun uniffi_prometheus_ffi_checksum_method_enginehandle_send_message(
-    ): Short
-    fun uniffi_prometheus_ffi_checksum_method_enginehandle_set_active_model(
-    ): Short
-    fun uniffi_prometheus_ffi_checksum_method_prometheusapi_create_engine(
-    ): Short
-    fun uniffi_prometheus_ffi_checksum_method_prometheusapi_list_model_info(
-    ): Short
-    fun uniffi_prometheus_ffi_checksum_method_prometheusapi_list_models(
-    ): Short
-    fun uniffi_prometheus_ffi_checksum_constructor_prometheusapi_new(
-    ): Short
-    fun ffi_prometheus_ffi_uniffi_contract_version(
-    ): Int
+        
+}
+
+internal object UniffiLib {
+    
+    // The Cleaner for the whole library
+    internal val CLEANER: UniffiCleaner by lazy {
+        UniffiCleaner.create()
+    }
+    
+
+    init {
+        Native.register(UniffiLib::class.java, findLibraryName(componentName = "prometheus"))
+        
+    }
+    external fun uniffi_prometheus_ffi_fn_clone_enginehandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_prometheus_ffi_fn_free_enginehandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_add_knowledge(`ptr`: Long,`source`: RustBuffer.ByValue,`content`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_add_working_memory(`ptr`: Long,`content`: RustBuffer.ByValue,`importance`: Double,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_anonymize_text(`ptr`: Long,`text`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_control_device(`ptr`: Long,`deviceId`: RustBuffer.ByValue,`command`: RustBuffer.ByValue,`params`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_delete_user_data(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_episodic_count(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_export_user_data(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_screen_context(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_setting(`ptr`: Long,`key`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_sync_status(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_get_working_memory(`ptr`: Long,`maxItems`: Int,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_is_paused(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_is_shutdown(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_knowledge_count(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_list_personas(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_pause(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_record_consent(`ptr`: Long,`purpose`: RustBuffer.ByValue,`granted`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_resume(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_scan_iot_devices(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_search_episodes(`ptr`: Long,`query`: RustBuffer.ByValue,`topK`: Int,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_search_knowledge(`ptr`: Long,`query`: RustBuffer.ByValue,`topK`: Int,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_send_message(`ptr`: Long,`message`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(`ptr`: Long,`model`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_set_setting(`ptr`: Long,`key`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_shutdown(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_switch_persona(`ptr`: Long,`personaId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_prometheus_ffi_fn_method_enginehandle_working_memory_count(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun uniffi_prometheus_ffi_fn_clone_prometheusapi(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_prometheus_ffi_fn_free_prometheusapi(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_prometheus_ffi_fn_constructor_prometheusapi_new(uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_prometheus_ffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_prometheus_ffi_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_prometheus_ffi_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun ffi_prometheus_ffi_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_prometheus_ffi_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_u8(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_u8(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun ffi_prometheus_ffi_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_i8(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_i8(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun ffi_prometheus_ffi_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_u16(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_u16(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun ffi_prometheus_ffi_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_i16(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_i16(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Short
+external fun ffi_prometheus_ffi_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_u32(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_u32(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun ffi_prometheus_ffi_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_i32(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_i32(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun ffi_prometheus_ffi_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_u64(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_u64(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun ffi_prometheus_ffi_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_i64(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_i64(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun ffi_prometheus_ffi_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_f32(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_f32(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Float
+external fun ffi_prometheus_ffi_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_f64(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_f64(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Double
+external fun ffi_prometheus_ffi_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_rust_buffer(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_rust_buffer(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_prometheus_ffi_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_cancel_void(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_free_void(`handle`: Long,
+): Unit
+external fun ffi_prometheus_ffi_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+
     
 }
 
-private fun uniffiCheckContractApiVersion(lib: UniffiLib) {
+private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
     // Get the bindings contract version from our ComponentInterface
-    val bindings_contract_version = 26
+    val bindings_contract_version = 30
     // Get the scaffolding contract version by calling the into the dylib
     val scaffolding_contract_version = lib.ffi_prometheus_ffi_uniffi_contract_version()
     if (bindings_contract_version != scaffolding_contract_version) {
         throw RuntimeException("UniFFI contract version mismatch: try cleaning and rebuilding your project")
     }
 }
-
 @Suppress("UNUSED_PARAMETER")
-private fun uniffiCheckApiChecksums(lib: UniffiLib) {
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_active_model() != 11623.toShort()) {
+private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_add_knowledge() != 64143) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_conversation() != 23525.toShort()) {
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_add_working_memory() != 8707) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_send_message() != 57318.toShort()) {
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_anonymize_text() != 50993) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_set_active_model() != 44289.toShort()) {
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_control_device() != 17125) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_create_engine() != 44905.toShort()) {
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_delete_user_data() != 57840) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_list_model_info() != 24451.toShort()) {
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_episodic_count() != 4418) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_list_models() != 46949.toShort()) {
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_export_user_data() != 45739) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_prometheus_ffi_checksum_constructor_prometheusapi_new() != 24571.toShort()) {
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_active_model() != 29579) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_conversation() != 6161) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_screen_context() != 64173) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_setting() != 6684) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_sync_status() != 63215) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_get_working_memory() != 26466) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_is_paused() != 29685) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_is_shutdown() != 18815) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_knowledge_count() != 52806) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_list_personas() != 53143) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_pause() != 23441) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_record_consent() != 12384) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_resume() != 17141) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_scan_iot_devices() != 16542) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_search_episodes() != 31545) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_search_knowledge() != 33639) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_send_message() != 7162) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_set_active_model() != 35213) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_set_setting() != 55326) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_shutdown() != 8067) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_switch_persona() != 14185) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_enginehandle_working_memory_count() != 36021) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_create_engine() != 51206) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_list_model_info() != 44575) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_method_prometheusapi_list_models() != 60933) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_prometheus_ffi_checksum_constructor_prometheusapi_new() != 62426) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+}
+
+/**
+ * @suppress
+ */
+public fun uniffiEnsureInitialized() {
+    IntegrityCheckingUniffiLib
+    // UniffiLib() initialized as objects are used, but we still need to explicitly
+    // reference it so initialization across crates works as expected.
+    UniffiLib
 }
 
 // Async support
@@ -963,8 +1041,33 @@ interface Disposable {
     fun destroy()
     companion object {
         fun destroy(vararg args: Any?) {
-            args.filterIsInstance<Disposable>()
-                .forEach(Disposable::destroy)
+            for (arg in args) {
+                when (arg) {
+                    is Disposable -> arg.destroy()
+                    is ArrayList<*> -> {
+                        for (idx in arg.indices) {
+                            val element = arg[idx]
+                            if (element is Disposable) {
+                                element.destroy()
+                            }
+                        }
+                    }
+                    is Map<*, *> -> {
+                        for (element in arg.values) {
+                            if (element is Disposable) {
+                                element.destroy()
+                            }
+                        }
+                    }
+                    is Iterable<*> -> {
+                        for (element in arg) {
+                            if (element is Disposable) {
+                                element.destroy()
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -985,11 +1088,132 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
     }
 
 /** 
+ * Placeholder object used to signal that we're constructing an interface with a FFI handle.
+ *
+ * This is the first argument for interface constructors that input a raw handle. It exists is that
+ * so we can avoid signature conflicts when an interface has a regular constructor than inputs a
+ * Long.
+ *
+ * @suppress
+ * */
+object UniffiWithHandle
+
+/** 
  * Used to instantiate an interface without an actual pointer, for fakes in tests, mostly.
  *
  * @suppress
  * */
-object NoPointer
+object NoHandle
+/**
+ * The cleaner interface for Object finalization code to run.
+ * This is the entry point to any implementation that we're using.
+ *
+ * The cleaner registers objects and returns cleanables, so now we are
+ * defining a `UniffiCleaner` with a `UniffiClenaer.Cleanable` to abstract the
+ * different implmentations available at compile time.
+ *
+ * @suppress
+ */
+interface UniffiCleaner {
+    interface Cleanable {
+        fun clean()
+    }
+
+    fun register(value: Any, cleanUpTask: Runnable): UniffiCleaner.Cleanable
+
+    companion object
+}
+
+// The fallback Jna cleaner, which is available for both Android, and the JVM.
+private class UniffiJnaCleaner : UniffiCleaner {
+    private val cleaner = com.sun.jna.internal.Cleaner.getCleaner()
+
+    override fun register(value: Any, cleanUpTask: Runnable): UniffiCleaner.Cleanable =
+        UniffiJnaCleanable(cleaner.register(value, cleanUpTask))
+}
+
+private class UniffiJnaCleanable(
+    private val cleanable: com.sun.jna.internal.Cleaner.Cleanable,
+) : UniffiCleaner.Cleanable {
+    override fun clean() = cleanable.clean()
+}
+
+
+// We decide at uniffi binding generation time whether we were
+// using Android or not.
+// There are further runtime checks to chose the correct implementation
+// of the cleaner.
+private fun UniffiCleaner.Companion.create(): UniffiCleaner =
+    try {
+        // For safety's sake: if the library hasn't been run in android_cleaner = true
+        // mode, but is being run on Android, then we still need to think about
+        // Android API versions.
+        // So we check if java.lang.ref.Cleaner is there, and use that…
+        java.lang.Class.forName("java.lang.ref.Cleaner")
+        JavaLangRefCleaner()
+    } catch (e: ClassNotFoundException) {
+        // … otherwise, fallback to the JNA cleaner.
+        UniffiJnaCleaner()
+    }
+
+private class JavaLangRefCleaner : UniffiCleaner {
+    val cleaner = java.lang.ref.Cleaner.create()
+
+    override fun register(value: Any, cleanUpTask: Runnable): UniffiCleaner.Cleanable =
+        JavaLangRefCleanable(cleaner.register(value, cleanUpTask))
+}
+
+private class JavaLangRefCleanable(
+    val cleanable: java.lang.ref.Cleaner.Cleanable
+) : UniffiCleaner.Cleanable {
+    override fun clean() = cleanable.clean()
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterUInt: FfiConverter<UInt, Int> {
+    override fun lift(value: Int): UInt {
+        return value.toUInt()
+    }
+
+    override fun read(buf: ByteBuffer): UInt {
+        return lift(buf.getInt())
+    }
+
+    override fun lower(value: UInt): Int {
+        return value.toInt()
+    }
+
+    override fun allocationSize(value: UInt) = 4UL
+
+    override fun write(value: UInt, buf: ByteBuffer) {
+        buf.putInt(value.toInt())
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterInt: FfiConverter<Int, Int> {
+    override fun lift(value: Int): Int {
+        return value
+    }
+
+    override fun read(buf: ByteBuffer): Int {
+        return buf.getInt()
+    }
+
+    override fun lower(value: Int): Int {
+        return value
+    }
+
+    override fun allocationSize(value: Int) = 4UL
+
+    override fun write(value: Int, buf: ByteBuffer) {
+        buf.putInt(value)
+    }
+}
 
 /**
  * @suppress
@@ -1011,6 +1235,29 @@ public object FfiConverterLong: FfiConverter<Long, Long> {
 
     override fun write(value: Long, buf: ByteBuffer) {
         buf.putLong(value)
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterDouble: FfiConverter<Double, Double> {
+    override fun lift(value: Double): Double {
+        return value
+    }
+
+    override fun read(buf: ByteBuffer): Double {
+        return buf.getDouble()
+    }
+
+    override fun lower(value: Double): Double {
+        return value
+    }
+
+    override fun allocationSize(value: Double) = 8UL
+
+    override fun write(value: Double, buf: ByteBuffer) {
+        buf.putDouble(value)
     }
 }
 
@@ -1095,21 +1342,18 @@ public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
 }
 
 
-// This template implements a class for working with a Rust struct via a Pointer/Arc<T>
+// This template implements a class for working with a Rust struct via a handle
 // to the live Rust struct on the other side of the FFI.
-//
-// Each instance implements core operations for working with the Rust `Arc<T>` and the
-// Kotlin Pointer to work with the live Rust struct on the other side of the FFI.
 //
 // There's some subtlety here, because we have to be careful not to operate on a Rust
 // struct after it has been dropped, and because we must expose a public API for freeing
 // theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
 //
-//   * Each instance holds an opaque pointer to the underlying Rust struct.
-//     Method calls need to read this pointer from the object's state and pass it in to
+//   * Each instance holds an opaque handle to the underlying Rust struct.
+//     Method calls need to read this handle from the object's state and pass it in to
 //     the Rust FFI.
 //
-//   * When an instance is no longer needed, its pointer should be passed to a
+//   * When an instance is no longer needed, its handle should be passed to a
 //     special destructor function provided by the Rust FFI, which will drop the
 //     underlying Rust struct.
 //
@@ -1134,13 +1378,13 @@ public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
 //      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
 //         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
 //
-// If we try to implement this with mutual exclusion on access to the pointer, there is the
+// If we try to implement this with mutual exclusion on access to the handle, there is the
 // possibility of a race between a method call and a concurrent call to `destroy`:
 //
-//    * Thread A starts a method call, reads the value of the pointer, but is interrupted
-//      before it can pass the pointer over the FFI to Rust.
+//    * Thread A starts a method call, reads the value of the handle, but is interrupted
+//      before it can pass the handle over the FFI to Rust.
 //    * Thread B calls `destroy` and frees the underlying Rust struct.
-//    * Thread A resumes, passing the already-read pointer value to Rust and triggering
+//    * Thread A resumes, passing the already-read handle value to Rust and triggering
 //      a use-after-free.
 //
 // One possible solution would be to use a `ReadWriteLock`, with each method call taking
@@ -1193,102 +1437,96 @@ public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
 //
 
 
-/**
- * The cleaner interface for Object finalization code to run.
- * This is the entry point to any implementation that we're using.
- *
- * The cleaner registers objects and returns cleanables, so now we are
- * defining a `UniffiCleaner` with a `UniffiClenaer.Cleanable` to abstract the
- * different implmentations available at compile time.
- *
- * @suppress
- */
-interface UniffiCleaner {
-    interface Cleanable {
-        fun clean()
-    }
-
-    fun register(value: Any, cleanUpTask: Runnable): UniffiCleaner.Cleanable
-
-    companion object
-}
-
-// The fallback Jna cleaner, which is available for both Android, and the JVM.
-private class UniffiJnaCleaner : UniffiCleaner {
-    private val cleaner = com.sun.jna.internal.Cleaner.getCleaner()
-
-    override fun register(value: Any, cleanUpTask: Runnable): UniffiCleaner.Cleanable =
-        UniffiJnaCleanable(cleaner.register(value, cleanUpTask))
-}
-
-private class UniffiJnaCleanable(
-    private val cleanable: com.sun.jna.internal.Cleaner.Cleanable,
-) : UniffiCleaner.Cleanable {
-    override fun clean() = cleanable.clean()
-}
-
-// We decide at uniffi binding generation time whether we were
-// using Android or not.
-// There are further runtime checks to chose the correct implementation
-// of the cleaner.
-private fun UniffiCleaner.Companion.create(): UniffiCleaner =
-    try {
-        // For safety's sake: if the library hasn't been run in android_cleaner = true
-        // mode, but is being run on Android, then we still need to think about
-        // Android API versions.
-        // So we check if java.lang.ref.Cleaner is there, and use that…
-        java.lang.Class.forName("java.lang.ref.Cleaner")
-        JavaLangRefCleaner()
-    } catch (e: ClassNotFoundException) {
-        // … otherwise, fallback to the JNA cleaner.
-        UniffiJnaCleaner()
-    }
-
-private class JavaLangRefCleaner : UniffiCleaner {
-    val cleaner = java.lang.ref.Cleaner.create()
-
-    override fun register(value: Any, cleanUpTask: Runnable): UniffiCleaner.Cleanable =
-        JavaLangRefCleanable(cleaner.register(value, cleanUpTask))
-}
-
-private class JavaLangRefCleanable(
-    val cleanable: java.lang.ref.Cleaner.Cleanable
-) : UniffiCleaner.Cleanable {
-    override fun clean() = cleanable.clean()
-}
 public interface EngineHandleInterface {
+    
+    fun `addKnowledge`(`source`: kotlin.String, `content`: kotlin.String): kotlin.Int
+    
+    fun `addWorkingMemory`(`content`: kotlin.String, `importance`: kotlin.Double): kotlin.Boolean
+    
+    fun `anonymizeText`(`text`: kotlin.String): kotlin.String
+    
+    fun `controlDevice`(`deviceId`: kotlin.String, `command`: kotlin.String, `params`: kotlin.String): kotlin.String
+    
+    fun `deleteUserData`(): kotlin.Boolean
+    
+    fun `episodicCount`(): kotlin.UInt
+    
+    fun `exportUserData`(): kotlin.String
     
     fun `getActiveModel`(): kotlin.String
     
     fun `getConversation`(): FfiConversation
     
+    fun `getScreenContext`(): kotlin.String
+    
+    fun `getSetting`(`key`: kotlin.String): kotlin.String
+    
+    fun `getSyncStatus`(): kotlin.String
+    
+    fun `getWorkingMemory`(`maxItems`: kotlin.UInt): List<FfiMemoryItem>
+    
+    fun `isPaused`(): kotlin.Boolean
+    
+    fun `isShutdown`(): kotlin.Boolean
+    
+    fun `knowledgeCount`(): kotlin.UInt
+    
+    fun `listPersonas`(): List<FfiPersonaInfo>
+    
+    fun `pause`(): kotlin.Boolean
+    
+    fun `recordConsent`(`purpose`: kotlin.String, `granted`: kotlin.Boolean): kotlin.Boolean
+    
+    fun `resume`(): kotlin.Boolean
+    
+    fun `scanIotDevices`(): List<FfiDeviceInfo>
+    
+    fun `searchEpisodes`(`query`: kotlin.String, `topK`: kotlin.UInt): List<kotlin.String>
+    
+    fun `searchKnowledge`(`query`: kotlin.String, `topK`: kotlin.UInt): List<FfiKnowledgeResult>
+    
     fun `sendMessage`(`message`: kotlin.String): kotlin.String
     
     fun `setActiveModel`(`model`: kotlin.String): kotlin.Boolean
     
+    fun `setSetting`(`key`: kotlin.String, `value`: kotlin.String): kotlin.Boolean
+    
+    fun `shutdown`(): kotlin.Boolean
+    
+    fun `switchPersona`(`personaId`: kotlin.String): kotlin.Boolean
+    
+    fun `workingMemoryCount`(): kotlin.UInt
+    
     companion object
 }
 
-open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface {
+open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface
+{
 
-    constructor(pointer: Pointer) {
-        this.pointer = pointer
-        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    @Suppress("UNUSED_PARAMETER")
+    /**
+     * @suppress
+     */
+    constructor(withHandle: UniffiWithHandle, handle: Long) {
+        this.handle = handle
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(handle))
     }
 
     /**
+     * @suppress
+     *
      * This constructor can be used to instantiate a fake object. Only used for tests. Any
      * attempt to actually use an object constructed this way will fail as there is no
      * connected Rust object.
      */
     @Suppress("UNUSED_PARAMETER")
-    constructor(noPointer: NoPointer) {
-        this.pointer = null
-        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    constructor(noHandle: NoHandle) {
+        this.handle = 0
+        this.cleanable = null
     }
 
-    protected val pointer: Pointer?
-    protected val cleanable: UniffiCleaner.Cleanable
+    protected val handle: Long
+    protected val cleanable: UniffiCleaner.Cleanable?
 
     private val wasDestroyed = AtomicBoolean(false)
     private val callCounter = AtomicLong(1)
@@ -1299,7 +1537,7 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface {
         if (this.wasDestroyed.compareAndSet(false, true)) {
             // This decrement always matches the initial count of 1 given at creation time.
             if (this.callCounter.decrementAndGet() == 0L) {
-                cleanable.clean()
+                cleanable?.clean()
             }
         }
     }
@@ -1309,7 +1547,7 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface {
         this.destroy()
     }
 
-    internal inline fun <R> callWithPointer(block: (ptr: Pointer) -> R): R {
+    internal inline fun <R> callWithHandle(block: (handle: Long) -> R): R {
         // Check and increment the call counter, to keep the object alive.
         // This needs a compare-and-set retry loop in case of concurrent updates.
         do {
@@ -1321,41 +1559,141 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface {
                 throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
             }
         } while (! this.callCounter.compareAndSet(c, c + 1L))
-        // Now we can safely do the method call without the pointer being freed concurrently.
+        // Now we can safely do the method call without the handle being freed concurrently.
         try {
-            return block(this.uniffiClonePointer())
+            return block(this.uniffiCloneHandle())
         } finally {
             // This decrement always matches the increment we performed above.
             if (this.callCounter.decrementAndGet() == 0L) {
-                cleanable.clean()
+                cleanable?.clean()
             }
         }
     }
 
     // Use a static inner class instead of a closure so as not to accidentally
     // capture `this` as part of the cleanable's action.
-    private class UniffiCleanAction(private val pointer: Pointer?) : Runnable {
+    private class UniffiCleanAction(private val handle: Long) : Runnable {
         override fun run() {
-            pointer?.let { ptr ->
-                uniffiRustCall { status ->
-                    UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_free_enginehandle(ptr, status)
-                }
+            if (handle == 0.toLong()) {
+                // Fake object created with `NoHandle`, don't try to free.
+                return;
+            }
+            uniffiRustCall { status ->
+                UniffiLib.uniffi_prometheus_ffi_fn_free_enginehandle(handle, status)
             }
         }
     }
 
-    fun uniffiClonePointer(): Pointer {
+    /**
+     * @suppress
+     */
+    fun uniffiCloneHandle(): Long {
+        if (handle == 0.toLong()) {
+            throw InternalException("uniffiCloneHandle() called on NoHandle object");
+        }
         return uniffiRustCall() { status ->
-            UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_clone_enginehandle(pointer!!, status)
+            UniffiLib.uniffi_prometheus_ffi_fn_clone_enginehandle(handle, status)
         }
     }
 
+    override fun `addKnowledge`(`source`: kotlin.String, `content`: kotlin.String): kotlin.Int {
+            return FfiConverterInt.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_add_knowledge(
+        it,
+        FfiConverterString.lower(`source`),FfiConverterString.lower(`content`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `addWorkingMemory`(`content`: kotlin.String, `importance`: kotlin.Double): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_add_working_memory(
+        it,
+        FfiConverterString.lower(`content`),FfiConverterDouble.lower(`importance`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `anonymizeText`(`text`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_anonymize_text(
+        it,
+        FfiConverterString.lower(`text`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `controlDevice`(`deviceId`: kotlin.String, `command`: kotlin.String, `params`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_control_device(
+        it,
+        FfiConverterString.lower(`deviceId`),FfiConverterString.lower(`command`),FfiConverterString.lower(`params`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `deleteUserData`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_delete_user_data(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `episodicCount`(): kotlin.UInt {
+            return FfiConverterUInt.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_episodic_count(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `exportUserData`(): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_export_user_data(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
     override fun `getActiveModel`(): kotlin.String {
             return FfiConverterString.lift(
-    callWithPointer {
+    callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(
-        it, _status)
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(
+        it,
+        _status)
 }
     }
     )
@@ -1364,10 +1702,193 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface {
 
     override fun `getConversation`(): FfiConversation {
             return FfiConverterTypeFfiConversation.lift(
-    callWithPointer {
+    callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(
-        it, _status)
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getScreenContext`(): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_get_screen_context(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getSetting`(`key`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_get_setting(
+        it,
+        FfiConverterString.lower(`key`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getSyncStatus`(): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_get_sync_status(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getWorkingMemory`(`maxItems`: kotlin.UInt): List<FfiMemoryItem> {
+            return FfiConverterSequenceTypeFfiMemoryItem.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_get_working_memory(
+        it,
+        FfiConverterUInt.lower(`maxItems`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `isPaused`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_is_paused(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `isShutdown`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_is_shutdown(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `knowledgeCount`(): kotlin.UInt {
+            return FfiConverterUInt.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_knowledge_count(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `listPersonas`(): List<FfiPersonaInfo> {
+            return FfiConverterSequenceTypeFfiPersonaInfo.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_list_personas(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `pause`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_pause(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `recordConsent`(`purpose`: kotlin.String, `granted`: kotlin.Boolean): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_record_consent(
+        it,
+        FfiConverterString.lower(`purpose`),FfiConverterBoolean.lower(`granted`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `resume`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_resume(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `scanIotDevices`(): List<FfiDeviceInfo> {
+            return FfiConverterSequenceTypeFfiDeviceInfo.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_scan_iot_devices(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `searchEpisodes`(`query`: kotlin.String, `topK`: kotlin.UInt): List<kotlin.String> {
+            return FfiConverterSequenceString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_search_episodes(
+        it,
+        FfiConverterString.lower(`query`),FfiConverterUInt.lower(`topK`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `searchKnowledge`(`query`: kotlin.String, `topK`: kotlin.UInt): List<FfiKnowledgeResult> {
+            return FfiConverterSequenceTypeFfiKnowledgeResult.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_search_knowledge(
+        it,
+        FfiConverterString.lower(`query`),FfiConverterUInt.lower(`topK`),_status)
 }
     }
     )
@@ -1376,10 +1897,11 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface {
 
     override fun `sendMessage`(`message`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
-    callWithPointer {
+    callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_method_enginehandle_send_message(
-        it, FfiConverterString.lower(`message`),_status)
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_send_message(
+        it,
+        FfiConverterString.lower(`message`),_status)
 }
     }
     )
@@ -1388,10 +1910,63 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface {
 
     override fun `setActiveModel`(`model`: kotlin.String): kotlin.Boolean {
             return FfiConverterBoolean.lift(
-    callWithPointer {
+    callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(
-        it, FfiConverterString.lower(`model`),_status)
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(
+        it,
+        FfiConverterString.lower(`model`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `setSetting`(`key`: kotlin.String, `value`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_set_setting(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterString.lower(`value`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `shutdown`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_shutdown(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `switchPersona`(`personaId`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_switch_persona(
+        it,
+        FfiConverterString.lower(`personaId`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `workingMemoryCount`(): kotlin.UInt {
+            return FfiConverterUInt.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_prometheus_ffi_fn_method_enginehandle_working_memory_count(
+        it,
+        _status)
 }
     }
     )
@@ -1401,55 +1976,54 @@ open class EngineHandle: Disposable, AutoCloseable, EngineHandleInterface {
     
 
     
+
+
     
+    
+    /**
+     * @suppress
+     */
     companion object
     
 }
 
+
 /**
  * @suppress
  */
-public object FfiConverterTypeEngineHandle: FfiConverter<EngineHandle, Pointer> {
-
-    override fun lower(value: EngineHandle): Pointer {
-        return value.uniffiClonePointer()
+public object FfiConverterTypeEngineHandle: FfiConverter<EngineHandle, Long> {
+    override fun lower(value: EngineHandle): Long {
+        return value.uniffiCloneHandle()
     }
 
-    override fun lift(value: Pointer): EngineHandle {
-        return EngineHandle(value)
+    override fun lift(value: Long): EngineHandle {
+        return EngineHandle(UniffiWithHandle, value)
     }
 
     override fun read(buf: ByteBuffer): EngineHandle {
-        // The Rust code always writes pointers as 8 bytes, and will
-        // fail to compile if they don't fit.
-        return lift(Pointer(buf.getLong()))
+        return lift(buf.getLong())
     }
 
     override fun allocationSize(value: EngineHandle) = 8UL
 
     override fun write(value: EngineHandle, buf: ByteBuffer) {
-        // The Rust code always expects pointers written as 8 bytes,
-        // and will fail to compile if they don't fit.
-        buf.putLong(Pointer.nativeValue(lower(value)))
+        buf.putLong(lower(value))
     }
 }
 
 
-// This template implements a class for working with a Rust struct via a Pointer/Arc<T>
+// This template implements a class for working with a Rust struct via a handle
 // to the live Rust struct on the other side of the FFI.
-//
-// Each instance implements core operations for working with the Rust `Arc<T>` and the
-// Kotlin Pointer to work with the live Rust struct on the other side of the FFI.
 //
 // There's some subtlety here, because we have to be careful not to operate on a Rust
 // struct after it has been dropped, and because we must expose a public API for freeing
 // theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
 //
-//   * Each instance holds an opaque pointer to the underlying Rust struct.
-//     Method calls need to read this pointer from the object's state and pass it in to
+//   * Each instance holds an opaque handle to the underlying Rust struct.
+//     Method calls need to read this handle from the object's state and pass it in to
 //     the Rust FFI.
 //
-//   * When an instance is no longer needed, its pointer should be passed to a
+//   * When an instance is no longer needed, its handle should be passed to a
 //     special destructor function provided by the Rust FFI, which will drop the
 //     underlying Rust struct.
 //
@@ -1474,13 +2048,13 @@ public object FfiConverterTypeEngineHandle: FfiConverter<EngineHandle, Pointer> 
 //      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
 //         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
 //
-// If we try to implement this with mutual exclusion on access to the pointer, there is the
+// If we try to implement this with mutual exclusion on access to the handle, there is the
 // possibility of a race between a method call and a concurrent call to `destroy`:
 //
-//    * Thread A starts a method call, reads the value of the pointer, but is interrupted
-//      before it can pass the pointer over the FFI to Rust.
+//    * Thread A starts a method call, reads the value of the handle, but is interrupted
+//      before it can pass the handle over the FFI to Rust.
 //    * Thread B calls `destroy` and frees the underlying Rust struct.
-//    * Thread A resumes, passing the already-read pointer value to Rust and triggering
+//    * Thread A resumes, passing the already-read handle value to Rust and triggering
 //      a use-after-free.
 //
 // One possible solution would be to use a `ReadWriteLock`, with each method call taking
@@ -1544,33 +2118,41 @@ public interface PrometheusApiInterface {
     companion object
 }
 
-open class PrometheusApi: Disposable, AutoCloseable, PrometheusApiInterface {
+open class PrometheusApi: Disposable, AutoCloseable, PrometheusApiInterface
+{
 
-    constructor(pointer: Pointer) {
-        this.pointer = pointer
-        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    @Suppress("UNUSED_PARAMETER")
+    /**
+     * @suppress
+     */
+    constructor(withHandle: UniffiWithHandle, handle: Long) {
+        this.handle = handle
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(handle))
     }
 
     /**
+     * @suppress
+     *
      * This constructor can be used to instantiate a fake object. Only used for tests. Any
      * attempt to actually use an object constructed this way will fail as there is no
      * connected Rust object.
      */
     @Suppress("UNUSED_PARAMETER")
-    constructor(noPointer: NoPointer) {
-        this.pointer = null
-        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    constructor(noHandle: NoHandle) {
+        this.handle = 0
+        this.cleanable = null
     }
     constructor() :
-        this(
+        this(UniffiWithHandle, 
     uniffiRustCall() { _status ->
-    UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_constructor_prometheusapi_new(
+    UniffiLib.uniffi_prometheus_ffi_fn_constructor_prometheusapi_new(
+    
         _status)
 }
     )
 
-    protected val pointer: Pointer?
-    protected val cleanable: UniffiCleaner.Cleanable
+    protected val handle: Long
+    protected val cleanable: UniffiCleaner.Cleanable?
 
     private val wasDestroyed = AtomicBoolean(false)
     private val callCounter = AtomicLong(1)
@@ -1581,7 +2163,7 @@ open class PrometheusApi: Disposable, AutoCloseable, PrometheusApiInterface {
         if (this.wasDestroyed.compareAndSet(false, true)) {
             // This decrement always matches the initial count of 1 given at creation time.
             if (this.callCounter.decrementAndGet() == 0L) {
-                cleanable.clean()
+                cleanable?.clean()
             }
         }
     }
@@ -1591,7 +2173,7 @@ open class PrometheusApi: Disposable, AutoCloseable, PrometheusApiInterface {
         this.destroy()
     }
 
-    internal inline fun <R> callWithPointer(block: (ptr: Pointer) -> R): R {
+    internal inline fun <R> callWithHandle(block: (handle: Long) -> R): R {
         // Check and increment the call counter, to keep the object alive.
         // This needs a compare-and-set retry loop in case of concurrent updates.
         do {
@@ -1603,41 +2185,50 @@ open class PrometheusApi: Disposable, AutoCloseable, PrometheusApiInterface {
                 throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
             }
         } while (! this.callCounter.compareAndSet(c, c + 1L))
-        // Now we can safely do the method call without the pointer being freed concurrently.
+        // Now we can safely do the method call without the handle being freed concurrently.
         try {
-            return block(this.uniffiClonePointer())
+            return block(this.uniffiCloneHandle())
         } finally {
             // This decrement always matches the increment we performed above.
             if (this.callCounter.decrementAndGet() == 0L) {
-                cleanable.clean()
+                cleanable?.clean()
             }
         }
     }
 
     // Use a static inner class instead of a closure so as not to accidentally
     // capture `this` as part of the cleanable's action.
-    private class UniffiCleanAction(private val pointer: Pointer?) : Runnable {
+    private class UniffiCleanAction(private val handle: Long) : Runnable {
         override fun run() {
-            pointer?.let { ptr ->
-                uniffiRustCall { status ->
-                    UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_free_prometheusapi(ptr, status)
-                }
+            if (handle == 0.toLong()) {
+                // Fake object created with `NoHandle`, don't try to free.
+                return;
+            }
+            uniffiRustCall { status ->
+                UniffiLib.uniffi_prometheus_ffi_fn_free_prometheusapi(handle, status)
             }
         }
     }
 
-    fun uniffiClonePointer(): Pointer {
+    /**
+     * @suppress
+     */
+    fun uniffiCloneHandle(): Long {
+        if (handle == 0.toLong()) {
+            throw InternalException("uniffiCloneHandle() called on NoHandle object");
+        }
         return uniffiRustCall() { status ->
-            UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_clone_prometheusapi(pointer!!, status)
+            UniffiLib.uniffi_prometheus_ffi_fn_clone_prometheusapi(handle, status)
         }
     }
 
     override fun `createEngine`(): EngineHandle {
             return FfiConverterTypeEngineHandle.lift(
-    callWithPointer {
+    callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(
-        it, _status)
+    UniffiLib.uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(
+        it,
+        _status)
 }
     }
     )
@@ -1646,10 +2237,11 @@ open class PrometheusApi: Disposable, AutoCloseable, PrometheusApiInterface {
 
     override fun `listModelInfo`(): List<FfiModelInfo> {
             return FfiConverterSequenceTypeFfiModelInfo.lift(
-    callWithPointer {
+    callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(
-        it, _status)
+    UniffiLib.uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(
+        it,
+        _status)
 }
     }
     )
@@ -1658,10 +2250,11 @@ open class PrometheusApi: Disposable, AutoCloseable, PrometheusApiInterface {
 
     override fun `listModels`(): List<kotlin.String> {
             return FfiConverterSequenceString.lift(
-    callWithPointer {
+    callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.INSTANCE.uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(
-        it, _status)
+    UniffiLib.uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(
+        it,
+        _status)
 }
     }
     )
@@ -1671,46 +2264,55 @@ open class PrometheusApi: Disposable, AutoCloseable, PrometheusApiInterface {
     
 
     
+
+
     
+    
+    /**
+     * @suppress
+     */
     companion object
     
 }
 
+
 /**
  * @suppress
  */
-public object FfiConverterTypePrometheusApi: FfiConverter<PrometheusApi, Pointer> {
-
-    override fun lower(value: PrometheusApi): Pointer {
-        return value.uniffiClonePointer()
+public object FfiConverterTypePrometheusApi: FfiConverter<PrometheusApi, Long> {
+    override fun lower(value: PrometheusApi): Long {
+        return value.uniffiCloneHandle()
     }
 
-    override fun lift(value: Pointer): PrometheusApi {
-        return PrometheusApi(value)
+    override fun lift(value: Long): PrometheusApi {
+        return PrometheusApi(UniffiWithHandle, value)
     }
 
     override fun read(buf: ByteBuffer): PrometheusApi {
-        // The Rust code always writes pointers as 8 bytes, and will
-        // fail to compile if they don't fit.
-        return lift(Pointer(buf.getLong()))
+        return lift(buf.getLong())
     }
 
     override fun allocationSize(value: PrometheusApi) = 8UL
 
     override fun write(value: PrometheusApi, buf: ByteBuffer) {
-        // The Rust code always expects pointers written as 8 bytes,
-        // and will fail to compile if they don't fit.
-        buf.putLong(Pointer.nativeValue(lower(value)))
+        buf.putLong(lower(value))
     }
 }
 
 
 
 data class FfiChatMessage (
-    var `role`: kotlin.String, 
-    var `content`: kotlin.String, 
+    var `role`: kotlin.String
+    , 
+    var `content`: kotlin.String
+    , 
     var `timestampMs`: kotlin.Long
-) {
+    
+){
+    
+
+    
+
     
     companion object
 }
@@ -1743,10 +2345,17 @@ public object FfiConverterTypeFfiChatMessage: FfiConverterRustBuffer<FfiChatMess
 
 
 data class FfiConversation (
-    var `id`: kotlin.String, 
-    var `title`: kotlin.String, 
+    var `id`: kotlin.String
+    , 
+    var `title`: kotlin.String
+    , 
     var `messages`: List<FfiChatMessage>
-) {
+    
+){
+    
+
+    
+
     
     companion object
 }
@@ -1778,11 +2387,142 @@ public object FfiConverterTypeFfiConversation: FfiConverterRustBuffer<FfiConvers
 
 
 
+data class FfiDeviceInfo (
+    var `id`: kotlin.String
+    , 
+    var `name`: kotlin.String
+    , 
+    var `deviceType`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFfiDeviceInfo: FfiConverterRustBuffer<FfiDeviceInfo> {
+    override fun read(buf: ByteBuffer): FfiDeviceInfo {
+        return FfiDeviceInfo(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FfiDeviceInfo) = (
+            FfiConverterString.allocationSize(value.`id`) +
+            FfiConverterString.allocationSize(value.`name`) +
+            FfiConverterString.allocationSize(value.`deviceType`)
+    )
+
+    override fun write(value: FfiDeviceInfo, buf: ByteBuffer) {
+            FfiConverterString.write(value.`id`, buf)
+            FfiConverterString.write(value.`name`, buf)
+            FfiConverterString.write(value.`deviceType`, buf)
+    }
+}
+
+
+
+data class FfiKnowledgeResult (
+    var `source`: kotlin.String
+    , 
+    var `content`: kotlin.String
+    , 
+    var `score`: kotlin.Double
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFfiKnowledgeResult: FfiConverterRustBuffer<FfiKnowledgeResult> {
+    override fun read(buf: ByteBuffer): FfiKnowledgeResult {
+        return FfiKnowledgeResult(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterDouble.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FfiKnowledgeResult) = (
+            FfiConverterString.allocationSize(value.`source`) +
+            FfiConverterString.allocationSize(value.`content`) +
+            FfiConverterDouble.allocationSize(value.`score`)
+    )
+
+    override fun write(value: FfiKnowledgeResult, buf: ByteBuffer) {
+            FfiConverterString.write(value.`source`, buf)
+            FfiConverterString.write(value.`content`, buf)
+            FfiConverterDouble.write(value.`score`, buf)
+    }
+}
+
+
+
+data class FfiMemoryItem (
+    var `content`: kotlin.String
+    , 
+    var `importance`: kotlin.Double
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFfiMemoryItem: FfiConverterRustBuffer<FfiMemoryItem> {
+    override fun read(buf: ByteBuffer): FfiMemoryItem {
+        return FfiMemoryItem(
+            FfiConverterString.read(buf),
+            FfiConverterDouble.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FfiMemoryItem) = (
+            FfiConverterString.allocationSize(value.`content`) +
+            FfiConverterDouble.allocationSize(value.`importance`)
+    )
+
+    override fun write(value: FfiMemoryItem, buf: ByteBuffer) {
+            FfiConverterString.write(value.`content`, buf)
+            FfiConverterDouble.write(value.`importance`, buf)
+    }
+}
+
+
+
 data class FfiModelInfo (
-    var `id`: kotlin.String, 
-    var `provider`: kotlin.String, 
+    var `id`: kotlin.String
+    , 
+    var `provider`: kotlin.String
+    , 
     var `isLocal`: kotlin.Boolean
-) {
+    
+){
+    
+
+    
+
     
     companion object
 }
@@ -1809,6 +2549,49 @@ public object FfiConverterTypeFfiModelInfo: FfiConverterRustBuffer<FfiModelInfo>
             FfiConverterString.write(value.`id`, buf)
             FfiConverterString.write(value.`provider`, buf)
             FfiConverterBoolean.write(value.`isLocal`, buf)
+    }
+}
+
+
+
+data class FfiPersonaInfo (
+    var `id`: kotlin.String
+    , 
+    var `name`: kotlin.String
+    , 
+    var `tone`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFfiPersonaInfo: FfiConverterRustBuffer<FfiPersonaInfo> {
+    override fun read(buf: ByteBuffer): FfiPersonaInfo {
+        return FfiPersonaInfo(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FfiPersonaInfo) = (
+            FfiConverterString.allocationSize(value.`id`) +
+            FfiConverterString.allocationSize(value.`name`) +
+            FfiConverterString.allocationSize(value.`tone`)
+    )
+
+    override fun write(value: FfiPersonaInfo, buf: ByteBuffer) {
+            FfiConverterString.write(value.`id`, buf)
+            FfiConverterString.write(value.`name`, buf)
+            FfiConverterString.write(value.`tone`, buf)
     }
 }
 
@@ -1874,6 +2657,90 @@ public object FfiConverterSequenceTypeFfiChatMessage: FfiConverterRustBuffer<Lis
 /**
  * @suppress
  */
+public object FfiConverterSequenceTypeFfiDeviceInfo: FfiConverterRustBuffer<List<FfiDeviceInfo>> {
+    override fun read(buf: ByteBuffer): List<FfiDeviceInfo> {
+        val len = buf.getInt()
+        return List<FfiDeviceInfo>(len) {
+            FfiConverterTypeFfiDeviceInfo.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<FfiDeviceInfo>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeFfiDeviceInfo.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<FfiDeviceInfo>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeFfiDeviceInfo.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeFfiKnowledgeResult: FfiConverterRustBuffer<List<FfiKnowledgeResult>> {
+    override fun read(buf: ByteBuffer): List<FfiKnowledgeResult> {
+        val len = buf.getInt()
+        return List<FfiKnowledgeResult>(len) {
+            FfiConverterTypeFfiKnowledgeResult.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<FfiKnowledgeResult>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeFfiKnowledgeResult.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<FfiKnowledgeResult>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeFfiKnowledgeResult.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeFfiMemoryItem: FfiConverterRustBuffer<List<FfiMemoryItem>> {
+    override fun read(buf: ByteBuffer): List<FfiMemoryItem> {
+        val len = buf.getInt()
+        return List<FfiMemoryItem>(len) {
+            FfiConverterTypeFfiMemoryItem.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<FfiMemoryItem>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeFfiMemoryItem.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<FfiMemoryItem>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeFfiMemoryItem.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeFfiModelInfo: FfiConverterRustBuffer<List<FfiModelInfo>> {
     override fun read(buf: ByteBuffer): List<FfiModelInfo> {
         val len = buf.getInt()
@@ -1892,6 +2759,34 @@ public object FfiConverterSequenceTypeFfiModelInfo: FfiConverterRustBuffer<List<
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeFfiModelInfo.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeFfiPersonaInfo: FfiConverterRustBuffer<List<FfiPersonaInfo>> {
+    override fun read(buf: ByteBuffer): List<FfiPersonaInfo> {
+        val len = buf.getInt()
+        return List<FfiPersonaInfo>(len) {
+            FfiConverterTypeFfiPersonaInfo.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<FfiPersonaInfo>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeFfiPersonaInfo.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<FfiPersonaInfo>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeFfiPersonaInfo.write(it, buf)
         }
     }
 }

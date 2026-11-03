@@ -50,9 +50,9 @@ typedef void (*UniffiRustFutureContinuationCallback)(uint64_t, int8_t
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_FREE
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_FREE
-typedef void (*UniffiForeignFutureFree)(uint64_t
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_DROPPED_CALLBACK
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_DROPPED_CALLBACK
+typedef void (*UniffiForeignFutureDroppedCallback)(uint64_t
     );
 
 #endif
@@ -62,254 +62,371 @@ typedef void (*UniffiCallbackInterfaceFree)(uint64_t
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE
-typedef struct UniffiForeignFuture {
-    uint64_t handle;
-    UniffiForeignFutureFree _Nonnull free;
-} UniffiForeignFuture;
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_CLONE
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_CLONE
+typedef uint64_t (*UniffiCallbackInterfaceClone)(uint64_t
+    );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U8
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U8
-typedef struct UniffiForeignFutureStructU8 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_DROPPED_CALLBACK_STRUCT
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_DROPPED_CALLBACK_STRUCT
+typedef struct UniffiForeignFutureDroppedCallbackStruct {
+    uint64_t handle;
+    UniffiForeignFutureDroppedCallback _Nonnull free;
+} UniffiForeignFutureDroppedCallbackStruct;
+
+#endif
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U8
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U8
+typedef struct UniffiForeignFutureResultU8 {
     uint8_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructU8;
+} UniffiForeignFutureResultU8;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U8
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U8
-typedef void (*UniffiForeignFutureCompleteU8)(uint64_t, UniffiForeignFutureStructU8
+typedef void (*UniffiForeignFutureCompleteU8)(uint64_t, UniffiForeignFutureResultU8
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I8
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I8
-typedef struct UniffiForeignFutureStructI8 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I8
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I8
+typedef struct UniffiForeignFutureResultI8 {
     int8_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructI8;
+} UniffiForeignFutureResultI8;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I8
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I8
-typedef void (*UniffiForeignFutureCompleteI8)(uint64_t, UniffiForeignFutureStructI8
+typedef void (*UniffiForeignFutureCompleteI8)(uint64_t, UniffiForeignFutureResultI8
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U16
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U16
-typedef struct UniffiForeignFutureStructU16 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U16
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U16
+typedef struct UniffiForeignFutureResultU16 {
     uint16_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructU16;
+} UniffiForeignFutureResultU16;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U16
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U16
-typedef void (*UniffiForeignFutureCompleteU16)(uint64_t, UniffiForeignFutureStructU16
+typedef void (*UniffiForeignFutureCompleteU16)(uint64_t, UniffiForeignFutureResultU16
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I16
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I16
-typedef struct UniffiForeignFutureStructI16 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I16
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I16
+typedef struct UniffiForeignFutureResultI16 {
     int16_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructI16;
+} UniffiForeignFutureResultI16;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I16
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I16
-typedef void (*UniffiForeignFutureCompleteI16)(uint64_t, UniffiForeignFutureStructI16
+typedef void (*UniffiForeignFutureCompleteI16)(uint64_t, UniffiForeignFutureResultI16
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U32
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U32
-typedef struct UniffiForeignFutureStructU32 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U32
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U32
+typedef struct UniffiForeignFutureResultU32 {
     uint32_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructU32;
+} UniffiForeignFutureResultU32;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U32
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U32
-typedef void (*UniffiForeignFutureCompleteU32)(uint64_t, UniffiForeignFutureStructU32
+typedef void (*UniffiForeignFutureCompleteU32)(uint64_t, UniffiForeignFutureResultU32
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I32
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I32
-typedef struct UniffiForeignFutureStructI32 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I32
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I32
+typedef struct UniffiForeignFutureResultI32 {
     int32_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructI32;
+} UniffiForeignFutureResultI32;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I32
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I32
-typedef void (*UniffiForeignFutureCompleteI32)(uint64_t, UniffiForeignFutureStructI32
+typedef void (*UniffiForeignFutureCompleteI32)(uint64_t, UniffiForeignFutureResultI32
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U64
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U64
-typedef struct UniffiForeignFutureStructU64 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U64
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U64
+typedef struct UniffiForeignFutureResultU64 {
     uint64_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructU64;
+} UniffiForeignFutureResultU64;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U64
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U64
-typedef void (*UniffiForeignFutureCompleteU64)(uint64_t, UniffiForeignFutureStructU64
+typedef void (*UniffiForeignFutureCompleteU64)(uint64_t, UniffiForeignFutureResultU64
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I64
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I64
-typedef struct UniffiForeignFutureStructI64 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I64
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I64
+typedef struct UniffiForeignFutureResultI64 {
     int64_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructI64;
+} UniffiForeignFutureResultI64;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I64
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I64
-typedef void (*UniffiForeignFutureCompleteI64)(uint64_t, UniffiForeignFutureStructI64
+typedef void (*UniffiForeignFutureCompleteI64)(uint64_t, UniffiForeignFutureResultI64
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_F32
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_F32
-typedef struct UniffiForeignFutureStructF32 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_F32
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_F32
+typedef struct UniffiForeignFutureResultF32 {
     float returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructF32;
+} UniffiForeignFutureResultF32;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_F32
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_F32
-typedef void (*UniffiForeignFutureCompleteF32)(uint64_t, UniffiForeignFutureStructF32
+typedef void (*UniffiForeignFutureCompleteF32)(uint64_t, UniffiForeignFutureResultF32
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_F64
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_F64
-typedef struct UniffiForeignFutureStructF64 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_F64
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_F64
+typedef struct UniffiForeignFutureResultF64 {
     double returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructF64;
+} UniffiForeignFutureResultF64;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_F64
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_F64
-typedef void (*UniffiForeignFutureCompleteF64)(uint64_t, UniffiForeignFutureStructF64
+typedef void (*UniffiForeignFutureCompleteF64)(uint64_t, UniffiForeignFutureResultF64
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_POINTER
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_POINTER
-typedef struct UniffiForeignFutureStructPointer {
-    void*_Nonnull returnValue;
-    RustCallStatus callStatus;
-} UniffiForeignFutureStructPointer;
-
-#endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_POINTER
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_POINTER
-typedef void (*UniffiForeignFutureCompletePointer)(uint64_t, UniffiForeignFutureStructPointer
-    );
-
-#endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_RUST_BUFFER
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_RUST_BUFFER
-typedef struct UniffiForeignFutureStructRustBuffer {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_RUST_BUFFER
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_RUST_BUFFER
+typedef struct UniffiForeignFutureResultRustBuffer {
     RustBuffer returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructRustBuffer;
+} UniffiForeignFutureResultRustBuffer;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_RUST_BUFFER
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_RUST_BUFFER
-typedef void (*UniffiForeignFutureCompleteRustBuffer)(uint64_t, UniffiForeignFutureStructRustBuffer
+typedef void (*UniffiForeignFutureCompleteRustBuffer)(uint64_t, UniffiForeignFutureResultRustBuffer
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_VOID
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_VOID
-typedef struct UniffiForeignFutureStructVoid {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_VOID
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_VOID
+typedef struct UniffiForeignFutureResultVoid {
     RustCallStatus callStatus;
-} UniffiForeignFutureStructVoid;
+} UniffiForeignFutureResultVoid;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_VOID
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_VOID
-typedef void (*UniffiForeignFutureCompleteVoid)(uint64_t, UniffiForeignFutureStructVoid
+typedef void (*UniffiForeignFutureCompleteVoid)(uint64_t, UniffiForeignFutureResultVoid
     );
 
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_CLONE_ENGINEHANDLE
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_CLONE_ENGINEHANDLE
-void*_Nonnull uniffi_prometheus_ffi_fn_clone_enginehandle(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+uint64_t uniffi_prometheus_ffi_fn_clone_enginehandle(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_FREE_ENGINEHANDLE
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_FREE_ENGINEHANDLE
-void uniffi_prometheus_ffi_fn_free_enginehandle(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+void uniffi_prometheus_ffi_fn_free_enginehandle(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_ADD_KNOWLEDGE
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_ADD_KNOWLEDGE
+int32_t uniffi_prometheus_ffi_fn_method_enginehandle_add_knowledge(uint64_t ptr, RustBuffer source, RustBuffer content, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_ADD_WORKING_MEMORY
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_ADD_WORKING_MEMORY
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_add_working_memory(uint64_t ptr, RustBuffer content, double importance, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_ANONYMIZE_TEXT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_ANONYMIZE_TEXT
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_anonymize_text(uint64_t ptr, RustBuffer text, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_CONTROL_DEVICE
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_CONTROL_DEVICE
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_control_device(uint64_t ptr, RustBuffer device_id, RustBuffer command, RustBuffer params, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_DELETE_USER_DATA
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_DELETE_USER_DATA
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_delete_user_data(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_EPISODIC_COUNT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_EPISODIC_COUNT
+uint32_t uniffi_prometheus_ffi_fn_method_enginehandle_episodic_count(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_EXPORT_USER_DATA
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_EXPORT_USER_DATA
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_export_user_data(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_ACTIVE_MODEL
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_ACTIVE_MODEL
-RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_CONVERSATION
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_CONVERSATION
-RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_SCREEN_CONTEXT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_SCREEN_CONTEXT
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_get_screen_context(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_SETTING
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_SETTING
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_get_setting(uint64_t ptr, RustBuffer key, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_SYNC_STATUS
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_SYNC_STATUS
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_get_sync_status(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_WORKING_MEMORY
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_GET_WORKING_MEMORY
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_get_working_memory(uint64_t ptr, uint32_t max_items, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_IS_PAUSED
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_IS_PAUSED
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_is_paused(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_IS_SHUTDOWN
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_IS_SHUTDOWN
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_is_shutdown(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_KNOWLEDGE_COUNT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_KNOWLEDGE_COUNT
+uint32_t uniffi_prometheus_ffi_fn_method_enginehandle_knowledge_count(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_LIST_PERSONAS
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_LIST_PERSONAS
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_list_personas(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_PAUSE
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_PAUSE
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_pause(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_RECORD_CONSENT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_RECORD_CONSENT
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_record_consent(uint64_t ptr, RustBuffer purpose, int8_t granted, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_RESUME
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_RESUME
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_resume(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SCAN_IOT_DEVICES
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SCAN_IOT_DEVICES
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_scan_iot_devices(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SEARCH_EPISODES
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SEARCH_EPISODES
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_search_episodes(uint64_t ptr, RustBuffer query, uint32_t top_k, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SEARCH_KNOWLEDGE
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SEARCH_KNOWLEDGE
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_search_knowledge(uint64_t ptr, RustBuffer query, uint32_t top_k, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SEND_MESSAGE
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SEND_MESSAGE
-RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_send_message(void*_Nonnull ptr, RustBuffer message, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_prometheus_ffi_fn_method_enginehandle_send_message(uint64_t ptr, RustBuffer message, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SET_ACTIVE_MODEL
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SET_ACTIVE_MODEL
-int8_t uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(void*_Nonnull ptr, RustBuffer model, RustCallStatus *_Nonnull out_status
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(uint64_t ptr, RustBuffer model, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SET_SETTING
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SET_SETTING
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_set_setting(uint64_t ptr, RustBuffer key, RustBuffer value, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SHUTDOWN
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SHUTDOWN
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_shutdown(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SWITCH_PERSONA
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_SWITCH_PERSONA
+int8_t uniffi_prometheus_ffi_fn_method_enginehandle_switch_persona(uint64_t ptr, RustBuffer persona_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_WORKING_MEMORY_COUNT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_ENGINEHANDLE_WORKING_MEMORY_COUNT
+uint32_t uniffi_prometheus_ffi_fn_method_enginehandle_working_memory_count(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_CLONE_PROMETHEUSAPI
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_CLONE_PROMETHEUSAPI
-void*_Nonnull uniffi_prometheus_ffi_fn_clone_prometheusapi(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+uint64_t uniffi_prometheus_ffi_fn_clone_prometheusapi(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_FREE_PROMETHEUSAPI
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_FREE_PROMETHEUSAPI
-void uniffi_prometheus_ffi_fn_free_prometheusapi(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+void uniffi_prometheus_ffi_fn_free_prometheusapi(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_CONSTRUCTOR_PROMETHEUSAPI_NEW
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_CONSTRUCTOR_PROMETHEUSAPI_NEW
-void*_Nonnull uniffi_prometheus_ffi_fn_constructor_prometheusapi_new(RustCallStatus *_Nonnull out_status
+uint64_t uniffi_prometheus_ffi_fn_constructor_prometheusapi_new(RustCallStatus *_Nonnull out_status
     
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_PROMETHEUSAPI_CREATE_ENGINE
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_PROMETHEUSAPI_CREATE_ENGINE
-void*_Nonnull uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+uint64_t uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_PROMETHEUSAPI_LIST_MODEL_INFO
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_PROMETHEUSAPI_LIST_MODEL_INFO
-RustBuffer uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_PROMETHEUSAPI_LIST_MODELS
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_FN_METHOD_PROMETHEUSAPI_LIST_MODELS
-RustBuffer uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUSTBUFFER_ALLOC
@@ -532,26 +649,6 @@ void ffi_prometheus_ffi_rust_future_free_f64(uint64_t handle
 double ffi_prometheus_ffi_rust_future_complete_f64(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
-#ifndef UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUST_FUTURE_POLL_POINTER
-#define UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUST_FUTURE_POLL_POINTER
-void ffi_prometheus_ffi_rust_future_poll_pointer(uint64_t handle, UniffiRustFutureContinuationCallback _Nonnull callback, uint64_t callback_data
-);
-#endif
-#ifndef UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUST_FUTURE_CANCEL_POINTER
-#define UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUST_FUTURE_CANCEL_POINTER
-void ffi_prometheus_ffi_rust_future_cancel_pointer(uint64_t handle
-);
-#endif
-#ifndef UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUST_FUTURE_FREE_POINTER
-#define UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUST_FUTURE_FREE_POINTER
-void ffi_prometheus_ffi_rust_future_free_pointer(uint64_t handle
-);
-#endif
-#ifndef UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUST_FUTURE_COMPLETE_POINTER
-#define UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUST_FUTURE_COMPLETE_POINTER
-void*_Nonnull ffi_prometheus_ffi_rust_future_complete_pointer(uint64_t handle, RustCallStatus *_Nonnull out_status
-);
-#endif
 #ifndef UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUST_FUTURE_POLL_RUST_BUFFER
 #define UNIFFI_FFIDEF_FFI_PROMETHEUS_FFI_RUST_FUTURE_POLL_RUST_BUFFER
 void ffi_prometheus_ffi_rust_future_poll_rust_buffer(uint64_t handle, UniffiRustFutureContinuationCallback _Nonnull callback, uint64_t callback_data
@@ -592,6 +689,48 @@ void ffi_prometheus_ffi_rust_future_free_void(uint64_t handle
 void ffi_prometheus_ffi_rust_future_complete_void(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_ADD_KNOWLEDGE
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_ADD_KNOWLEDGE
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_add_knowledge(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_ADD_WORKING_MEMORY
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_ADD_WORKING_MEMORY
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_add_working_memory(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_ANONYMIZE_TEXT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_ANONYMIZE_TEXT
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_anonymize_text(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_CONTROL_DEVICE
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_CONTROL_DEVICE
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_control_device(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_DELETE_USER_DATA
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_DELETE_USER_DATA
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_delete_user_data(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_EPISODIC_COUNT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_EPISODIC_COUNT
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_episodic_count(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_EXPORT_USER_DATA
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_EXPORT_USER_DATA
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_export_user_data(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_GET_ACTIVE_MODEL
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_GET_ACTIVE_MODEL
 uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_get_active_model(void
@@ -604,6 +743,90 @@ uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_get_conversation(voi
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_GET_SCREEN_CONTEXT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_GET_SCREEN_CONTEXT
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_get_screen_context(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_GET_SETTING
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_GET_SETTING
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_get_setting(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_GET_SYNC_STATUS
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_GET_SYNC_STATUS
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_get_sync_status(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_GET_WORKING_MEMORY
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_GET_WORKING_MEMORY
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_get_working_memory(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_IS_PAUSED
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_IS_PAUSED
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_is_paused(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_IS_SHUTDOWN
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_IS_SHUTDOWN
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_is_shutdown(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_KNOWLEDGE_COUNT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_KNOWLEDGE_COUNT
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_knowledge_count(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_LIST_PERSONAS
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_LIST_PERSONAS
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_list_personas(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_PAUSE
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_PAUSE
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_pause(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_RECORD_CONSENT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_RECORD_CONSENT
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_record_consent(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_RESUME
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_RESUME
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_resume(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SCAN_IOT_DEVICES
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SCAN_IOT_DEVICES
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_scan_iot_devices(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SEARCH_EPISODES
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SEARCH_EPISODES
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_search_episodes(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SEARCH_KNOWLEDGE
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SEARCH_KNOWLEDGE
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_search_knowledge(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SEND_MESSAGE
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SEND_MESSAGE
 uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_send_message(void
@@ -613,6 +836,30 @@ uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_send_message(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SET_ACTIVE_MODEL
 #define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SET_ACTIVE_MODEL
 uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_set_active_model(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SET_SETTING
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SET_SETTING
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_set_setting(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SHUTDOWN
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SHUTDOWN
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_shutdown(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SWITCH_PERSONA
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_SWITCH_PERSONA
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_switch_persona(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_WORKING_MEMORY_COUNT
+#define UNIFFI_FFIDEF_UNIFFI_PROMETHEUS_FFI_CHECKSUM_METHOD_ENGINEHANDLE_WORKING_MEMORY_COUNT
+uint16_t uniffi_prometheus_ffi_checksum_method_enginehandle_working_memory_count(void
     
 );
 #endif

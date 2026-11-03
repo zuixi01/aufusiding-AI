@@ -281,7 +281,7 @@ private func makeRustCall<T, E: Swift.Error>(
     _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T,
     errorHandler: ((RustBuffer) throws -> E)?
 ) throws -> T {
-    uniffiEnsureInitialized()
+    uniffiEnsurePrometheusFfiInitialized()
     var callStatus = RustCallStatus.init()
     let returnedVal = callback(&callStatus)
     try uniffiCheckCallStatus(callStatus: callStatus, errorHandler: errorHandler)
@@ -352,18 +352,29 @@ private func uniffiTraitInterfaceCallWithError<T, E>(
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
 }
-fileprivate class UniffiHandleMap<T> {
-    private var map: [UInt64: T] = [:]
+// Initial value and increment amount for handles. 
+// These ensure that SWIFT handles always have the lowest bit set
+fileprivate let UNIFFI_HANDLEMAP_INITIAL: UInt64 = 1
+fileprivate let UNIFFI_HANDLEMAP_DELTA: UInt64 = 2
+
+fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
+    // All mutation happens with this lock held, which is why we implement @unchecked Sendable.
     private let lock = NSLock()
-    private var currentHandle: UInt64 = 1
+    private var map: [UInt64: T] = [:]
+    private var currentHandle: UInt64 = UNIFFI_HANDLEMAP_INITIAL
 
     func insert(obj: T) -> UInt64 {
         lock.withLock {
-            let handle = currentHandle
-            currentHandle += 1
-            map[handle] = obj
-            return handle
+            return doInsert(obj)
         }
+    }
+
+    // Low-level insert function, this assumes `lock` is held.
+    private func doInsert(_ obj: T) -> UInt64 {
+        let handle = currentHandle
+        currentHandle += UNIFFI_HANDLEMAP_DELTA
+        map[handle] = obj
+        return handle
     }
 
      func get(handle: UInt64) throws -> T {
@@ -372,6 +383,15 @@ fileprivate class UniffiHandleMap<T> {
                 throw UniffiInternalError.unexpectedStaleHandle
             }
             return obj
+        }
+    }
+
+     func clone(handle: UInt64) throws -> UInt64 {
+        try lock.withLock {
+            guard let obj = map[handle] else {
+                throw UniffiInternalError.unexpectedStaleHandle
+            }
+            return doInsert(obj)
         }
     }
 
@@ -399,6 +419,38 @@ fileprivate class UniffiHandleMap<T> {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
+    typealias FfiType = UInt32
+    typealias SwiftType = UInt32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
+    typealias FfiType = Int32
+    typealias SwiftType = Int32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int32, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
     typealias FfiType = Int64
     typealias SwiftType = Int64
@@ -409,6 +461,22 @@ fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
 
     public static func write(_ value: Int64, into buf: inout [UInt8]) {
         writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
+    typealias FfiType = Double
+    typealias SwiftType = Double
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Double {
+        return try lift(readDouble(&buf))
+    }
+
+    public static func write(_ value: Double, into buf: inout [UInt8]) {
+        writeDouble(&buf, lower(value))
     }
 }
 
@@ -451,7 +519,11 @@ fileprivate struct FfiConverterString: FfiConverter {
             return String()
         }
         let bytes = UnsafeBufferPointer<UInt8>(start: value.data!, count: Int(value.len))
-        return String(bytes: bytes, encoding: String.Encoding.utf8)!
+        // Use Swift's native UTF-8 decoder; `String(bytes:encoding:.utf8)` goes
+        // through Foundation's NSString and silently strips a leading U+FEFF BOM.
+        // Invalid UTF-8 substitutes U+FFFD instead of trapping (unreachable
+        // given Rust's `String` invariant).
+        return String(decoding: bytes, as: UTF8.self)
     }
 
     public static func lower(_ value: String) -> RustBuffer {
@@ -467,7 +539,8 @@ fileprivate struct FfiConverterString: FfiConverter {
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
         let len: Int32 = try readInt(&buf)
-        return String(bytes: try readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
+        // See `lift` above for why we avoid Foundation's NSString-backed decoder here.
+        return String(decoding: try readBytes(&buf, count: Int(len)), as: UTF8.self)
     }
 
     public static func write(_ value: String, into buf: inout [UInt8]) {
@@ -480,156 +553,424 @@ fileprivate struct FfiConverterString: FfiConverter {
 
 
 
-public protocol EngineHandleProtocol : AnyObject {
+public protocol EngineHandleProtocol: AnyObject, Sendable {
+    
+    func addKnowledge(source: String, content: String)  -> Int32
+    
+    func addWorkingMemory(content: String, importance: Double)  -> Bool
+    
+    func anonymizeText(text: String)  -> String
+    
+    func controlDevice(deviceId: String, command: String, params: String)  -> String
+    
+    func deleteUserData()  -> Bool
+    
+    func episodicCount()  -> UInt32
+    
+    func exportUserData()  -> String
     
     func getActiveModel()  -> String
     
     func getConversation()  -> FfiConversation
     
+    func getScreenContext()  -> String
+    
+    func getSetting(key: String)  -> String
+    
+    func getSyncStatus()  -> String
+    
+    func getWorkingMemory(maxItems: UInt32)  -> [FfiMemoryItem]
+    
+    func isPaused()  -> Bool
+    
+    func isShutdown()  -> Bool
+    
+    func knowledgeCount()  -> UInt32
+    
+    func listPersonas()  -> [FfiPersonaInfo]
+    
+    func pause()  -> Bool
+    
+    func recordConsent(purpose: String, granted: Bool)  -> Bool
+    
+    func resume()  -> Bool
+    
+    func scanIotDevices()  -> [FfiDeviceInfo]
+    
+    func searchEpisodes(query: String, topK: UInt32)  -> [String]
+    
+    func searchKnowledge(query: String, topK: UInt32)  -> [FfiKnowledgeResult]
+    
     func sendMessage(message: String)  -> String
     
     func setActiveModel(model: String)  -> Bool
     
+    func setSetting(key: String, value: String)  -> Bool
+    
+    func shutdown()  -> Bool
+    
+    func switchPersona(personaId: String)  -> Bool
+    
+    func workingMemoryCount()  -> UInt32
+    
 }
+open class EngineHandle: EngineHandleProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
 
-open class EngineHandle:
-    EngineHandleProtocol {
-    fileprivate let pointer: UnsafeMutableRawPointer!
-
-    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-    public struct NoPointer {
+    public struct NoHandle {
         public init() {}
     }
 
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
-        self.pointer = pointer
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
     }
 
     // This constructor can be used to instantiate a fake object.
-    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
     //
     // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-    public init(noPointer: NoPointer) {
-        self.pointer = nil
+    public init(noHandle: NoHandle) {
+        self.handle = 0
     }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
-        return try! rustCall { uniffi_prometheus_ffi_fn_clone_enginehandle(self.pointer, $0) }
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_prometheus_ffi_fn_clone_enginehandle(self.handle, $0) }
     }
     // No primary constructor declared for this class.
 
     deinit {
-        guard let pointer = pointer else {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
             return
         }
 
-        try! rustCall { uniffi_prometheus_ffi_fn_free_enginehandle(pointer, $0) }
+        try! rustCall { uniffi_prometheus_ffi_fn_free_enginehandle(handle, $0) }
     }
 
     
 
     
-open func getActiveModel() -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(self.uniffiClonePointer(),$0
+open func addKnowledge(source: String, content: String) -> Int32  {
+    return try!  FfiConverterInt32.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_add_knowledge(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(source),
+        FfiConverterString.lower(content),$0
     )
 })
 }
     
-open func getConversation() -> FfiConversation {
-    return try!  FfiConverterTypeFfiConversation.lift(try! rustCall() {
-    uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(self.uniffiClonePointer(),$0
+open func addWorkingMemory(content: String, importance: Double) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_add_working_memory(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(content),
+        FfiConverterDouble.lower(importance),$0
     )
 })
 }
     
-open func sendMessage(message: String) -> String {
+open func anonymizeText(text: String) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_prometheus_ffi_fn_method_enginehandle_send_message(self.uniffiClonePointer(),
+    uniffi_prometheus_ffi_fn_method_enginehandle_anonymize_text(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(text),$0
+    )
+})
+}
+    
+open func controlDevice(deviceId: String, command: String, params: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_control_device(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(deviceId),
+        FfiConverterString.lower(command),
+        FfiConverterString.lower(params),$0
+    )
+})
+}
+    
+open func deleteUserData() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_delete_user_data(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func episodicCount() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_episodic_count(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func exportUserData() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_export_user_data(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func getActiveModel() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func getConversation() -> FfiConversation  {
+    return try!  FfiConverterTypeFfiConversation_lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func getScreenContext() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_get_screen_context(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func getSetting(key: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_get_setting(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),$0
+    )
+})
+}
+    
+open func getSyncStatus() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_get_sync_status(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func getWorkingMemory(maxItems: UInt32) -> [FfiMemoryItem]  {
+    return try!  FfiConverterSequenceTypeFfiMemoryItem.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_get_working_memory(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(maxItems),$0
+    )
+})
+}
+    
+open func isPaused() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_is_paused(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func isShutdown() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_is_shutdown(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func knowledgeCount() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_knowledge_count(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func listPersonas() -> [FfiPersonaInfo]  {
+    return try!  FfiConverterSequenceTypeFfiPersonaInfo.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_list_personas(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func pause() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_pause(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func recordConsent(purpose: String, granted: Bool) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_record_consent(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(purpose),
+        FfiConverterBool.lower(granted),$0
+    )
+})
+}
+    
+open func resume() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_resume(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func scanIotDevices() -> [FfiDeviceInfo]  {
+    return try!  FfiConverterSequenceTypeFfiDeviceInfo.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_scan_iot_devices(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func searchEpisodes(query: String, topK: UInt32) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_search_episodes(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(query),
+        FfiConverterUInt32.lower(topK),$0
+    )
+})
+}
+    
+open func searchKnowledge(query: String, topK: UInt32) -> [FfiKnowledgeResult]  {
+    return try!  FfiConverterSequenceTypeFfiKnowledgeResult.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_search_knowledge(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(query),
+        FfiConverterUInt32.lower(topK),$0
+    )
+})
+}
+    
+open func sendMessage(message: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_send_message(
+            self.uniffiCloneHandle(),
         FfiConverterString.lower(message),$0
     )
 })
 }
     
-open func setActiveModel(model: String) -> Bool {
+open func setActiveModel(model: String) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(self.uniffiClonePointer(),
+    uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(
+            self.uniffiCloneHandle(),
         FfiConverterString.lower(model),$0
     )
 })
 }
     
-
+open func setSetting(key: String, value: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_set_setting(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),
+        FfiConverterString.lower(value),$0
+    )
+})
 }
+    
+open func shutdown() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_shutdown(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func switchPersona(personaId: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_switch_persona(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(personaId),$0
+    )
+})
+}
+    
+open func workingMemoryCount() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_enginehandle_working_memory_count(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeEngineHandle: FfiConverter {
-
-    typealias FfiType = UnsafeMutableRawPointer
+    typealias FfiType = UInt64
     typealias SwiftType = EngineHandle
 
-    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> EngineHandle {
-        return EngineHandle(unsafeFromRawPointer: pointer)
+    public static func lift(_ handle: UInt64) throws -> EngineHandle {
+        return EngineHandle(unsafeFromHandle: handle)
     }
 
-    public static func lower(_ value: EngineHandle) -> UnsafeMutableRawPointer {
-        return value.uniffiClonePointer()
+    public static func lower(_ value: EngineHandle) -> UInt64 {
+        return value.uniffiCloneHandle()
     }
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EngineHandle {
-        let v: UInt64 = try readInt(&buf)
-        // The Rust code won't compile if a pointer won't fit in a UInt64.
-        // We have to go via `UInt` because that's the thing that's the size of a pointer.
-        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
-        if (ptr == nil) {
-            throw UniffiInternalError.unexpectedNullPointer
-        }
-        return try lift(ptr!)
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
     }
 
     public static func write(_ value: EngineHandle, into buf: inout [UInt8]) {
-        // This fiddling is because `Int` is the thing that's the same size as a pointer.
-        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
-        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+        writeInt(&buf, lower(value))
     }
 }
 
 
-
-
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeEngineHandle_lift(_ pointer: UnsafeMutableRawPointer) throws -> EngineHandle {
-    return try FfiConverterTypeEngineHandle.lift(pointer)
+public func FfiConverterTypeEngineHandle_lift(_ handle: UInt64) throws -> EngineHandle {
+    return try FfiConverterTypeEngineHandle.lift(handle)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeEngineHandle_lower(_ value: EngineHandle) -> UnsafeMutableRawPointer {
+public func FfiConverterTypeEngineHandle_lower(_ value: EngineHandle) -> UInt64 {
     return FfiConverterTypeEngineHandle.lower(value)
 }
 
 
 
 
-public protocol PrometheusApiProtocol : AnyObject {
+
+
+public protocol PrometheusApiProtocol: AnyObject, Sendable {
     
     func createEngine()  -> EngineHandle
     
@@ -638,141 +979,139 @@ public protocol PrometheusApiProtocol : AnyObject {
     func listModels()  -> [String]
     
 }
+open class PrometheusApi: PrometheusApiProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
 
-open class PrometheusApi:
-    PrometheusApiProtocol {
-    fileprivate let pointer: UnsafeMutableRawPointer!
-
-    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-    public struct NoPointer {
+    public struct NoHandle {
         public init() {}
     }
 
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
-        self.pointer = pointer
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
     }
 
     // This constructor can be used to instantiate a fake object.
-    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
     //
     // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-    public init(noPointer: NoPointer) {
-        self.pointer = nil
+    public init(noHandle: NoHandle) {
+        self.handle = 0
     }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
-        return try! rustCall { uniffi_prometheus_ffi_fn_clone_prometheusapi(self.pointer, $0) }
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_prometheus_ffi_fn_clone_prometheusapi(self.handle, $0) }
     }
 public convenience init() {
-    let pointer =
+    let handle =
         try! rustCall() {
     uniffi_prometheus_ffi_fn_constructor_prometheusapi_new($0
     )
 }
-    self.init(unsafeFromRawPointer: pointer)
+    self.init(unsafeFromHandle: handle)
 }
 
     deinit {
-        guard let pointer = pointer else {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
             return
         }
 
-        try! rustCall { uniffi_prometheus_ffi_fn_free_prometheusapi(pointer, $0) }
+        try! rustCall { uniffi_prometheus_ffi_fn_free_prometheusapi(handle, $0) }
     }
 
     
 
     
-open func createEngine() -> EngineHandle {
-    return try!  FfiConverterTypeEngineHandle.lift(try! rustCall() {
-    uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(self.uniffiClonePointer(),$0
+open func createEngine() -> EngineHandle  {
+    return try!  FfiConverterTypeEngineHandle_lift(try! rustCall() {
+    uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
     
-open func listModelInfo() -> [FfiModelInfo] {
+open func listModelInfo() -> [FfiModelInfo]  {
     return try!  FfiConverterSequenceTypeFfiModelInfo.lift(try! rustCall() {
-    uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(self.uniffiClonePointer(),$0
+    uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
     
-open func listModels() -> [String] {
+open func listModels() -> [String]  {
     return try!  FfiConverterSequenceString.lift(try! rustCall() {
-    uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(self.uniffiClonePointer(),$0
+    uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
     
 
+    
 }
+
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
 public struct FfiConverterTypePrometheusApi: FfiConverter {
-
-    typealias FfiType = UnsafeMutableRawPointer
+    typealias FfiType = UInt64
     typealias SwiftType = PrometheusApi
 
-    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> PrometheusApi {
-        return PrometheusApi(unsafeFromRawPointer: pointer)
+    public static func lift(_ handle: UInt64) throws -> PrometheusApi {
+        return PrometheusApi(unsafeFromHandle: handle)
     }
 
-    public static func lower(_ value: PrometheusApi) -> UnsafeMutableRawPointer {
-        return value.uniffiClonePointer()
+    public static func lower(_ value: PrometheusApi) -> UInt64 {
+        return value.uniffiCloneHandle()
     }
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PrometheusApi {
-        let v: UInt64 = try readInt(&buf)
-        // The Rust code won't compile if a pointer won't fit in a UInt64.
-        // We have to go via `UInt` because that's the thing that's the size of a pointer.
-        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
-        if (ptr == nil) {
-            throw UniffiInternalError.unexpectedNullPointer
-        }
-        return try lift(ptr!)
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
     }
 
     public static func write(_ value: PrometheusApi, into buf: inout [UInt8]) {
-        // This fiddling is because `Int` is the thing that's the same size as a pointer.
-        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
-        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+        writeInt(&buf, lower(value))
     }
 }
 
 
-
-
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypePrometheusApi_lift(_ pointer: UnsafeMutableRawPointer) throws -> PrometheusApi {
-    return try FfiConverterTypePrometheusApi.lift(pointer)
+public func FfiConverterTypePrometheusApi_lift(_ handle: UInt64) throws -> PrometheusApi {
+    return try FfiConverterTypePrometheusApi.lift(handle)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypePrometheusApi_lower(_ value: PrometheusApi) -> UnsafeMutableRawPointer {
+public func FfiConverterTypePrometheusApi_lower(_ value: PrometheusApi) -> UInt64 {
     return FfiConverterTypePrometheusApi.lower(value)
 }
 
 
-public struct FfiChatMessage {
+
+
+public struct FfiChatMessage: Equatable, Hashable {
     public var role: String
     public var content: String
     public var timestampMs: Int64
@@ -784,31 +1123,15 @@ public struct FfiChatMessage {
         self.content = content
         self.timestampMs = timestampMs
     }
+
+    
+
+    
 }
 
-
-
-extension FfiChatMessage: Equatable, Hashable {
-    public static func ==(lhs: FfiChatMessage, rhs: FfiChatMessage) -> Bool {
-        if lhs.role != rhs.role {
-            return false
-        }
-        if lhs.content != rhs.content {
-            return false
-        }
-        if lhs.timestampMs != rhs.timestampMs {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(role)
-        hasher.combine(content)
-        hasher.combine(timestampMs)
-    }
-}
-
+#if compiler(>=6)
+extension FfiChatMessage: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -846,7 +1169,7 @@ public func FfiConverterTypeFfiChatMessage_lower(_ value: FfiChatMessage) -> Rus
 }
 
 
-public struct FfiConversation {
+public struct FfiConversation: Equatable, Hashable {
     public var id: String
     public var title: String
     public var messages: [FfiChatMessage]
@@ -858,31 +1181,15 @@ public struct FfiConversation {
         self.title = title
         self.messages = messages
     }
+
+    
+
+    
 }
 
-
-
-extension FfiConversation: Equatable, Hashable {
-    public static func ==(lhs: FfiConversation, rhs: FfiConversation) -> Bool {
-        if lhs.id != rhs.id {
-            return false
-        }
-        if lhs.title != rhs.title {
-            return false
-        }
-        if lhs.messages != rhs.messages {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-        hasher.combine(title)
-        hasher.combine(messages)
-    }
-}
-
+#if compiler(>=6)
+extension FfiConversation: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -920,7 +1227,177 @@ public func FfiConverterTypeFfiConversation_lower(_ value: FfiConversation) -> R
 }
 
 
-public struct FfiModelInfo {
+public struct FfiDeviceInfo: Equatable, Hashable {
+    public var id: String
+    public var name: String
+    public var deviceType: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, name: String, deviceType: String) {
+        self.id = id
+        self.name = name
+        self.deviceType = deviceType
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FfiDeviceInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFfiDeviceInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiDeviceInfo {
+        return
+            try FfiDeviceInfo(
+                id: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                deviceType: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FfiDeviceInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.deviceType, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiDeviceInfo_lift(_ buf: RustBuffer) throws -> FfiDeviceInfo {
+    return try FfiConverterTypeFfiDeviceInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiDeviceInfo_lower(_ value: FfiDeviceInfo) -> RustBuffer {
+    return FfiConverterTypeFfiDeviceInfo.lower(value)
+}
+
+
+public struct FfiKnowledgeResult: Equatable, Hashable {
+    public var source: String
+    public var content: String
+    public var score: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(source: String, content: String, score: Double) {
+        self.source = source
+        self.content = content
+        self.score = score
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FfiKnowledgeResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFfiKnowledgeResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiKnowledgeResult {
+        return
+            try FfiKnowledgeResult(
+                source: FfiConverterString.read(from: &buf), 
+                content: FfiConverterString.read(from: &buf), 
+                score: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FfiKnowledgeResult, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.source, into: &buf)
+        FfiConverterString.write(value.content, into: &buf)
+        FfiConverterDouble.write(value.score, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiKnowledgeResult_lift(_ buf: RustBuffer) throws -> FfiKnowledgeResult {
+    return try FfiConverterTypeFfiKnowledgeResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiKnowledgeResult_lower(_ value: FfiKnowledgeResult) -> RustBuffer {
+    return FfiConverterTypeFfiKnowledgeResult.lower(value)
+}
+
+
+public struct FfiMemoryItem: Equatable, Hashable {
+    public var content: String
+    public var importance: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(content: String, importance: Double) {
+        self.content = content
+        self.importance = importance
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FfiMemoryItem: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFfiMemoryItem: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiMemoryItem {
+        return
+            try FfiMemoryItem(
+                content: FfiConverterString.read(from: &buf), 
+                importance: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FfiMemoryItem, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.content, into: &buf)
+        FfiConverterDouble.write(value.importance, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiMemoryItem_lift(_ buf: RustBuffer) throws -> FfiMemoryItem {
+    return try FfiConverterTypeFfiMemoryItem.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiMemoryItem_lower(_ value: FfiMemoryItem) -> RustBuffer {
+    return FfiConverterTypeFfiMemoryItem.lower(value)
+}
+
+
+public struct FfiModelInfo: Equatable, Hashable {
     public var id: String
     public var provider: String
     public var isLocal: Bool
@@ -932,31 +1409,15 @@ public struct FfiModelInfo {
         self.provider = provider
         self.isLocal = isLocal
     }
+
+    
+
+    
 }
 
-
-
-extension FfiModelInfo: Equatable, Hashable {
-    public static func ==(lhs: FfiModelInfo, rhs: FfiModelInfo) -> Bool {
-        if lhs.id != rhs.id {
-            return false
-        }
-        if lhs.provider != rhs.provider {
-            return false
-        }
-        if lhs.isLocal != rhs.isLocal {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-        hasher.combine(provider)
-        hasher.combine(isLocal)
-    }
-}
-
+#if compiler(>=6)
+extension FfiModelInfo: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -991,6 +1452,64 @@ public func FfiConverterTypeFfiModelInfo_lift(_ buf: RustBuffer) throws -> FfiMo
 #endif
 public func FfiConverterTypeFfiModelInfo_lower(_ value: FfiModelInfo) -> RustBuffer {
     return FfiConverterTypeFfiModelInfo.lower(value)
+}
+
+
+public struct FfiPersonaInfo: Equatable, Hashable {
+    public var id: String
+    public var name: String
+    public var tone: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, name: String, tone: String) {
+        self.id = id
+        self.name = name
+        self.tone = tone
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FfiPersonaInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFfiPersonaInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiPersonaInfo {
+        return
+            try FfiPersonaInfo(
+                id: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                tone: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FfiPersonaInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.tone, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiPersonaInfo_lift(_ buf: RustBuffer) throws -> FfiPersonaInfo {
+    return try FfiConverterTypeFfiPersonaInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiPersonaInfo_lower(_ value: FfiPersonaInfo) -> RustBuffer {
+    return FfiConverterTypeFfiPersonaInfo.lower(value)
 }
 
 #if swift(>=5.8)
@@ -1046,6 +1565,81 @@ fileprivate struct FfiConverterSequenceTypeFfiChatMessage: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeFfiDeviceInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [FfiDeviceInfo]
+
+    public static func write(_ value: [FfiDeviceInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFfiDeviceInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FfiDeviceInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FfiDeviceInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFfiDeviceInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFfiKnowledgeResult: FfiConverterRustBuffer {
+    typealias SwiftType = [FfiKnowledgeResult]
+
+    public static func write(_ value: [FfiKnowledgeResult], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFfiKnowledgeResult.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FfiKnowledgeResult] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FfiKnowledgeResult]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFfiKnowledgeResult.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFfiMemoryItem: FfiConverterRustBuffer {
+    typealias SwiftType = [FfiMemoryItem]
+
+    public static func write(_ value: [FfiMemoryItem], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFfiMemoryItem.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FfiMemoryItem] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FfiMemoryItem]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFfiMemoryItem.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeFfiModelInfo: FfiConverterRustBuffer {
     typealias SwiftType = [FfiModelInfo]
 
@@ -1068,6 +1662,31 @@ fileprivate struct FfiConverterSequenceTypeFfiModelInfo: FfiConverterRustBuffer 
     }
 }
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFfiPersonaInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [FfiPersonaInfo]
+
+    public static func write(_ value: [FfiPersonaInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFfiPersonaInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FfiPersonaInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FfiPersonaInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFfiPersonaInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 private enum InitializationResult {
     case ok
     case contractVersionMismatch
@@ -1075,43 +1694,120 @@ private enum InitializationResult {
 }
 // Use a global variable to perform the versioning checks. Swift ensures that
 // the code inside is only computed once.
-private var initializationResult: InitializationResult = {
+private let initializationResult: InitializationResult = {
     // Get the bindings contract version from our ComponentInterface
-    let bindings_contract_version = 26
+    let bindings_contract_version = 30
     // Get the scaffolding contract version by calling the into the dylib
     let scaffolding_contract_version = ffi_prometheus_ffi_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_active_model() != 11623) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_add_knowledge() != 64143) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_conversation() != 23525) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_add_working_memory() != 8707) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_enginehandle_send_message() != 57318) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_anonymize_text() != 50993) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_enginehandle_set_active_model() != 44289) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_control_device() != 17125) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_prometheusapi_create_engine() != 44905) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_delete_user_data() != 57840) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_prometheusapi_list_model_info() != 24451) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_episodic_count() != 4418) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_prometheusapi_list_models() != 46949) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_export_user_data() != 45739) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_constructor_prometheusapi_new() != 24571) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_active_model() != 29579) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_conversation() != 6161) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_screen_context() != 64173) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_setting() != 6684) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_sync_status() != 63215) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_working_memory() != 26466) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_is_paused() != 29685) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_is_shutdown() != 18815) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_knowledge_count() != 52806) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_list_personas() != 53143) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_pause() != 23441) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_record_consent() != 12384) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_resume() != 17141) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_scan_iot_devices() != 16542) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_search_episodes() != 31545) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_search_knowledge() != 33639) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_send_message() != 7162) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_set_active_model() != 35213) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_set_setting() != 55326) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_shutdown() != 8067) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_switch_persona() != 14185) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_working_memory_count() != 36021) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_prometheusapi_create_engine() != 51206) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_prometheusapi_list_model_info() != 44575) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_method_prometheusapi_list_models() != 60933) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_prometheus_ffi_checksum_constructor_prometheusapi_new() != 62426) {
         return InitializationResult.apiChecksumMismatch
     }
 
     return InitializationResult.ok
 }()
 
-private func uniffiEnsureInitialized() {
+// Make the ensure init function public so that other modules which have external type references to
+// our types can call it.
+public func uniffiEnsurePrometheusFfiInitialized() {
     switch initializationResult {
     case .ok:
         break
