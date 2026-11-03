@@ -82,11 +82,20 @@ pub trait BleTransport: Send + Sync {
 /// Recorded BLE operation
 #[derive(Debug, Clone)]
 pub enum BleOperation {
-    Connect { addr: String },
+    Connect {
+        addr: String,
+    },
     Disconnect,
     DiscoverServices,
-    ReadCharacteristic { service_uuid: String, char_uuid: String },
-    WriteCharacteristic { service_uuid: String, char_uuid: String, data: Vec<u8> },
+    ReadCharacteristic {
+        service_uuid: String,
+        char_uuid: String,
+    },
+    WriteCharacteristic {
+        service_uuid: String,
+        char_uuid: String,
+        data: Vec<u8>,
+    },
 }
 
 /// Mock BLE transport that records operations and returns canned responses
@@ -139,7 +148,10 @@ impl BleTransport for MockBleTransport {
     }
 
     async fn discover_services(&self) -> anyhow::Result<Vec<BleService>> {
-        self.operations.write().await.push(BleOperation::DiscoverServices);
+        self.operations
+            .write()
+            .await
+            .push(BleOperation::DiscoverServices);
         Ok(vec![
             BleService {
                 uuid: service_uuid::HEART_RATE.to_string(),
@@ -157,10 +169,13 @@ impl BleTransport for MockBleTransport {
         service_uuid: &str,
         char_uuid: &str,
     ) -> anyhow::Result<Vec<u8>> {
-        self.operations.write().await.push(BleOperation::ReadCharacteristic {
-            service_uuid: service_uuid.to_string(),
-            char_uuid: char_uuid.to_string(),
-        });
+        self.operations
+            .write()
+            .await
+            .push(BleOperation::ReadCharacteristic {
+                service_uuid: service_uuid.to_string(),
+                char_uuid: char_uuid.to_string(),
+            });
 
         let key = format!("{}:{}", service_uuid, char_uuid);
         let responses = self.responses.read().await;
@@ -176,11 +191,14 @@ impl BleTransport for MockBleTransport {
         char_uuid: &str,
         data: &[u8],
     ) -> anyhow::Result<()> {
-        self.operations.write().await.push(BleOperation::WriteCharacteristic {
-            service_uuid: service_uuid.to_string(),
-            char_uuid: char_uuid.to_string(),
-            data: data.to_vec(),
-        });
+        self.operations
+            .write()
+            .await
+            .push(BleOperation::WriteCharacteristic {
+                service_uuid: service_uuid.to_string(),
+                char_uuid: char_uuid.to_string(),
+                data: data.to_vec(),
+            });
         Ok(())
     }
 }
@@ -339,7 +357,10 @@ impl BleWearableAdapter {
     /// Register a BLE wearable device
     pub async fn register_device(&self, device_id: &str, mac_addr: &str, name: &str) {
         let config = BleDeviceConfig::new(mac_addr, name);
-        self.devices.write().await.insert(device_id.to_string(), config);
+        self.devices
+            .write()
+            .await
+            .insert(device_id.to_string(), config);
     }
 
     /// Get device configuration
@@ -492,39 +513,43 @@ mod tests {
     // Helper to setup adapter with mock transport
     async fn setup() -> (BleWearableAdapter, Arc<MockBleTransport>) {
         let (adapter, mock) = BleWearableAdapter::with_mock();
-        adapter.register_device("band-001", "AA:BB:CC:DD:EE:FF", "Test Band").await;
+        adapter
+            .register_device("band-001", "AA:BB:CC:DD:EE:FF", "Test Band")
+            .await;
 
         // Setup mock responses
         mock.set_response(
             service_uuid::HEART_RATE,
             char_uuid::HEART_RATE_MEASUREMENT,
             vec![0x00, 72], // uint8 HR, no RR intervals
-        ).await;
-        mock.set_response(
-            service_uuid::BATTERY,
-            char_uuid::BATTERY_LEVEL,
-            vec![85],
-        ).await;
+        )
+        .await;
+        mock.set_response(service_uuid::BATTERY, char_uuid::BATTERY_LEVEL, vec![85])
+            .await;
         mock.set_response(
             service_uuid::USER_DATA,
             char_uuid::STEP_COUNT,
             vec![0x10, 0x27, 0x00, 0x00], // 10000 steps
-        ).await;
+        )
+        .await;
         mock.set_response(
             service_uuid::DEVICE_INFO,
             char_uuid::MODEL_NUMBER,
             b"Band-X1".to_vec(),
-        ).await;
+        )
+        .await;
         mock.set_response(
             service_uuid::DEVICE_INFO,
             char_uuid::FIRMWARE_REVISION,
             b"1.2.3".to_vec(),
-        ).await;
+        )
+        .await;
         mock.set_response(
             service_uuid::DEVICE_INFO,
             char_uuid::MANUFACTURER_NAME,
             b"TestCorp".to_vec(),
-        ).await;
+        )
+        .await;
 
         (adapter, mock)
     }
@@ -626,7 +651,8 @@ mod tests {
     #[tokio::test]
     async fn mock_transport_read_characteristic() {
         let mock = MockBleTransport::new();
-        mock.set_response(service_uuid::BATTERY, char_uuid::BATTERY_LEVEL, vec![75]).await;
+        mock.set_response(service_uuid::BATTERY, char_uuid::BATTERY_LEVEL, vec![75])
+            .await;
 
         let data = mock
             .read_characteristic(service_uuid::BATTERY, char_uuid::BATTERY_LEVEL)
@@ -664,7 +690,9 @@ mod tests {
     #[tokio::test]
     async fn device_controller_set_property_unsupported() {
         let (adapter, _mock) = setup().await;
-        let result = adapter.set_property("band-001", "reboot", Value::Null).await;
+        let result = adapter
+            .set_property("band-001", "reboot", Value::Null)
+            .await;
         assert!(result.is_err());
     }
 
@@ -740,7 +768,9 @@ mod tests {
         adapter.sync_time("band-001").await.unwrap();
 
         let ops = mock.operations().await;
-        let write_op = ops.iter().find(|op| matches!(op, BleOperation::WriteCharacteristic { .. }));
+        let write_op = ops
+            .iter()
+            .find(|op| matches!(op, BleOperation::WriteCharacteristic { .. }));
         assert!(write_op.is_some());
     }
 }

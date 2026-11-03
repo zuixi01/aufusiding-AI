@@ -20,7 +20,9 @@ impl SpreadsheetTool {
     pub fn read_csv(data: &str) -> Value {
         let mut rows: Vec<Vec<String>> = Vec::new();
         for line in data.lines() {
-            if line.trim().is_empty() { continue; }
+            if line.trim().is_empty() {
+                continue;
+            }
             rows.push(line.split(',').map(|s| s.trim().to_string()).collect());
         }
         if rows.is_empty() {
@@ -43,7 +45,9 @@ impl SpreadsheetTool {
 
     /// 公式计算
     pub fn formula(values: &[f64], op: &str) -> Option<f64> {
-        if values.is_empty() { return None; }
+        if values.is_empty() {
+            return None;
+        }
         match op.to_uppercase().as_str() {
             "SUM" => Some(values.iter().sum()),
             "AVG" => Some(values.iter().sum::<f64>() / values.len() as f64),
@@ -70,7 +74,8 @@ impl SpreadsheetTool {
             _ => return serde_json::json!({"error": "column not found"}),
         };
 
-        let mut groups: std::collections::HashMap<String, Vec<f64>> = std::collections::HashMap::new();
+        let mut groups: std::collections::HashMap<String, Vec<f64>> =
+            std::collections::HashMap::new();
         for row in rows {
             if let (Some(key), Some(val_str)) = (row.get(group_idx), row.get(agg_idx)) {
                 if let Ok(val) = val_str.parse::<f64>() {
@@ -129,20 +134,26 @@ impl AgentTool for SpreadsheetTool {
                 ToolResult::ok(Self::read_csv(data))
             }
             "write_csv" => {
-                let headers: Vec<String> = params.get("headers")
+                let headers: Vec<String> = params
+                    .get("headers")
                     .and_then(|v| serde_json::from_value(v.clone()).ok())
                     .unwrap_or_default();
-                let rows: Vec<Vec<String>> = params.get("rows")
+                let rows: Vec<Vec<String>> = params
+                    .get("rows")
                     .and_then(|v| serde_json::from_value(v.clone()).ok())
                     .unwrap_or_default();
                 let csv = Self::write_csv(&headers, &rows);
                 ToolResult::ok(serde_json::json!({"csv": csv}))
             }
             "formula" => {
-                let values: Vec<f64> = params.get("values")
+                let values: Vec<f64> = params
+                    .get("values")
                     .and_then(|v| serde_json::from_value(v.clone()).ok())
                     .unwrap_or_default();
-                let op = params.get("operation").and_then(|v| v.as_str()).unwrap_or("SUM");
+                let op = params
+                    .get("operation")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("SUM");
                 match Self::formula(&values, op) {
                     Some(v) => ToolResult::ok(serde_json::json!({"result": v})),
                     None => ToolResult::err("formula computation failed"),
@@ -151,15 +162,26 @@ impl AgentTool for SpreadsheetTool {
             "pivot" => {
                 let data = params.get("data").and_then(|v| v.as_str()).unwrap_or("");
                 let parsed = Self::read_csv(data);
-                let headers: Vec<String> = parsed.get("headers")
+                let headers: Vec<String> = parsed
+                    .get("headers")
                     .and_then(|v| serde_json::from_value(v.clone()).ok())
                     .unwrap_or_default();
-                let rows: Vec<Vec<String>> = parsed.get("rows")
+                let rows: Vec<Vec<String>> = parsed
+                    .get("rows")
                     .and_then(|v| serde_json::from_value(v.clone()).ok())
                     .unwrap_or_default();
-                let group_by = params.get("group_by").and_then(|v| v.as_str()).unwrap_or("");
-                let agg_col = params.get("aggregate_col").and_then(|v| v.as_str()).unwrap_or("");
-                let agg_fn = params.get("aggregate_fn").and_then(|v| v.as_str()).unwrap_or("SUM");
+                let group_by = params
+                    .get("group_by")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let agg_col = params
+                    .get("aggregate_col")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let agg_fn = params
+                    .get("aggregate_fn")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("SUM");
                 let result = Self::pivot(&headers, &rows, group_by, agg_col, agg_fn);
                 ToolResult::ok(result)
             }
@@ -196,17 +218,26 @@ mod tests {
 
     #[test]
     fn formula_sum() {
-        assert_eq!(SpreadsheetTool::formula(&[10.0, 20.0, 30.0], "SUM"), Some(60.0));
+        assert_eq!(
+            SpreadsheetTool::formula(&[10.0, 20.0, 30.0], "SUM"),
+            Some(60.0)
+        );
     }
 
     #[test]
     fn formula_avg() {
-        assert_eq!(SpreadsheetTool::formula(&[10.0, 20.0, 30.0], "AVG"), Some(20.0));
+        assert_eq!(
+            SpreadsheetTool::formula(&[10.0, 20.0, 30.0], "AVG"),
+            Some(20.0)
+        );
     }
 
     #[test]
     fn formula_count() {
-        assert_eq!(SpreadsheetTool::formula(&[1.0, 2.0, 3.0], "COUNT"), Some(3.0));
+        assert_eq!(
+            SpreadsheetTool::formula(&[1.0, 2.0, 3.0], "COUNT"),
+            Some(3.0)
+        );
     }
 
     #[test]
@@ -253,10 +284,12 @@ mod tests {
     #[tokio::test]
     async fn execute_read_csv() {
         let tool = SpreadsheetTool::new();
-        let result = tool.execute(serde_json::json!({
-            "action": "read_csv",
-            "data": "a,b\n1,2"
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "read_csv",
+                "data": "a,b\n1,2"
+            }))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["headers"][0], "a");
     }
@@ -264,11 +297,13 @@ mod tests {
     #[tokio::test]
     async fn execute_write_csv() {
         let tool = SpreadsheetTool::new();
-        let result = tool.execute(serde_json::json!({
-            "action": "write_csv",
-            "headers": ["x", "y"],
-            "rows": [["1", "2"]]
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "write_csv",
+                "headers": ["x", "y"],
+                "rows": [["1", "2"]]
+            }))
+            .await;
         assert!(result.success);
         assert!(result.output["csv"].as_str().unwrap().contains("x,y"));
     }
@@ -276,11 +311,13 @@ mod tests {
     #[tokio::test]
     async fn execute_formula() {
         let tool = SpreadsheetTool::new();
-        let result = tool.execute(serde_json::json!({
-            "action": "formula",
-            "values": [10, 20, 30],
-            "operation": "AVG"
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "formula",
+                "values": [10, 20, 30],
+                "operation": "AVG"
+            }))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["result"], 20.0);
     }
@@ -288,13 +325,15 @@ mod tests {
     #[tokio::test]
     async fn execute_pivot() {
         let tool = SpreadsheetTool::new();
-        let result = tool.execute(serde_json::json!({
-            "action": "pivot",
-            "data": "dept,sales\nA,100\nB,200\nA,50",
-            "group_by": "dept",
-            "aggregate_col": "sales",
-            "aggregate_fn": "SUM"
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "pivot",
+                "data": "dept,sales\nA,100\nB,200\nA,50",
+                "group_by": "dept",
+                "aggregate_col": "sales",
+                "aggregate_fn": "SUM"
+            }))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["A"], 150.0);
     }

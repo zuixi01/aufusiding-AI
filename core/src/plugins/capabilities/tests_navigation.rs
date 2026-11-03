@@ -2,21 +2,32 @@
 
 #[cfg(test)]
 mod unit {
-    use crate::plugins::capabilities::navigation::NavigationCapability;
-    use crate::plugins::capabilities::navigation_provider::*;
     use crate::plugins::capabilities::app_control::AppControlCapability;
     use crate::plugins::capabilities::app_control_platform::MockPlatformController;
     use crate::plugins::capabilities::file_indexer::FileIndexer;
+    use crate::plugins::capabilities::navigation::NavigationCapability;
+    use crate::plugins::capabilities::navigation_provider::*;
 
     // ─── Navigation ────────────────────────────────────
 
     #[tokio::test]
     async fn navigation_plan_route() {
         let nav = NavigationCapability::new(Box::new(MockNavigationProvider));
-        let from = Location { lat: 39.9, lng: 116.4, name: Some("起点".into()) };
-        let to = Location { lat: 40.0, lng: 116.5, name: Some("终点".into()) };
+        let from = Location {
+            lat: 39.9,
+            lng: 116.4,
+            name: Some("起点".into()),
+        };
+        let to = Location {
+            lat: 40.0,
+            lng: 116.5,
+            name: Some("终点".into()),
+        };
 
-        let route = nav.plan_route(&from, &to, TravelMode::Driving).await.unwrap();
+        let route = nav
+            .plan_route(&from, &to, TravelMode::Driving)
+            .await
+            .unwrap();
         assert!(!route.steps.is_empty());
         assert!(route.distance_m > 0.0);
     }
@@ -31,9 +42,20 @@ mod unit {
     #[tokio::test]
     async fn navigation_eta() {
         let nav = NavigationCapability::new(Box::new(MockNavigationProvider));
-        let from = Location { lat: 39.9, lng: 116.4, name: None };
-        let to = Location { lat: 40.0, lng: 116.5, name: None };
-        let route = nav.plan_route(&from, &to, TravelMode::Driving).await.unwrap();
+        let from = Location {
+            lat: 39.9,
+            lng: 116.4,
+            name: None,
+        };
+        let to = Location {
+            lat: 40.0,
+            lng: 116.5,
+            name: None,
+        };
+        let route = nav
+            .plan_route(&from, &to, TravelMode::Driving)
+            .await
+            .unwrap();
         let eta = nav.eta(&route);
         assert!(eta.as_secs() > 0);
     }
@@ -41,9 +63,20 @@ mod unit {
     #[tokio::test]
     async fn navigation_voice_instructions() {
         let nav = NavigationCapability::new(Box::new(MockNavigationProvider));
-        let from = Location { lat: 39.9, lng: 116.4, name: None };
-        let to = Location { lat: 40.0, lng: 116.5, name: None };
-        let route = nav.plan_route(&from, &to, TravelMode::Driving).await.unwrap();
+        let from = Location {
+            lat: 39.9,
+            lng: 116.4,
+            name: None,
+        };
+        let to = Location {
+            lat: 40.0,
+            lng: 116.5,
+            name: None,
+        };
+        let route = nav
+            .plan_route(&from, &to, TravelMode::Driving)
+            .await
+            .unwrap();
         let instructions = nav.voice_instructions(&route);
         assert!(instructions.len() >= 3); // 开头 + 步骤 + 到达
         assert!(instructions[0].contains("公里"));
@@ -60,7 +93,11 @@ mod unit {
 
     #[test]
     fn location_serde() {
-        let loc = Location { lat: 39.9, lng: 116.4, name: Some("北京".into()) };
+        let loc = Location {
+            lat: 39.9,
+            lng: 116.4,
+            name: Some("北京".into()),
+        };
         let json = serde_json::to_string(&loc).unwrap();
         let back: Location = serde_json::from_str(&json).unwrap();
         assert_eq!(back.lat, 39.9);
@@ -126,7 +163,9 @@ mod unit {
     fn file_indexer_index_and_search() {
         let mut indexer = FileIndexer::new();
         // 索引当前 crate 的 src 目录
-        let count = indexer.index_directory(std::path::Path::new("src")).unwrap();
+        let count = indexer
+            .index_directory(std::path::Path::new("src"))
+            .unwrap();
         assert!(count > 0);
         assert!(indexer.entry_count() > 0);
 
@@ -138,7 +177,9 @@ mod unit {
     #[test]
     fn file_indexer_by_extension() {
         let mut indexer = FileIndexer::new();
-        indexer.index_directory(std::path::Path::new("src")).unwrap();
+        indexer
+            .index_directory(std::path::Path::new("src"))
+            .unwrap();
         let rs_files = indexer.by_extension("rs");
         assert!(!rs_files.is_empty());
     }
@@ -146,7 +187,9 @@ mod unit {
     #[test]
     fn file_indexer_recent_files() {
         let mut indexer = FileIndexer::new();
-        indexer.index_directory(std::path::Path::new("src")).unwrap();
+        indexer
+            .index_directory(std::path::Path::new("src"))
+            .unwrap();
         let recent = indexer.recent_files(5);
         assert!(recent.len() <= 5);
     }
@@ -154,13 +197,17 @@ mod unit {
     #[test]
     fn file_indexer_nonexistent_path_fails() {
         let mut indexer = FileIndexer::new();
-        assert!(indexer.index_directory(std::path::Path::new("/nonexistent/path")).is_err());
+        assert!(indexer
+            .index_directory(std::path::Path::new("/nonexistent/path"))
+            .is_err());
     }
 
     #[test]
     fn file_indexer_clear() {
         let mut indexer = FileIndexer::new();
-        indexer.index_directory(std::path::Path::new("src")).unwrap();
+        indexer
+            .index_directory(std::path::Path::new("src"))
+            .unwrap();
         assert!(indexer.entry_count() > 0);
         indexer.clear();
         assert_eq!(indexer.entry_count(), 0);

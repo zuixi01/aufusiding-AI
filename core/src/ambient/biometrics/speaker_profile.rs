@@ -69,14 +69,15 @@ impl SpeakerProfile {
 
     /// 是否有足够权限执行操作
     pub fn has_permission(&self, required: PermissionLevel) -> bool {
-        matches!((self.permission_level, required),
+        matches!(
+            (self.permission_level, required),
             (PermissionLevel::Admin, _)
-            | (PermissionLevel::Standard, PermissionLevel::Standard)
-            | (PermissionLevel::Standard, PermissionLevel::Child)
-            | (PermissionLevel::Standard, PermissionLevel::Guest)
-            | (PermissionLevel::Child, PermissionLevel::Child)
-            | (PermissionLevel::Child, PermissionLevel::Guest)
-            | (PermissionLevel::Guest, PermissionLevel::Guest)
+                | (PermissionLevel::Standard, PermissionLevel::Standard)
+                | (PermissionLevel::Standard, PermissionLevel::Child)
+                | (PermissionLevel::Standard, PermissionLevel::Guest)
+                | (PermissionLevel::Child, PermissionLevel::Child)
+                | (PermissionLevel::Child, PermissionLevel::Guest)
+                | (PermissionLevel::Guest, PermissionLevel::Guest)
         )
     }
 }

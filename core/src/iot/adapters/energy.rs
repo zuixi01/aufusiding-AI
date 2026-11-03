@@ -218,7 +218,11 @@ impl EnergyAdapter {
     }
 
     fn solaredge_endpoint(&self, path: &str) -> String {
-        format!("{}/{}", self.solaredge_base_url, path.trim_start_matches('/'))
+        format!(
+            "{}/{}",
+            self.solaredge_base_url,
+            path.trim_start_matches('/')
+        )
     }
 
     fn shelly_endpoint(&self, host: &str, path: &str) -> String {
@@ -229,54 +233,115 @@ impl EnergyAdapter {
     // SolarEdge API methods
 
     /// GET /site/{siteId}/overview
-    pub async fn get_overview(&self, site_id: &str, api_key: &str) -> anyhow::Result<SolarEdgeOverview> {
+    pub async fn get_overview(
+        &self,
+        site_id: &str,
+        api_key: &str,
+    ) -> anyhow::Result<SolarEdgeOverview> {
         let url = self.solaredge_endpoint(&format!("site/{}/overview", site_id));
-        let resp = self.client.get(&url).query(&[("api_key", api_key)]).send().await?;
+        let resp = self
+            .client
+            .get(&url)
+            .query(&[("api_key", api_key)])
+            .send()
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!("GET /site/{}/overview failed ({}): {}", site_id, status.as_u16(), body);
+            anyhow::bail!(
+                "GET /site/{}/overview failed ({}): {}",
+                site_id,
+                status.as_u16(),
+                body
+            );
         }
         let overview: SolarEdgeOverview = resp.json().await?;
         Ok(overview)
     }
 
     /// GET /site/{siteId}/currentPowerFlow
-    pub async fn get_power_flow(&self, site_id: &str, api_key: &str) -> anyhow::Result<SolarEdgePowerFlow> {
+    pub async fn get_power_flow(
+        &self,
+        site_id: &str,
+        api_key: &str,
+    ) -> anyhow::Result<SolarEdgePowerFlow> {
         let url = self.solaredge_endpoint(&format!("site/{}/currentPowerFlow", site_id));
-        let resp = self.client.get(&url).query(&[("api_key", api_key)]).send().await?;
+        let resp = self
+            .client
+            .get(&url)
+            .query(&[("api_key", api_key)])
+            .send()
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!("GET /site/{}/currentPowerFlow failed ({}): {}", site_id, status.as_u16(), body);
+            anyhow::bail!(
+                "GET /site/{}/currentPowerFlow failed ({}): {}",
+                site_id,
+                status.as_u16(),
+                body
+            );
         }
         let power_flow: SolarEdgePowerFlow = resp.json().await?;
         Ok(power_flow)
     }
 
     /// GET /site/{siteId}/energyDetails
-    pub async fn get_energy_details(&self, site_id: &str, api_key: &str, start_time: &str, end_time: &str) -> anyhow::Result<SolarEdgeEnergyDetails> {
+    pub async fn get_energy_details(
+        &self,
+        site_id: &str,
+        api_key: &str,
+        start_time: &str,
+        end_time: &str,
+    ) -> anyhow::Result<SolarEdgeEnergyDetails> {
         let url = self.solaredge_endpoint(&format!("site/{}/energyDetails", site_id));
-        let resp = self.client.get(&url)
-            .query(&[("api_key", api_key), ("timeUnit", "DAY"), ("startTime", start_time), ("endTime", end_time)])
-            .send().await?;
+        let resp = self
+            .client
+            .get(&url)
+            .query(&[
+                ("api_key", api_key),
+                ("timeUnit", "DAY"),
+                ("startTime", start_time),
+                ("endTime", end_time),
+            ])
+            .send()
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!("GET /site/{}/energyDetails failed ({}): {}", site_id, status.as_u16(), body);
+            anyhow::bail!(
+                "GET /site/{}/energyDetails failed ({}): {}",
+                site_id,
+                status.as_u16(),
+                body
+            );
         }
         let details: SolarEdgeEnergyDetails = resp.json().await?;
         Ok(details)
     }
 
     /// GET /site/{siteId}/inventory
-    pub async fn get_inventory(&self, site_id: &str, api_key: &str) -> anyhow::Result<SolarEdgeInventory> {
+    pub async fn get_inventory(
+        &self,
+        site_id: &str,
+        api_key: &str,
+    ) -> anyhow::Result<SolarEdgeInventory> {
         let url = self.solaredge_endpoint(&format!("site/{}/inventory", site_id));
-        let resp = self.client.get(&url).query(&[("api_key", api_key)]).send().await?;
+        let resp = self
+            .client
+            .get(&url)
+            .query(&[("api_key", api_key)])
+            .send()
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!("GET /site/{}/inventory failed ({}): {}", site_id, status.as_u16(), body);
+            anyhow::bail!(
+                "GET /site/{}/inventory failed ({}): {}",
+                site_id,
+                status.as_u16(),
+                body
+            );
         }
         let inventory: SolarEdgeInventory = resp.json().await?;
         Ok(inventory)
@@ -285,56 +350,104 @@ impl EnergyAdapter {
     // Shelly API methods
 
     /// GET /rpc/Switch.GetStatus?id=0
-    pub async fn get_switch_status(&self, host: &str, switch_id: u8) -> anyhow::Result<ShellySwitchStatus> {
+    pub async fn get_switch_status(
+        &self,
+        host: &str,
+        switch_id: u8,
+    ) -> anyhow::Result<ShellySwitchStatus> {
         let url = self.shelly_endpoint(host, "rpc/Switch.GetStatus");
-        let resp = self.client.get(&url).query(&[("id", switch_id.to_string())]).send().await?;
+        let resp = self
+            .client
+            .get(&url)
+            .query(&[("id", switch_id.to_string())])
+            .send()
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!("GET /rpc/Switch.GetStatus failed ({}): {}", status.as_u16(), body);
+            anyhow::bail!(
+                "GET /rpc/Switch.GetStatus failed ({}): {}",
+                status.as_u16(),
+                body
+            );
         }
         let switch_status: ShellySwitchStatus = resp.json().await?;
         Ok(switch_status)
     }
 
     /// GET /rpc/Switch.Set?id=0&on=true
-    pub async fn switch_on(&self, host: &str, switch_id: u8) -> anyhow::Result<ShellySwitchSetResponse> {
+    pub async fn switch_on(
+        &self,
+        host: &str,
+        switch_id: u8,
+    ) -> anyhow::Result<ShellySwitchSetResponse> {
         let url = self.shelly_endpoint(host, "rpc/Switch.Set");
-        let resp = self.client.get(&url)
+        let resp = self
+            .client
+            .get(&url)
             .query(&[("id", switch_id.to_string()), ("on", "true".to_string())])
-            .send().await?;
+            .send()
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!("GET /rpc/Switch.Set (on) failed ({}): {}", status.as_u16(), body);
+            anyhow::bail!(
+                "GET /rpc/Switch.Set (on) failed ({}): {}",
+                status.as_u16(),
+                body
+            );
         }
         let response: ShellySwitchSetResponse = resp.json().await?;
         Ok(response)
     }
 
     /// GET /rpc/Switch.Set?id=0&on=false
-    pub async fn switch_off(&self, host: &str, switch_id: u8) -> anyhow::Result<ShellySwitchSetResponse> {
+    pub async fn switch_off(
+        &self,
+        host: &str,
+        switch_id: u8,
+    ) -> anyhow::Result<ShellySwitchSetResponse> {
         let url = self.shelly_endpoint(host, "rpc/Switch.Set");
-        let resp = self.client.get(&url)
+        let resp = self
+            .client
+            .get(&url)
             .query(&[("id", switch_id.to_string()), ("on", "false".to_string())])
-            .send().await?;
+            .send()
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!("GET /rpc/Switch.Set (off) failed ({}): {}", status.as_u16(), body);
+            anyhow::bail!(
+                "GET /rpc/Switch.Set (off) failed ({}): {}",
+                status.as_u16(),
+                body
+            );
         }
         let response: ShellySwitchSetResponse = resp.json().await?;
         Ok(response)
     }
 
     /// GET /rpc/EM.GetStatus?id=0
-    pub async fn get_meter_status(&self, host: &str, meter_id: u8) -> anyhow::Result<ShellyMeterStatus> {
+    pub async fn get_meter_status(
+        &self,
+        host: &str,
+        meter_id: u8,
+    ) -> anyhow::Result<ShellyMeterStatus> {
         let url = self.shelly_endpoint(host, "rpc/EM.GetStatus");
-        let resp = self.client.get(&url).query(&[("id", meter_id.to_string())]).send().await?;
+        let resp = self
+            .client
+            .get(&url)
+            .query(&[("id", meter_id.to_string())])
+            .send()
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!("GET /rpc/EM.GetStatus failed ({}): {}", status.as_u16(), body);
+            anyhow::bail!(
+                "GET /rpc/EM.GetStatus failed ({}): {}",
+                status.as_u16(),
+                body
+            );
         }
         let meter_status: ShellyMeterStatus = resp.json().await?;
         Ok(meter_status)
@@ -347,7 +460,11 @@ impl EnergyAdapter {
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            anyhow::bail!("GET /rpc/Shelly.GetDeviceInfo failed ({}): {}", status.as_u16(), body);
+            anyhow::bail!(
+                "GET /rpc/Shelly.GetDeviceInfo failed ({}): {}",
+                status.as_u16(),
+                body
+            );
         }
         let device_info: ShellyDeviceInfo = resp.json().await?;
         Ok(device_info)
@@ -360,7 +477,10 @@ impl DeviceController for EnergyAdapter {
         let config = self.get_config(device_id)?;
         match config.provider {
             EnergyProvider::Shelly => {
-                let host = config.host.as_ref().ok_or_else(|| anyhow::anyhow!("Shelly device requires host"))?;
+                let host = config
+                    .host
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("Shelly device requires host"))?;
                 self.switch_on(host, 0).await?;
                 Ok(())
             }
@@ -374,7 +494,10 @@ impl DeviceController for EnergyAdapter {
         let config = self.get_config(device_id)?;
         match config.provider {
             EnergyProvider::Shelly => {
-                let host = config.host.as_ref().ok_or_else(|| anyhow::anyhow!("Shelly device requires host"))?;
+                let host = config
+                    .host
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("Shelly device requires host"))?;
                 self.switch_off(host, 0).await?;
                 Ok(())
             }
@@ -384,13 +507,20 @@ impl DeviceController for EnergyAdapter {
         }
     }
 
-    async fn set_property(&self, device_id: &str, property: &str, value: Value) -> anyhow::Result<()> {
+    async fn set_property(
+        &self,
+        device_id: &str,
+        property: &str,
+        value: Value,
+    ) -> anyhow::Result<()> {
         let config = self.get_config(device_id)?;
         match config.provider {
             EnergyProvider::SolarEdge => {
                 match property {
                     "export_limit" => {
-                        let _watts = value.as_f64().ok_or_else(|| anyhow::anyhow!("export_limit must be a number (watts)"))?;
+                        let _watts = value.as_f64().ok_or_else(|| {
+                            anyhow::anyhow!("export_limit must be a number (watts)")
+                        })?;
                         // Real implementation would call SolarEdge API to set power limit
                         Ok(())
                     }
@@ -407,8 +537,14 @@ impl DeviceController for EnergyAdapter {
         let config = self.get_config(device_id)?;
         match config.provider {
             EnergyProvider::SolarEdge => {
-                let api_key = config.api_key.as_ref().ok_or_else(|| anyhow::anyhow!("SolarEdge requires api_key"))?;
-                let site_id = config.site_id.as_ref().ok_or_else(|| anyhow::anyhow!("SolarEdge requires site_id"))?;
+                let api_key = config
+                    .api_key
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("SolarEdge requires api_key"))?;
+                let site_id = config
+                    .site_id
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("SolarEdge requires site_id"))?;
                 let overview = self.get_overview(site_id, api_key).await?;
                 Ok(json!({
                     "provider": "solaredge",
@@ -419,7 +555,10 @@ impl DeviceController for EnergyAdapter {
                 }))
             }
             EnergyProvider::Shelly => {
-                let host = config.host.as_ref().ok_or_else(|| anyhow::anyhow!("Shelly requires host"))?;
+                let host = config
+                    .host
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("Shelly requires host"))?;
                 let status = self.get_switch_status(host, 0).await?;
                 Ok(json!({
                     "provider": "shelly",
@@ -530,9 +669,18 @@ mod tests {
             }));
         });
         let adapter = solaredge_adapter(&server);
-        let flow = adapter.get_power_flow("12345", "test-api-key").await.unwrap();
-        assert_eq!(flow.site_current_power_flow.pv.unwrap().current_power, 4200.0);
-        assert_eq!(flow.site_current_power_flow.load.unwrap().current_power, 2800.0);
+        let flow = adapter
+            .get_power_flow("12345", "test-api-key")
+            .await
+            .unwrap();
+        assert_eq!(
+            flow.site_current_power_flow.pv.unwrap().current_power,
+            4200.0
+        );
+        assert_eq!(
+            flow.site_current_power_flow.load.unwrap().current_power,
+            2800.0
+        );
         mock.assert();
     }
 
@@ -561,7 +709,10 @@ mod tests {
             }));
         });
         let adapter = solaredge_adapter(&server);
-        let details = adapter.get_energy_details("12345", "test-api-key", "2026-03-01", "2026-03-12").await.unwrap();
+        let details = adapter
+            .get_energy_details("12345", "test-api-key", "2026-03-01", "2026-03-12")
+            .await
+            .unwrap();
         assert_eq!(details.energy_details.meters.len(), 1);
         assert_eq!(details.energy_details.meters[0].meter_type, "Production");
         mock.assert();
@@ -586,7 +737,10 @@ mod tests {
             }));
         });
         let adapter = solaredge_adapter(&server);
-        let inventory = adapter.get_inventory("12345", "test-api-key").await.unwrap();
+        let inventory = adapter
+            .get_inventory("12345", "test-api-key")
+            .await
+            .unwrap();
         assert_eq!(inventory.inventory.inverters.len(), 1);
         assert_eq!(inventory.inventory.inverters[0].name, "Inverter 1");
         assert_eq!(inventory.inventory.batteries.len(), 1);
@@ -620,7 +774,10 @@ mod tests {
         let adapter = solaredge_adapter(&server);
         let result = adapter.turn_on("solar-001").await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("do not support turn_on"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("do not support turn_on"));
     }
 
     #[tokio::test]
@@ -629,14 +786,19 @@ mod tests {
         let adapter = solaredge_adapter(&server);
         let result = adapter.turn_off("solar-001").await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("do not support turn_off"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("do not support turn_off"));
     }
 
     #[tokio::test]
     async fn solaredge_set_export_limit_success() {
         let server = MockServer::start();
         let adapter = solaredge_adapter(&server);
-        let result = adapter.set_property("solar-001", "export_limit", json!(5000.0)).await;
+        let result = adapter
+            .set_property("solar-001", "export_limit", json!(5000.0))
+            .await;
         assert!(result.is_ok());
     }
 
@@ -644,7 +806,9 @@ mod tests {
     async fn solaredge_set_unsupported_property_fails() {
         let server = MockServer::start();
         let adapter = solaredge_adapter(&server);
-        let result = adapter.set_property("solar-001", "invalid", json!(100)).await;
+        let result = adapter
+            .set_property("solar-001", "invalid", json!(100))
+            .await;
         assert!(result.is_err());
     }
 
@@ -667,8 +831,11 @@ mod tests {
             }));
         });
         let adapter = shelly_adapter(&server);
-        let status = adapter.get_switch_status("http://192.168.1.100", 0).await.unwrap();
-        assert_eq!(status.output, true);
+        let status = adapter
+            .get_switch_status("http://192.168.1.100", 0)
+            .await
+            .unwrap();
+        assert!(status.output);
         assert_eq!(status.apower, 125.5);
         assert_eq!(status.voltage, 230.2);
         mock.assert();
@@ -686,7 +853,7 @@ mod tests {
         });
         let adapter = shelly_adapter(&server);
         let response = adapter.switch_on("http://192.168.1.100", 0).await.unwrap();
-        assert_eq!(response.was_on, false);
+        assert!(!response.was_on);
         mock.assert();
     }
 
@@ -702,7 +869,7 @@ mod tests {
         });
         let adapter = shelly_adapter(&server);
         let response = adapter.switch_off("http://192.168.1.100", 0).await.unwrap();
-        assert_eq!(response.was_on, true);
+        assert!(response.was_on);
         mock.assert();
     }
 
@@ -722,7 +889,10 @@ mod tests {
             }));
         });
         let adapter = shelly_adapter(&server);
-        let status = adapter.get_meter_status("http://192.168.1.100", 0).await.unwrap();
+        let status = adapter
+            .get_meter_status("http://192.168.1.100", 0)
+            .await
+            .unwrap();
         assert_eq!(status.a_act_power, 1850.5);
         assert_eq!(status.total_act_energy, 15420.3);
         mock.assert();
@@ -740,7 +910,10 @@ mod tests {
             }));
         });
         let adapter = shelly_adapter(&server);
-        let info = adapter.get_device_info("http://192.168.1.100").await.unwrap();
+        let info = adapter
+            .get_device_info("http://192.168.1.100")
+            .await
+            .unwrap();
         assert_eq!(info.model, "SNPL-00116US");
         mock.assert();
     }
@@ -802,7 +975,10 @@ mod tests {
         let adapter = shelly_adapter(&server);
         let result = adapter.set_property("shelly-001", "any", json!(100)).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("do not support set_property"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("do not support set_property"));
     }
 
     #[tokio::test]

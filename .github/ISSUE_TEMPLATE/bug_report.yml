@@ -58,6 +58,7 @@ body:
         - 插件系统 (plugins)
         - CLI 工具 (cli)
         - HTTP API (server)
+        - 桌面客户端 (desktop)
         - FFI 绑定 (ffi)
         - 其他
     validations:
@@ -79,7 +80,7 @@ body:
       description: 操作系统、Rust 版本等
       placeholder: |
         - OS: Ubuntu 24.04
-        - Rust: 1.93.0
+        - Rust: rustc --version 的输出
         - Ollama: 0.6.x
       render: markdown
 
@@ -87,5 +88,5 @@ body:
     id: logs
     attributes:
       label: 相关日志
-      description: 粘贴相关的错误日志或堆栈跟踪
+      description: 粘贴相关的错误日志或堆栈跟踪；请先移除令牌、密钥和个人信息
       render: shell

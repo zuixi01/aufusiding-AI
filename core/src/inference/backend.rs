@@ -99,7 +99,11 @@ impl InferenceBackend for MockInferenceBackend {
     }
 
     fn memory_usage(&self) -> usize {
-        if *self.loaded.lock().unwrap_or_else(|e| e.into_inner()) { 1024 } else { 0 }
+        if *self.loaded.lock().unwrap_or_else(|e| e.into_inner()) {
+            1024
+        } else {
+            0
+        }
     }
 }
 
@@ -111,7 +115,10 @@ mod tests {
     async fn mock_backend_load_and_infer() {
         let mut backend = MockInferenceBackend::new();
         assert!(!backend.is_loaded());
-        backend.load_model(std::path::Path::new("/tmp/model")).await.unwrap();
+        backend
+            .load_model(std::path::Path::new("/tmp/model"))
+            .await
+            .unwrap();
         assert!(backend.is_loaded());
         let req = InferenceRequest {
             prompt: "hello".into(),
@@ -126,7 +133,10 @@ mod tests {
     #[tokio::test]
     async fn mock_backend_unload() {
         let mut backend = MockInferenceBackend::new();
-        backend.load_model(std::path::Path::new("/tmp/m")).await.unwrap();
+        backend
+            .load_model(std::path::Path::new("/tmp/m"))
+            .await
+            .unwrap();
         assert_eq!(backend.memory_usage(), 1024);
         backend.unload().await.unwrap();
         assert_eq!(backend.memory_usage(), 0);

@@ -1,0 +1,12 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+
+# Preserve the upstream generator's exact output; CI verifies regeneration.
+ffi/generated/** linguist-generated=true whitespace=-blank-at-eol

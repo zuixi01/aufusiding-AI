@@ -42,7 +42,11 @@ impl SceneExecutor {
         self
     }
 
-    pub fn register_controller(&mut self, device_type: &str, controller: Arc<dyn DeviceController>) {
+    pub fn register_controller(
+        &mut self,
+        device_type: &str,
+        controller: Arc<dyn DeviceController>,
+    ) {
         self.controllers.insert(device_type.to_string(), controller);
     }
 
@@ -114,8 +118,14 @@ impl SceneExecutor {
                     // Support two param formats:
                     // 1. {"property": "x", "value": y}
                     // 2. {"x": y} (shorthand used by preset scenes)
-                    let (property, value) = if let Some(prop) = action.params.get("property").and_then(|v| v.as_str()) {
-                        let val = action.params.get("value").cloned().unwrap_or(serde_json::Value::Null);
+                    let (property, value) = if let Some(prop) =
+                        action.params.get("property").and_then(|v| v.as_str())
+                    {
+                        let val = action
+                            .params
+                            .get("value")
+                            .cloned()
+                            .unwrap_or(serde_json::Value::Null);
                         (prop.to_string(), val)
                     } else if let Some(obj) = action.params.as_object() {
                         if let Some((k, v)) = obj.iter().next() {
@@ -126,7 +136,9 @@ impl SceneExecutor {
                     } else {
                         return Err(anyhow::anyhow!("Invalid params for set_property"));
                     };
-                    controller.set_property(&action.device_id, &property, value).await
+                    controller
+                        .set_property(&action.device_id, &property, value)
+                        .await
                 }
                 _ => return Err(anyhow::anyhow!("Unknown command: {}", action.command)),
             };
@@ -136,7 +148,10 @@ impl SceneExecutor {
             }
         }
 
-        Err(anyhow::anyhow!("No controller could handle device: {}", action.device_id))
+        Err(anyhow::anyhow!(
+            "No controller could handle device: {}",
+            action.device_id
+        ))
     }
 
     pub async fn dry_run(&self, scene: &Scene) -> Vec<String> {
@@ -163,8 +178,8 @@ impl SceneExecutor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::control::MockDeviceController;
+    use super::*;
 
     fn setup_light_controller() -> Arc<MockDeviceController> {
         let controller = Arc::new(MockDeviceController::new("light"));
@@ -277,14 +292,12 @@ mod tests {
             id: "single".to_string(),
             name: "Single Action".to_string(),
             description: "One action".to_string(),
-            actions: vec![
-                SceneAction {
-                    device_id: "light-living-room".to_string(),
-                    command: "turn_on".to_string(),
-                    params: serde_json::json!({}),
-                    delay_ms: 0,
-                }
-            ],
+            actions: vec![SceneAction {
+                device_id: "light-living-room".to_string(),
+                command: "turn_on".to_string(),
+                params: serde_json::json!({}),
+                delay_ms: 0,
+            }],
         };
 
         let result = executor.execute(&scene).await;
@@ -372,14 +385,12 @@ mod tests {
             id: "fail".to_string(),
             name: "All Fail".to_string(),
             description: "All actions fail".to_string(),
-            actions: vec![
-                SceneAction {
-                    device_id: "light-living-room".to_string(),
-                    command: "turn_on".to_string(),
-                    params: serde_json::json!({}),
-                    delay_ms: 0,
-                },
-            ],
+            actions: vec![SceneAction {
+                device_id: "light-living-room".to_string(),
+                command: "turn_on".to_string(),
+                params: serde_json::json!({}),
+                delay_ms: 0,
+            }],
         };
 
         let result = executor.execute(&scene).await;
@@ -398,14 +409,12 @@ mod tests {
             id: "duration".to_string(),
             name: "Duration Test".to_string(),
             description: "Test duration recording".to_string(),
-            actions: vec![
-                SceneAction {
-                    device_id: "light-living-room".to_string(),
-                    command: "turn_on".to_string(),
-                    params: serde_json::json!({}),
-                    delay_ms: 10,
-                },
-            ],
+            actions: vec![SceneAction {
+                device_id: "light-living-room".to_string(),
+                command: "turn_on".to_string(),
+                params: serde_json::json!({}),
+                delay_ms: 10,
+            }],
         };
 
         let result = executor.execute(&scene).await;
@@ -426,14 +435,12 @@ mod tests {
             id: "event".to_string(),
             name: "Event Test".to_string(),
             description: "Test event publishing".to_string(),
-            actions: vec![
-                SceneAction {
-                    device_id: "light-living-room".to_string(),
-                    command: "turn_on".to_string(),
-                    params: serde_json::json!({}),
-                    delay_ms: 0,
-                },
-            ],
+            actions: vec![SceneAction {
+                device_id: "light-living-room".to_string(),
+                command: "turn_on".to_string(),
+                params: serde_json::json!({}),
+                delay_ms: 0,
+            }],
         };
 
         executor.execute(&scene).await;
@@ -453,14 +460,12 @@ mod tests {
             id: "reachable".to_string(),
             name: "All Reachable".to_string(),
             description: "All devices reachable".to_string(),
-            actions: vec![
-                SceneAction {
-                    device_id: "light-living-room".to_string(),
-                    command: "turn_on".to_string(),
-                    params: serde_json::json!({}),
-                    delay_ms: 0,
-                },
-            ],
+            actions: vec![SceneAction {
+                device_id: "light-living-room".to_string(),
+                command: "turn_on".to_string(),
+                params: serde_json::json!({}),
+                delay_ms: 0,
+            }],
         };
 
         let unreachable = executor.dry_run(&scene).await;

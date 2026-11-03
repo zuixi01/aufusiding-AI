@@ -33,7 +33,10 @@ impl MockAudioSink {
 
     /// 获取已播放的音频块
     pub fn played_chunks(&self) -> Vec<AudioChunk> {
-        self.played.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.played
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// 已播放块数
@@ -45,14 +48,20 @@ impl MockAudioSink {
 #[async_trait]
 impl AudioSink for MockAudioSink {
     async fn play_chunk(&self, chunk: &AudioChunk) -> anyhow::Result<()> {
-        self.playing.store(true, std::sync::atomic::Ordering::SeqCst);
-        self.played.lock().unwrap_or_else(|e| e.into_inner()).push(chunk.clone());
-        self.playing.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.playing
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        self.played
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(chunk.clone());
+        self.playing
+            .store(false, std::sync::atomic::Ordering::SeqCst);
         Ok(())
     }
 
     fn stop_playback(&self) {
-        self.playing.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.playing
+            .store(false, std::sync::atomic::Ordering::SeqCst);
     }
 
     fn is_playing(&self) -> bool {

@@ -107,7 +107,7 @@ mod tests {
 
         assert!(stt.feed_chunk(&chunk).await.unwrap().is_none()); // 1
         assert!(stt.feed_chunk(&chunk).await.unwrap().is_none()); // 2
-        let partial = stt.feed_chunk(&chunk).await.unwrap();       // 3 → 部分转录
+        let partial = stt.feed_chunk(&chunk).await.unwrap(); // 3 → 部分转录
         assert!(partial.is_some());
     }
 

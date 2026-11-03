@@ -59,7 +59,10 @@ mod tests {
     #[test]
     fn silence_detected() {
         let vad = EnergyVad::new(0.1);
-        assert_eq!(vad.classify(&silence_chunk()).unwrap(), VadDecision::Silence);
+        assert_eq!(
+            vad.classify(&silence_chunk()).unwrap(),
+            VadDecision::Silence
+        );
     }
 
     #[test]

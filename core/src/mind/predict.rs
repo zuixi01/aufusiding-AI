@@ -91,7 +91,8 @@ impl NgramModel {
                     })
                     .collect();
 
-                predictions.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                predictions
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                 return predictions;
             }
         }
@@ -178,11 +179,9 @@ impl PredictModule {
                         *prob *= 0.5;
                     }
                 }
-                UserAction::RequestCode => {
+                UserAction::RequestCode if (9..=18).contains(&hour) => {
                     // 工作时间提高代码请求概率
-                    if (9..=18).contains(&hour) {
-                        *prob *= 1.2;
-                    }
+                    *prob *= 1.2;
                 }
                 _ => {}
             }

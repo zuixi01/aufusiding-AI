@@ -44,6 +44,7 @@ body:
         - 插件系统 (plugins)
         - CLI 工具 (cli)
         - HTTP API (server)
+        - 桌面客户端 (desktop)
         - FFI 绑定 (ffi)
         - 文档 (docs)
         - 其他

@@ -114,7 +114,9 @@ struct OwmForecastItem {
 impl WeatherProvider for HttpWeatherProvider {
     async fn current(&self, city: &str) -> anyhow::Result<WeatherInfo> {
         if self.api_key.is_empty() {
-            anyhow::bail!("OpenWeatherMap API key 未设置，请通过环境变量 OWM_API_KEY 或构造函数提供");
+            anyhow::bail!(
+                "OpenWeatherMap API key 未设置，请通过环境变量 OWM_API_KEY 或构造函数提供"
+            );
         }
 
         let url = format!(
@@ -186,7 +188,9 @@ impl WeatherProvider for HttpWeatherProvider {
             if seen_dates.insert(date.to_string()) || item.dt_txt.contains("12:00") {
                 let weather = item.weather.first();
                 daily.push(WeatherInfo {
-                    condition: weather.map(|w| w.main.clone()).unwrap_or_else(|| "未知".into()),
+                    condition: weather
+                        .map(|w| w.main.clone())
+                        .unwrap_or_else(|| "未知".into()),
                     temperature_c: item.main.temp,
                     humidity_percent: item.main.humidity,
                     wind_speed_kmh: item.wind.speed * 3.6,
@@ -220,7 +224,11 @@ impl WeatherProvider for MockWeatherProvider {
     async fn forecast(&self, city: &str, days: usize) -> anyhow::Result<Vec<WeatherInfo>> {
         Ok((0..days)
             .map(|i| WeatherInfo {
-                condition: if i % 2 == 0 { "晴".into() } else { "多云".into() },
+                condition: if i % 2 == 0 {
+                    "晴".into()
+                } else {
+                    "多云".into()
+                },
                 temperature_c: 20.0 + i as f32,
                 humidity_percent: 60 + i as u8 * 5,
                 wind_speed_kmh: 10.0,

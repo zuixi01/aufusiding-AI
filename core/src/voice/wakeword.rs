@@ -200,9 +200,7 @@ mod tests {
     fn make_noise(duration: f64) -> AudioBuffer {
         // 持续噪声（无音节结构）
         let num = (duration * 16000.0) as usize;
-        let samples: Vec<f32> = (0..num)
-            .map(|i| (i as f32 * 0.3).sin() * 0.4)
-            .collect();
+        let samples: Vec<f32> = (0..num).map(|i| (i as f32 * 0.3).sin() * 0.4).collect();
         AudioBuffer::new(samples, 16000, 1).unwrap()
     }
 
@@ -296,8 +294,7 @@ mod tests {
 
     #[test]
     fn duration_range_configurable() {
-        let det = WakewordDetector::new("".into(), 0.05)
-            .with_duration_range(0.5, 1.0);
+        let det = WakewordDetector::new("".into(), 0.05).with_duration_range(0.5, 1.0);
         // 0.6 秒唤醒词应通过
         let audio = make_wakeword_audio(16000);
         let dur = det.speech_duration(&audio);

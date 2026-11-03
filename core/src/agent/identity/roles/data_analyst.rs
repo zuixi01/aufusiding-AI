@@ -22,11 +22,7 @@ pub fn template() -> RoleTemplate {
         decision_scope: DecisionScope::Implementation,
         quality_standards: QualityStandards::research_default(),
         can_veto: false,
-        collaborates_with: vec![
-            Role::ProductManager,
-            Role::Researcher,
-            Role::Engineer,
-        ],
+        collaborates_with: vec![Role::ProductManager, Role::Researcher, Role::Engineer],
         watches: &["data_request", "analysis_review"],
     }
 }

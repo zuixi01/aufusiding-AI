@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::iot::control::GenericController;
 use crate::iot::semantic::command_mapper::DeviceCommandMapper;
-use crate::iot::semantic::intent_parser::{DeviceIntentParser, DeviceIntent};
+use crate::iot::semantic::intent_parser::{DeviceIntent, DeviceIntentParser};
 use crate::iot::semantic::profile::SemanticProfileStore;
 use crate::iot::semantic::resolver::DeviceResolver;
 use crate::providers::traits::{ChatMessage, ChatRequest, Provider};
@@ -81,18 +81,40 @@ impl IntentDispatcher {
     pub fn new() -> Self {
         Self {
             iot_keywords: vec![
-                "打开".into(), "关闭".into(), "开灯".into(), "关灯".into(),
-                "调高".into(), "调低".into(), "温度".into(), "亮度".into(),
-                "空调".into(), "窗帘".into(), "电视".into(), "音箱".into(),
-                "投屏".into(), "灯".into(), "风扇".into(), "加湿器".into(),
+                "打开".into(),
+                "关闭".into(),
+                "开灯".into(),
+                "关灯".into(),
+                "调高".into(),
+                "调低".into(),
+                "温度".into(),
+                "亮度".into(),
+                "空调".into(),
+                "窗帘".into(),
+                "电视".into(),
+                "音箱".into(),
+                "投屏".into(),
+                "灯".into(),
+                "风扇".into(),
+                "加湿器".into(),
             ],
             system_keywords: vec![
-                "音量".into(), "静音".into(), "设置".into(), "配置".into(),
-                "连接".into(), "断开".into(), "重启".into(), "关机".into(),
+                "音量".into(),
+                "静音".into(),
+                "设置".into(),
+                "配置".into(),
+                "连接".into(),
+                "断开".into(),
+                "重启".into(),
+                "关机".into(),
             ],
             workflow_keywords: vec![
-                "每天".into(), "定时".into(), "自动".into(), "提醒我".into(),
-                "闹钟".into(), "日程".into(),
+                "每天".into(),
+                "定时".into(),
+                "自动".into(),
+                "提醒我".into(),
+                "闹钟".into(),
+                "日程".into(),
             ],
             intent_parser: DeviceIntentParser::new(),
             profile_store: Arc::new(SemanticProfileStore::new()),
@@ -149,12 +171,20 @@ impl IntentDispatcher {
         let lower = text.to_lowercase();
 
         // 系统命令优先
-        if self.system_keywords.iter().any(|kw| lower.contains(kw.as_str())) {
+        if self
+            .system_keywords
+            .iter()
+            .any(|kw| lower.contains(kw.as_str()))
+        {
             return DispatchTarget::System;
         }
 
         // IoT 设备控制 — 同时检查关键词和语义解析
-        if self.iot_keywords.iter().any(|kw| lower.contains(kw.as_str())) {
+        if self
+            .iot_keywords
+            .iter()
+            .any(|kw| lower.contains(kw.as_str()))
+        {
             return DispatchTarget::Iot;
         }
         if self.intent_parser.parse(text).is_some() {
@@ -162,7 +192,11 @@ impl IntentDispatcher {
         }
 
         // 工作流触发
-        if self.workflow_keywords.iter().any(|kw| lower.contains(kw.as_str())) {
+        if self
+            .workflow_keywords
+            .iter()
+            .any(|kw| lower.contains(kw.as_str()))
+        {
             return DispatchTarget::Workflow;
         }
 
@@ -236,12 +270,14 @@ impl IntentDispatcher {
         // 1. 解析意图
         let intent = match self.intent_parser.parse(text) {
             Some(i) => i,
-            None => return DispatchResult {
-                target: DispatchTarget::Iot,
-                response: format!("理解了您想控制设备，但无法解析具体指令：{}", text),
-                is_action: false,
-                needs_followup: true,
-            },
+            None => {
+                return DispatchResult {
+                    target: DispatchTarget::Iot,
+                    response: format!("理解了您想控制设备，但无法解析具体指令：{}", text),
+                    is_action: false,
+                    needs_followup: true,
+                }
+            }
         };
 
         // 2. 解析设备
@@ -252,12 +288,14 @@ impl IntentDispatcher {
             Some(&intent.action),
         ) {
             Ok(r) => r,
-            Err(e) => return DispatchResult {
-                target: DispatchTarget::Iot,
-                response: format!("找不到匹配的设备：{}", e),
-                is_action: false,
-                needs_followup: true,
-            },
+            Err(e) => {
+                return DispatchResult {
+                    target: DispatchTarget::Iot,
+                    response: format!("找不到匹配的设备：{}", e),
+                    is_action: false,
+                    needs_followup: true,
+                }
+            }
         };
 
         // 3. 映射命令
@@ -278,20 +316,27 @@ impl IntentDispatcher {
             current_state.as_ref(),
         ) {
             Ok(a) => a,
-            Err(e) => return DispatchResult {
-                target: DispatchTarget::Iot,
-                response: format!("无法生成设备命令：{}", e),
-                is_action: false,
-                needs_followup: false,
-            },
+            Err(e) => {
+                return DispatchResult {
+                    target: DispatchTarget::Iot,
+                    response: format!("无法生成设备命令：{}", e),
+                    is_action: false,
+                    needs_followup: false,
+                }
+            }
         };
 
         // 4. 执行命令
         if let Some(ctrl) = &self.controller {
             let mut results = Vec::new();
             for action in &actions {
-                match ctrl.execute(&action.device_id, &action.command, action.params.clone()).await {
-                    Ok(_) => results.push(format!("{}：已执行 {}", action.device_id, action.command)),
+                match ctrl
+                    .execute(&action.device_id, &action.command, action.params.clone())
+                    .await
+                {
+                    Ok(_) => {
+                        results.push(format!("{}：已执行 {}", action.device_id, action.command))
+                    }
                     Err(e) => results.push(format!("{}：执行失败 - {}", action.device_id, e)),
                 }
             }
@@ -349,18 +394,14 @@ impl IntentDispatcher {
 
         // 其他目标：Chat/Agent 尝试调用 LLM
         let response = match &target {
-            DispatchTarget::Chat => {
-                match self.call_llm(text, false).await {
-                    Some(reply) => reply,
-                    None => format!("收到您的问题：{}", text),
-                }
-            }
-            DispatchTarget::Agent => {
-                match self.call_llm(text, true).await {
-                    Some(reply) => reply,
-                    None => format!("正在处理复杂任务：{}", text),
-                }
-            }
+            DispatchTarget::Chat => match self.call_llm(text, false).await {
+                Some(reply) => reply,
+                None => format!("收到您的问题：{}", text),
+            },
+            DispatchTarget::Agent => match self.call_llm(text, true).await {
+                Some(reply) => reply,
+                None => format!("正在处理复杂任务：{}", text),
+            },
             DispatchTarget::Plugin => format!("正在调用插件：{}", text),
             DispatchTarget::Workflow => format!("正在设置工作流：{}", text),
             DispatchTarget::System => format!("正在执行系统命令：{}", text),

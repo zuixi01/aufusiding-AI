@@ -151,16 +151,13 @@ impl super::backend::InferenceBackend for LlamaBackend {
         if !response.status().is_success() {
             let status = response.status();
             let body_text = response.text().await.unwrap_or_default();
-            anyhow::bail!(
-                "llama-server returned error {}: {}",
-                status,
-                body_text
-            );
+            anyhow::bail!("llama-server returned error {}: {}", status, body_text);
         }
 
-        let completion: ChatCompletionResponse = response.json().await.map_err(|e| {
-            anyhow::anyhow!("failed to parse llama-server response: {}", e)
-        })?;
+        let completion: ChatCompletionResponse = response
+            .json()
+            .await
+            .map_err(|e| anyhow::anyhow!("failed to parse llama-server response: {}", e))?;
 
         let text = completion
             .choices
@@ -295,8 +292,7 @@ mod tests {
 
     #[tokio::test]
     async fn new_with_url_sets_server_url() {
-        let backend =
-            LlamaBackend::new_with_url(2048, 0, "http://myhost:9090".to_string());
+        let backend = LlamaBackend::new_with_url(2048, 0, "http://myhost:9090".to_string());
         assert_eq!(backend.server_url, "http://myhost:9090");
     }
 
@@ -323,8 +319,7 @@ mod tests {
         let model_path = crate::test_support::temp_file_path("llama-mock-srv", "gguf");
         let _ = std::fs::write(&model_path, b"gguf");
 
-        let mut backend =
-            LlamaBackend::new_with_url(2048, 0, server.url(""));
+        let mut backend = LlamaBackend::new_with_url(2048, 0, server.url(""));
         backend.load_model(&model_path).await.unwrap();
 
         let response = backend

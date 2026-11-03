@@ -71,13 +71,19 @@ impl CastingService {
             "开始投屏"
         );
 
-        self.active_sessions.lock().unwrap_or_else(|e| e.into_inner()).push(session);
+        self.active_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(session);
         Ok(session_id)
     }
 
     /// 停止投屏
     pub fn stop(&self, session_id: uuid::Uuid) -> anyhow::Result<()> {
-        let mut sessions = self.active_sessions.lock().unwrap_or_else(|e| e.into_inner());
+        let mut sessions = self
+            .active_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(session) = sessions.iter_mut().find(|s| s.id == session_id) {
             session.state = CastSessionState::Idle;
             Ok(())
@@ -88,7 +94,10 @@ impl CastingService {
 
     /// 暂停投屏
     pub fn pause(&self, session_id: uuid::Uuid) -> anyhow::Result<()> {
-        let mut sessions = self.active_sessions.lock().unwrap_or_else(|e| e.into_inner());
+        let mut sessions = self
+            .active_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(session) = sessions.iter_mut().find(|s| s.id == session_id) {
             session.state = CastSessionState::Paused;
             Ok(())
@@ -103,7 +112,12 @@ impl CastingService {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .iter()
-            .filter(|s| matches!(s.state, CastSessionState::Casting | CastSessionState::Paused))
+            .filter(|s| {
+                matches!(
+                    s.state,
+                    CastSessionState::Casting | CastSessionState::Paused
+                )
+            })
             .count()
     }
 

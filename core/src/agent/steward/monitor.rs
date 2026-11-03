@@ -159,8 +159,22 @@ mod tests {
 
     fn simple_graph() -> TaskGraph {
         TaskGraphBuilder::new("test")
-            .add_task("T1", "d1", Role::Engineer, DeliverableType::Code, Priority::P0, Complexity::Low)
-            .add_task("T2", "d2", Role::QA, DeliverableType::TestSuite, Priority::P1, Complexity::Low)
+            .add_task(
+                "T1",
+                "d1",
+                Role::Engineer,
+                DeliverableType::Code,
+                Priority::P0,
+                Complexity::Low,
+            )
+            .add_task(
+                "T2",
+                "d2",
+                Role::QA,
+                DeliverableType::TestSuite,
+                Priority::P1,
+                Complexity::Low,
+            )
             .add_dependency("T2", "T1")
             .build()
     }

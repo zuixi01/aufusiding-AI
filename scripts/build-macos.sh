@@ -5,6 +5,7 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT_ROOT"
 
 echo "=== 构建 Prometheus macOS 库 ==="
 
@@ -14,10 +15,10 @@ rustup target add x86_64-apple-darwin
 
 # 编译 Release
 echo "编译 aarch64-apple-darwin..."
-cargo build --release --target aarch64-apple-darwin -p prometheus-ffi
+cargo build --locked --release --target aarch64-apple-darwin -p prometheus-ffi
 
 echo "编译 x86_64-apple-darwin..."
-cargo build --release --target x86_64-apple-darwin -p prometheus-ffi
+cargo build --locked --release --target x86_64-apple-darwin -p prometheus-ffi
 
 # 创建 Universal Binary
 echo "创建 Universal Binary..."

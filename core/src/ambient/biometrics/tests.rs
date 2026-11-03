@@ -38,7 +38,11 @@ mod unit {
         let emb1 = engine.extract_embedding(&audio).unwrap();
         let emb2 = engine.extract_embedding(&audio).unwrap();
         let sim = engine.compare(&emb1, &emb2);
-        assert!(sim > 0.99, "same audio similarity should be ~1.0, got {}", sim);
+        assert!(
+            sim > 0.99,
+            "same audio similarity should be ~1.0, got {}",
+            sim
+        );
     }
 
     #[test]
@@ -50,7 +54,11 @@ mod unit {
         let emb2 = engine.extract_embedding(&audio2).unwrap();
         let sim = engine.compare(&emb1, &emb2);
         // 浮点精度可能导致略超 1.0，验证在合理范围内
-        assert!(sim >= 0.0 && sim <= 1.01, "similarity should be in [0,~1], got {}", sim);
+        assert!(
+            sim >= 0.0 && sim <= 1.01,
+            "similarity should be in [0,~1], got {}",
+            sim
+        );
     }
 
     #[test]
@@ -77,11 +85,7 @@ mod unit {
 
     #[test]
     fn speaker_profile_creation() {
-        let profile = SpeakerProfile::new(
-            "张三".into(),
-            vec![0.1; 64],
-            PermissionLevel::Admin,
-        );
+        let profile = SpeakerProfile::new("张三".into(), vec![0.1; 64], PermissionLevel::Admin);
         assert_eq!(profile.name, "张三");
         assert!(!profile.is_child);
         assert_eq!(profile.permission_level, PermissionLevel::Admin);
@@ -89,11 +93,7 @@ mod unit {
 
     #[test]
     fn speaker_profile_child_flag() {
-        let profile = SpeakerProfile::new(
-            "小明".into(),
-            vec![0.1; 64],
-            PermissionLevel::Child,
-        );
+        let profile = SpeakerProfile::new("小明".into(), vec![0.1; 64], PermissionLevel::Child);
         assert!(profile.is_child);
     }
 
@@ -215,7 +215,9 @@ mod unit {
         }
         assert_eq!(flow.state(), enrollment::EnrollmentState::Processing);
 
-        let profile = flow.finalize("测试用户".into(), PermissionLevel::Standard).unwrap();
+        let profile = flow
+            .finalize("测试用户".into(), PermissionLevel::Standard)
+            .unwrap();
         assert_eq!(profile.name, "测试用户");
         assert_eq!(profile.voiceprint.len(), 64);
         assert_eq!(flow.state(), enrollment::EnrollmentState::Completed);

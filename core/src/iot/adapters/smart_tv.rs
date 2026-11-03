@@ -35,8 +35,21 @@ pub struct SmartTvConfig {
 /// Roku ECP key names
 #[allow(dead_code)]
 const ROKU_KEYS: &[&str] = &[
-    "Home", "Rev", "Fwd", "Play", "Select", "Left", "Right", "Up", "Down",
-    "Back", "VolumeUp", "VolumeDown", "VolumeMute", "PowerOff", "PowerOn",
+    "Home",
+    "Rev",
+    "Fwd",
+    "Play",
+    "Select",
+    "Left",
+    "Right",
+    "Up",
+    "Down",
+    "Back",
+    "VolumeUp",
+    "VolumeDown",
+    "VolumeMute",
+    "PowerOff",
+    "PowerOn",
 ];
 
 /// Extract text between simple XML tags
@@ -480,7 +493,10 @@ mod tests {
             then.status(200);
         });
         let adapter = roku_adapter(&server);
-        adapter.set_input("roku-001", "tvinput.hdmi1").await.unwrap();
+        adapter
+            .set_input("roku-001", "tvinput.hdmi1")
+            .await
+            .unwrap();
     }
 
     // 9. Roku turn_on success
@@ -514,7 +530,7 @@ mod tests {
         server.mock(|when, then| {
             when.method(POST)
                 .path("/api/command")
-                .json_body_partial(r#"{"uri":"ssap://system.launcher/launch"}"#);
+                .json_body_includes(r#"{"uri":"ssap://system.launcher/launch"}"#);
             then.status(200);
         });
         let adapter = lg_adapter(&server);
@@ -528,7 +544,7 @@ mod tests {
         server.mock(|when, then| {
             when.method(POST)
                 .path("/api/command")
-                .json_body_partial(r#"{"uri":"ssap://audio/setVolume"}"#);
+                .json_body_includes(r#"{"uri":"ssap://audio/setVolume"}"#);
             then.status(200);
         });
         let adapter = lg_adapter(&server);
@@ -550,7 +566,7 @@ mod tests {
         server.mock(|when, then| {
             when.method(POST)
                 .path("/api/command")
-                .json_body_partial(r#"{"uri":"ssap://tv/switchInput"}"#);
+                .json_body_includes(r#"{"uri":"ssap://tv/switchInput"}"#);
             then.status(200);
         });
         let adapter = lg_adapter(&server);
@@ -564,7 +580,7 @@ mod tests {
         server.mock(|when, then| {
             when.method(POST)
                 .path("/api/command")
-                .json_body_partial(r#"{"uri":"ssap://system/turnOn"}"#);
+                .json_body_includes(r#"{"uri":"ssap://system/turnOn"}"#);
             then.status(200);
         });
         let adapter = lg_adapter(&server);
@@ -578,7 +594,7 @@ mod tests {
         server.mock(|when, then| {
             when.method(POST)
                 .path("/api/command")
-                .json_body_partial(r#"{"uri":"ssap://system/turnOff"}"#);
+                .json_body_includes(r#"{"uri":"ssap://system/turnOff"}"#);
             then.status(200);
         });
         let adapter = lg_adapter(&server);
@@ -650,4 +666,3 @@ mod tests {
             .is_err());
     }
 }
-

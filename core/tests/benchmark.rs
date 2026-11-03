@@ -34,7 +34,11 @@ fn bench_vector_insert_1000() {
     println!("  per item: {:?}", elapsed / 1000);
 
     // Task 5: 添加断言阈值 - 1000条插入应 < 5s
-    assert!(elapsed.as_secs() < 1, "1000条向量插入应在1秒内完成，实际: {:?}", elapsed);
+    assert!(
+        elapsed.as_secs() < 1,
+        "1000条向量插入应在1秒内完成，实际: {:?}",
+        elapsed
+    );
 }
 
 #[test]
@@ -76,7 +80,11 @@ fn bench_vector_search_in_1000() {
     println!("  per search: {:?}", elapsed / iterations);
 
     // Task 5: 添加断言阈值 - 100次搜索应 < 2s
-    assert!(elapsed.as_secs() < 1, "100次向量搜索应在1秒内完成，实际: {:?}", elapsed);
+    assert!(
+        elapsed.as_secs() < 1,
+        "100次向量搜索应在1秒内完成，实际: {:?}",
+        elapsed
+    );
 }
 
 #[test]
@@ -108,7 +116,11 @@ fn bench_working_memory_ops() {
     println!("  per call: {:?}", elapsed / iterations);
 
     // Task 5: 添加断言阈值 - 1000次查询应 < 1s
-    assert!(elapsed.as_millis() < 200, "1000次工作记忆查询应在200ms内完成，实际: {:?}", elapsed);
+    assert!(
+        elapsed.as_millis() < 200,
+        "1000次工作记忆查询应在200ms内完成，实际: {:?}",
+        elapsed
+    );
 }
 
 #[tokio::test]
@@ -143,5 +155,9 @@ async fn bench_knowledge_add_and_search() {
     println!("  per search: {:?}", elapsed / iterations);
 
     // Task 5: 添加断言阈值 - 50次搜索应 < 5s
-    assert!(elapsed.as_secs() < 1, "50次知识库搜索应在1秒内完成，实际: {:?}", elapsed);
+    assert!(
+        elapsed.as_secs() < 1,
+        "50次知识库搜索应在1秒内完成，实际: {:?}",
+        elapsed
+    );
 }

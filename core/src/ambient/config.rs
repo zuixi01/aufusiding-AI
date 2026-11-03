@@ -49,16 +49,36 @@ pub struct AmbientConfig {
     pub voiceprint_enabled: bool,
 }
 
-fn default_wakeword() -> String { "小普".into() }
-fn default_wakeword_confidence() -> f32 { 0.85 }
-fn default_post_wakeword_timeout_ms() -> u64 { 3000 }
-fn default_silence_timeout_ms() -> u64 { 1500 }
-fn default_conversation_timeout_ms() -> u64 { 30000 }
-fn default_max_conversation_turns() -> usize { 10 }
-fn default_room() -> String { "default".into() }
-fn default_device_id() -> String { uuid::Uuid::new_v4().to_string() }
-fn default_sample_rate() -> u32 { 16000 }
-fn default_channels() -> u16 { 1 }
+fn default_wakeword() -> String {
+    "小普".into()
+}
+fn default_wakeword_confidence() -> f32 {
+    0.85
+}
+fn default_post_wakeword_timeout_ms() -> u64 {
+    3000
+}
+fn default_silence_timeout_ms() -> u64 {
+    1500
+}
+fn default_conversation_timeout_ms() -> u64 {
+    30000
+}
+fn default_max_conversation_turns() -> usize {
+    10
+}
+fn default_room() -> String {
+    "default".into()
+}
+fn default_device_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
+fn default_sample_rate() -> u32 {
+    16000
+}
+fn default_channels() -> u16 {
+    1
+}
 
 impl Default for AmbientConfig {
     fn default() -> Self {

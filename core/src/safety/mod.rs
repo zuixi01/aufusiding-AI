@@ -12,7 +12,9 @@ pub mod vault;
 
 pub use classification::{DataClassification, DataClassifier, SensitivityLevel};
 pub use crisis::CrisisDetector;
-pub use os_sandbox::{SandboxEnvironment, SandboxPolicy, SandboxPlatform, LandlockRuleset, SeccompProfile};
+pub use os_sandbox::{
+    LandlockRuleset, SandboxEnvironment, SandboxPlatform, SandboxPolicy, SeccompProfile,
+};
 pub use permissions::PermissionManager;
 pub use scanner::SmartScanner;
 pub use security_mode::{PolicyDecision, SecurityMode, SecurityPolicyEnforcer};

@@ -74,11 +74,8 @@ mod tests {
         let controller = AdapterFactory::build(&cfg);
         // 无适配器，execute 应失败
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let result = rt.block_on(controller.execute(
-            "any-device",
-            "turn_on",
-            serde_json::json!({}),
-        ));
+        let result =
+            rt.block_on(controller.execute("any-device", "turn_on", serde_json::json!({})));
         assert!(result.is_err());
     }
 
@@ -89,7 +86,11 @@ mod tests {
         let controller = AdapterFactory::build(&cfg);
         // HA 适配器已注册，但设备不存在时会返回 HTTP 错误（非 "no adapter" 错误）
         let result = controller
-            .execute("light.test", "get_state", serde_json::json!({"device_type": "HomeAssistant"}))
+            .execute(
+                "light.test",
+                "get_state",
+                serde_json::json!({"device_type": "HomeAssistant"}),
+            )
             .await;
         // 应该到达 HA 适配器（可能连接失败，但不是 "no adapter" 错误）
         assert!(result.is_err());
@@ -103,7 +104,11 @@ mod tests {
         cfg.tuya = Some(tuya_config());
         let controller = AdapterFactory::build(&cfg);
         let result = controller
-            .execute("device-1", "get_state", serde_json::json!({"device_type": "SmartHome"}))
+            .execute(
+                "device-1",
+                "get_state",
+                serde_json::json!({"device_type": "SmartHome"}),
+            )
             .await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
@@ -116,7 +121,11 @@ mod tests {
         cfg.mqtt = Some(mqtt_config());
         let controller = AdapterFactory::build(&cfg);
         let result = controller
-            .execute("sensor-1", "get_state", serde_json::json!({"device_type": "mqtt"}))
+            .execute(
+                "sensor-1",
+                "get_state",
+                serde_json::json!({"device_type": "mqtt"}),
+            )
             .await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
@@ -138,7 +147,11 @@ mod tests {
             ("mqtt", "mqtt-dev"),
         ] {
             let result = controller
-                .execute(device_id, "get_state", serde_json::json!({"device_type": device_type}))
+                .execute(
+                    device_id,
+                    "get_state",
+                    serde_json::json!({"device_type": device_type}),
+                )
                 .await;
             assert!(result.is_err());
             let err_msg = result.unwrap_err().to_string();

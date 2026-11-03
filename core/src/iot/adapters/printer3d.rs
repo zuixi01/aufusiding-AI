@@ -139,7 +139,8 @@ impl OctoPrintAdapter {
 
     /// Register a printer device
     pub fn register_printer(&mut self, device_id: &str, name: &str) {
-        self.printers.insert(device_id.to_string(), name.to_string());
+        self.printers
+            .insert(device_id.to_string(), name.to_string());
     }
 
     fn endpoint(&self, path: &str) -> String {
@@ -684,7 +685,10 @@ mod tests {
         });
         let adapter = setup(&server);
         assert!(adapter
-            .send_gcode("printer-001", vec!["G28".to_string(), "G1 X10 Y10".to_string()])
+            .send_gcode(
+                "printer-001",
+                vec!["G28".to_string(), "G1 X10 Y10".to_string()]
+            )
             .await
             .is_ok());
     }
@@ -905,7 +909,10 @@ mod tests {
             .set_property("printer-001", "invalid_prop", json!(123))
             .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("unsupported property"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("unsupported property"));
     }
 
     // 22. with_base_url trims trailing slash

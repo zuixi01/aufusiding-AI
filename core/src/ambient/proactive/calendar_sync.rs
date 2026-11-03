@@ -2,10 +2,10 @@
 //!
 //! CalDAV/Google Calendar/Apple Calendar 同步接口。
 
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use async_trait::async_trait;
 
 /// 提醒偏移量
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,7 +30,11 @@ pub struct CalendarEvent {
 /// 日历提供者 trait
 #[async_trait]
 pub trait CalendarProvider: Send + Sync {
-    async fn list_events(&self, from: DateTime<Utc>, to: DateTime<Utc>) -> anyhow::Result<Vec<CalendarEvent>>;
+    async fn list_events(
+        &self,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> anyhow::Result<Vec<CalendarEvent>>;
     async fn create_event(&self, event: CalendarEvent) -> anyhow::Result<Uuid>;
     async fn update_event(&self, event: CalendarEvent) -> anyhow::Result<()>;
     async fn delete_event(&self, id: &Uuid) -> anyhow::Result<()>;
@@ -43,20 +47,33 @@ pub struct MockCalendarProvider {
 
 impl MockCalendarProvider {
     pub fn new() -> Self {
-        Self { events: std::sync::Mutex::new(Vec::new()) }
+        Self {
+            events: std::sync::Mutex::new(Vec::new()),
+        }
     }
 }
 
 #[async_trait]
 impl CalendarProvider for MockCalendarProvider {
-    async fn list_events(&self, from: DateTime<Utc>, to: DateTime<Utc>) -> anyhow::Result<Vec<CalendarEvent>> {
+    async fn list_events(
+        &self,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> anyhow::Result<Vec<CalendarEvent>> {
         let events = self.events.lock().unwrap_or_else(|e| e.into_inner());
-        Ok(events.iter().filter(|e| e.start >= from && e.start <= to).cloned().collect())
+        Ok(events
+            .iter()
+            .filter(|e| e.start >= from && e.start <= to)
+            .cloned()
+            .collect())
     }
 
     async fn create_event(&self, event: CalendarEvent) -> anyhow::Result<Uuid> {
         let id = event.id;
-        self.events.lock().unwrap_or_else(|e| e.into_inner()).push(event);
+        self.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(event);
         Ok(id)
     }
 
@@ -195,7 +212,8 @@ impl CalendarSync {
 
     /// 获取需要提醒的事件
     pub fn due_reminders(&self, now: DateTime<Utc>) -> Vec<(&CalendarEvent, &ReminderOffset)> {
-        self.events.iter()
+        self.events
+            .iter()
             .flat_map(|e| {
                 e.reminders.iter().filter_map(move |r| {
                     let remind_at = e.start - chrono::Duration::minutes(r.minutes_before as i64);
@@ -254,10 +272,7 @@ impl IcsCalendarSync {
                         .as_deref()
                         .and_then(Self::parse_ics_datetime)
                         .unwrap_or(start + chrono::Duration::hours(1));
-                    let is_all_day = dtstart
-                        .as_deref()
-                        .map(|s| s.len() == 8)
-                        .unwrap_or(false);
+                    let is_all_day = dtstart.as_deref().map(|s| s.len() == 8).unwrap_or(false);
 
                     events.push(CalendarEvent {
                         id: Uuid::new_v4(),

@@ -55,7 +55,12 @@ pub struct TrafficInfo {
 #[async_trait]
 pub trait NavigationProvider: Send + Sync {
     async fn geocode(&self, address: &str) -> anyhow::Result<Location>;
-    async fn route(&self, from: &Location, to: &Location, mode: TravelMode) -> anyhow::Result<Route>;
+    async fn route(
+        &self,
+        from: &Location,
+        to: &Location,
+        mode: TravelMode,
+    ) -> anyhow::Result<Route>;
     async fn traffic(&self, route: &Route) -> anyhow::Result<TrafficInfo>;
 }
 
@@ -72,7 +77,12 @@ impl NavigationProvider for MockNavigationProvider {
         })
     }
 
-    async fn route(&self, _from: &Location, _to: &Location, _mode: TravelMode) -> anyhow::Result<Route> {
+    async fn route(
+        &self,
+        _from: &Location,
+        _to: &Location,
+        _mode: TravelMode,
+    ) -> anyhow::Result<Route> {
         Ok(Route {
             steps: vec![
                 RouteStep {

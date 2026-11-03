@@ -49,10 +49,7 @@ impl Blackboard {
         let entries = self.entries.read().await;
         entries
             .values()
-            .filter(|entry| {
-                tags.iter()
-                    .any(|tag| entry.relevance_tags.contains(tag))
-            })
+            .filter(|entry| tags.iter().any(|tag| entry.relevance_tags.contains(tag)))
             .cloned()
             .collect()
     }
@@ -65,13 +62,16 @@ impl Blackboard {
         }
 
         let mut sorted: Vec<&BlackboardEntry> = entries.values().collect();
-        sorted.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        sorted.sort_by_key(|entry| entry.timestamp);
 
         let mut summary = String::from("[黑板摘要]\n");
         let mut token_count = 2; // 标题行
 
         for entry in sorted {
-            let line = format!("- [{}] {}: {}\n", entry.author_task, entry.key, entry.content);
+            let line = format!(
+                "- [{}] {}: {}\n",
+                entry.author_task, entry.key, entry.content
+            );
             let line_tokens = rough_token_count(&line);
             if token_count + line_tokens > max_tokens {
                 summary.push_str("...[截断]\n");
@@ -98,7 +98,11 @@ impl Blackboard {
 /// 粗略 token 估算
 fn rough_token_count(text: &str) -> usize {
     let count = text.split_whitespace().count();
-    if count == 0 { 1 } else { count }
+    if count == 0 {
+        1
+    } else {
+        count
+    }
 }
 
 #[cfg(test)]
@@ -108,8 +112,20 @@ mod tests {
     #[tokio::test]
     async fn post_and_query_basic() {
         let bb = Blackboard::new();
-        bb.post("auth-design", "使用 JWT + OAuth2", "架构设计", vec!["auth".into(), "security".into()]).await;
-        bb.post("db-schema", "用户表设计完成", "数据库设计", vec!["database".into()]).await;
+        bb.post(
+            "auth-design",
+            "使用 JWT + OAuth2",
+            "架构设计",
+            vec!["auth".into(), "security".into()],
+        )
+        .await;
+        bb.post(
+            "db-schema",
+            "用户表设计完成",
+            "数据库设计",
+            vec!["database".into()],
+        )
+        .await;
 
         let results = bb.query(&["auth".to_string()]).await;
         assert_eq!(results.len(), 1);
@@ -128,7 +144,8 @@ mod tests {
                 &format!("这是一段很长的内容描述 number {}", i),
                 &format!("task-{}", i),
                 vec!["tag".into()],
-            ).await;
+            )
+            .await;
         }
 
         let summary = bb.summary(10).await;
@@ -143,10 +160,12 @@ mod tests {
         let bb2 = bb.clone();
 
         let h1 = tokio::spawn(async move {
-            bb1.post("finding-1", "发现A", "task-1", vec!["research".into()]).await;
+            bb1.post("finding-1", "发现A", "task-1", vec!["research".into()])
+                .await;
         });
         let h2 = tokio::spawn(async move {
-            bb2.post("finding-2", "发现B", "task-2", vec!["research".into()]).await;
+            bb2.post("finding-2", "发现B", "task-2", vec!["research".into()])
+                .await;
         });
 
         h1.await.unwrap();

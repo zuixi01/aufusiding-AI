@@ -363,7 +363,8 @@ mod tests {
 
     #[test]
     fn iot_homeassistant_from_json() {
-        let json = r#"{"homeassistant": {"host": "192.168.1.10", "port": 8123, "access_token": "tok"}}"#;
+        let json =
+            r#"{"homeassistant": {"host": "192.168.1.10", "port": 8123, "access_token": "tok"}}"#;
         let cfg: AdapterConfig = serde_json::from_str(json).unwrap();
         let ha = cfg.homeassistant.unwrap();
         assert_eq!(ha.host, "192.168.1.10");

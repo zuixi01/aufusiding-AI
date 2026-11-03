@@ -95,7 +95,11 @@ impl ChildrenMode {
         if !self.enabled {
             return true;
         }
-        let used = self.usage_map.get(&speaker_id).copied().unwrap_or(Duration::ZERO);
+        let used = self
+            .usage_map
+            .get(&speaker_id)
+            .copied()
+            .unwrap_or(Duration::ZERO);
         used < self.daily_usage_limit
     }
 
@@ -107,7 +111,10 @@ impl ChildrenMode {
 
     /// 获取已使用时长
     pub fn usage_for(&self, speaker_id: Uuid) -> Duration {
-        self.usage_map.get(&speaker_id).copied().unwrap_or(Duration::ZERO)
+        self.usage_map
+            .get(&speaker_id)
+            .copied()
+            .unwrap_or(Duration::ZERO)
     }
 
     /// 重置每日使用统计

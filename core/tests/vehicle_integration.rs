@@ -203,8 +203,8 @@ async fn oauth2_full_flow() {
     let exchange_mock = server.mock(|when, then| {
         when.method(POST)
             .path("/oauth/token")
-            .x_www_form_urlencoded_tuple("grant_type", "authorization_code")
-            .x_www_form_urlencoded_tuple("code", "auth-code-abc");
+            .form_urlencoded_tuple("grant_type", "authorization_code")
+            .form_urlencoded_tuple("code", "auth-code-abc");
         then.status(200).json_body(json!({
             "access_token": "fresh-access",
             "refresh_token": "fresh-refresh",
@@ -218,8 +218,8 @@ async fn oauth2_full_flow() {
     let refresh_mock = server.mock(|when, then| {
         when.method(POST)
             .path("/oauth/token")
-            .x_www_form_urlencoded_tuple("grant_type", "refresh_token")
-            .x_www_form_urlencoded_tuple("refresh_token", "fresh-refresh");
+            .form_urlencoded_tuple("grant_type", "refresh_token")
+            .form_urlencoded_tuple("refresh_token", "fresh-refresh");
         then.status(200).json_body(json!({
             "access_token": "refreshed-access",
             "refresh_token": "refreshed-refresh",

@@ -188,7 +188,10 @@ impl AgentContext {
                 })
                 .collect::<Vec<_>>()
                 .join(" | ");
-            summaries.push(ContextMessage::system(format!("[摘要] {}", summary_content)));
+            summaries.push(ContextMessage::system(format!(
+                "[摘要] {}",
+                summary_content
+            )));
         }
 
         self.messages = std::iter::once(system)
@@ -201,7 +204,11 @@ impl AgentContext {
 /// 粗略 token 估算
 fn rough_token_count(text: &str) -> usize {
     let count = text.split_whitespace().count();
-    if count == 0 { 1 } else { count }
+    if count == 0 {
+        1
+    } else {
+        count
+    }
 }
 
 #[cfg(test)]
@@ -295,7 +302,12 @@ mod tests {
         let before = ctx.estimated_tokens();
         ctx.compress();
         let after = ctx.estimated_tokens();
-        assert!(after < before, "tokens should decrease: {} < {}", after, before);
+        assert!(
+            after < before,
+            "tokens should decrease: {} < {}",
+            after,
+            before
+        );
     }
 
     #[test]

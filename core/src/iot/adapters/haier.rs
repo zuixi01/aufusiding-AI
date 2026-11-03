@@ -124,14 +124,8 @@ impl HaierAdapter {
     }
 
     /// GET /uds/v1/protected/{device_id}/attributes -- get device attributes.
-    pub async fn get_attributes(
-        &self,
-        device_id: &str,
-    ) -> anyhow::Result<Vec<HaierAttribute>> {
-        let url = self.endpoint(&format!(
-            "uds/v1/protected/{}/attributes",
-            device_id
-        ));
+    pub async fn get_attributes(&self, device_id: &str) -> anyhow::Result<Vec<HaierAttribute>> {
+        let url = self.endpoint(&format!("uds/v1/protected/{}/attributes", device_id));
 
         let resp = self
             .client
@@ -147,11 +141,7 @@ impl HaierAdapter {
         }
         if !status.is_success() {
             let text = resp.text().await.unwrap_or_default();
-            anyhow::bail!(
-                "get_attributes failed ({}): {}",
-                status.as_u16(),
-                text
-            );
+            anyhow::bail!("get_attributes failed ({}): {}", status.as_u16(), text);
         }
 
         let parsed: HaierResponse<Vec<HaierAttribute>> = resp.json().await?;
@@ -172,10 +162,7 @@ impl HaierAdapter {
         cmd_name: &str,
         cmd_args: Value,
     ) -> anyhow::Result<()> {
-        let url = self.endpoint(&format!(
-            "uds/v1/protected/{}/commands",
-            device_id
-        ));
+        let url = self.endpoint(&format!("uds/v1/protected/{}/commands", device_id));
         let body = json!({
             "cmdName": cmd_name,
             "cmdArgs": cmd_args
@@ -196,11 +183,7 @@ impl HaierAdapter {
         }
         if !status.is_success() {
             let text = resp.text().await.unwrap_or_default();
-            anyhow::bail!(
-                "send_command failed ({}): {}",
-                status.as_u16(),
-                text
-            );
+            anyhow::bail!("send_command failed ({}): {}", status.as_u16(), text);
         }
 
         let parsed: HaierResponse<Value> = resp.json().await?;
@@ -232,21 +215,13 @@ impl HaierAdapter {
 #[async_trait]
 impl DeviceController for HaierAdapter {
     async fn turn_on(&self, device_id: &str) -> anyhow::Result<()> {
-        self.send_command(
-            device_id,
-            "grSetDAC",
-            json!({"onOffStatus": "true"}),
-        )
-        .await
+        self.send_command(device_id, "grSetDAC", json!({"onOffStatus": "true"}))
+            .await
     }
 
     async fn turn_off(&self, device_id: &str) -> anyhow::Result<()> {
-        self.send_command(
-            device_id,
-            "grSetDAC",
-            json!({"onOffStatus": "false"}),
-        )
-        .await
+        self.send_command(device_id, "grSetDAC", json!({"onOffStatus": "false"}))
+            .await
     }
 
     async fn set_property(
@@ -265,10 +240,8 @@ impl DeviceController for HaierAdapter {
 
     async fn get_state(&self, device_id: &str) -> anyhow::Result<Value> {
         let attrs = self.get_attributes(device_id).await?;
-        let attr_map: HashMap<String, Value> = attrs
-            .into_iter()
-            .map(|a| (a.name, a.value))
-            .collect();
+        let attr_map: HashMap<String, Value> =
+            attrs.into_iter().map(|a| (a.name, a.value)).collect();
         Ok(json!({
             "device_id": device_id,
             "attributes": attr_map
@@ -624,16 +597,14 @@ mod tests {
     // 18. with_base_url trims trailing slash
     #[test]
     fn with_base_url_trims_trailing_slash() {
-        let adapter =
-            HaierAdapter::new(test_config()).with_base_url("http://localhost:1234/");
+        let adapter = HaierAdapter::new(test_config()).with_base_url("http://localhost:1234/");
         assert_eq!(adapter.base_url, "http://localhost:1234");
     }
 
     // 19. endpoint builds correct URL
     #[test]
     fn endpoint_builds_correct_url() {
-        let adapter =
-            HaierAdapter::new(test_config()).with_base_url("http://localhost:5555");
+        let adapter = HaierAdapter::new(test_config()).with_base_url("http://localhost:5555");
         let url = adapter.endpoint("/uds/v1/protected/deviceinfos");
         assert_eq!(url, "http://localhost:5555/uds/v1/protected/deviceinfos");
     }

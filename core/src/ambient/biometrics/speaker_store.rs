@@ -76,7 +76,10 @@ impl SpeakerStore {
 
     /// 删除说话人
     pub fn remove(&mut self, id: Uuid) -> anyhow::Result<()> {
-        let idx = self.profiles.iter().position(|p| p.id == id)
+        let idx = self
+            .profiles
+            .iter()
+            .position(|p| p.id == id)
             .ok_or_else(|| anyhow::anyhow!("说话人不存在: {}", id))?;
         self.profiles.remove(idx);
         Ok(())
@@ -84,7 +87,10 @@ impl SpeakerStore {
 
     /// 更新声纹
     pub fn update_voiceprint(&mut self, id: Uuid, voiceprint: Vec<f32>) -> anyhow::Result<()> {
-        let profile = self.profiles.iter_mut().find(|p| p.id == id)
+        let profile = self
+            .profiles
+            .iter_mut()
+            .find(|p| p.id == id)
             .ok_or_else(|| anyhow::anyhow!("说话人不存在: {}", id))?;
         profile.voiceprint = voiceprint;
         Ok(())

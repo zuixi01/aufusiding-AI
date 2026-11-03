@@ -52,14 +52,16 @@ impl RateLimiter {
         let mut limits = self.limits.write().await;
         let now = Instant::now();
 
-        let limit = limits.entry(client_id.to_string()).or_insert_with(|| RateLimit {
-            minute_count: 0,
-            hour_count: 0,
-            day_count: 0,
-            minute_reset: now + Duration::from_secs(60),
-            hour_reset: now + Duration::from_secs(3600),
-            day_reset: now + Duration::from_secs(86400),
-        });
+        let limit = limits
+            .entry(client_id.to_string())
+            .or_insert_with(|| RateLimit {
+                minute_count: 0,
+                hour_count: 0,
+                day_count: 0,
+                minute_reset: now + Duration::from_secs(60),
+                hour_reset: now + Duration::from_secs(3600),
+                day_reset: now + Duration::from_secs(86400),
+            });
 
         // 重置计数器
         if now >= limit.minute_reset {
@@ -100,7 +102,9 @@ impl RateLimiter {
     /// 获取客户端当前使用情况
     pub async fn get_usage(&self, client_id: &str) -> Option<(u32, u32, u32)> {
         let limits = self.limits.read().await;
-        limits.get(client_id).map(|l| (l.minute_count, l.hour_count, l.day_count))
+        limits
+            .get(client_id)
+            .map(|l| (l.minute_count, l.hour_count, l.day_count))
     }
 
     /// 清理过期的限制记录

@@ -87,7 +87,11 @@ impl MdnsSocket for RealMdnsSocket {
 
         let packet = build_mdns_query(service_type);
         if let Err(e) = socket.send_to(&packet, MDNS_MULTICAST_ADDR).await {
-            tracing::warn!("mDNS: failed to send query to {}: {}", MDNS_MULTICAST_ADDR, e);
+            tracing::warn!(
+                "mDNS: failed to send query to {}: {}",
+                MDNS_MULTICAST_ADDR,
+                e
+            );
         }
 
         Ok(())
@@ -104,8 +108,7 @@ impl MdnsSocket for RealMdnsSocket {
 
         let mut responses = Vec::new();
         let mut buf = [0u8; 4096];
-        let deadline = tokio::time::Instant::now()
-            + tokio::time::Duration::from_secs(timeout_secs);
+        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
 
         loop {
             let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());

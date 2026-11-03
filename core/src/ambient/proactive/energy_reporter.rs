@@ -27,7 +27,11 @@ impl EnergyReporter {
 
     /// 更新设备能耗
     pub fn update_device(&mut self, device: DeviceConsumption) {
-        if let Some(existing) = self.devices.iter_mut().find(|d| d.device_id == device.device_id) {
+        if let Some(existing) = self
+            .devices
+            .iter_mut()
+            .find(|d| d.device_id == device.device_id)
+        {
             existing.watts = device.watts;
             existing.device_name = device.device_name;
         } else {
@@ -54,18 +58,19 @@ impl EnergyReporter {
             return "暂无能耗数据。".into();
         }
 
-        let top_consumer = self
-            .devices
-            .iter()
-            .max_by(|a, b| a.watts.partial_cmp(&b.watts).unwrap_or(std::cmp::Ordering::Equal));
+        let top_consumer = self.devices.iter().max_by(|a, b| {
+            a.watts
+                .partial_cmp(&b.watts)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
-        let mut report = format!(
-            "当前 {} 个设备总功耗 {:.0} 瓦",
-            device_count, total
-        );
+        let mut report = format!("当前 {} 个设备总功耗 {:.0} 瓦", device_count, total);
 
         if let Some(top) = top_consumer {
-            report.push_str(&format!("，最耗电的是{}（{:.0}瓦）", top.device_name, top.watts));
+            report.push_str(&format!(
+                "，最耗电的是{}（{:.0}瓦）",
+                top.device_name, top.watts
+            ));
         }
 
         report.push('。');

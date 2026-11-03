@@ -4,8 +4,8 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use async_trait::async_trait;
+    use std::sync::Arc;
     use tokio::sync::Mutex;
 
     use crate::privacy::pii_detector::PiiType;
@@ -19,31 +19,54 @@ mod tests {
     }
 
     impl EchoMockProvider {
-        fn new() -> Self { Self { captured: Mutex::new(Vec::new()) } }
+        fn new() -> Self {
+            Self {
+                captured: Mutex::new(Vec::new()),
+            }
+        }
     }
 
     #[async_trait]
     impl Provider for EchoMockProvider {
-        fn name(&self) -> &str { "echo-mock" }
-        fn available_models(&self) -> Vec<String> { vec!["echo-1".into()] }
+        fn name(&self) -> &str {
+            "echo-mock"
+        }
+        fn available_models(&self) -> Vec<String> {
+            vec!["echo-1".into()]
+        }
         async fn chat(&self, request: &ChatRequest) -> anyhow::Result<ChatResponse> {
             self.captured.lock().await.push(request.clone());
             // 回显最后一条消息（含 token）
-            let last = request.messages.last().map(|m| m.content.clone()).unwrap_or_default();
+            let last = request
+                .messages
+                .last()
+                .map(|m| m.content.clone())
+                .unwrap_or_default();
             Ok(ChatResponse {
                 content: format!("收到: {last}"),
                 model: "echo-1".into(),
-                usage: TokenUsage { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+                usage: TokenUsage {
+                    prompt_tokens: 10,
+                    completion_tokens: 5,
+                    total_tokens: 15,
+                },
             })
         }
-        async fn embed(&self, _: &str) -> anyhow::Result<Vec<f32>> { Ok(vec![]) }
-        async fn validate_key(&self) -> anyhow::Result<bool> { Ok(true) }
+        async fn embed(&self, _: &str) -> anyhow::Result<Vec<f32>> {
+            Ok(vec![])
+        }
+        async fn validate_key(&self) -> anyhow::Result<bool> {
+            Ok(true)
+        }
     }
 
     fn make_request(content: &str) -> ChatRequest {
         ChatRequest {
             model: "echo-1".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: content.into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: content.into(),
+            }],
             max_tokens: None,
             temperature: None,
             stream: false,
@@ -62,10 +85,16 @@ mod tests {
         let captured = mock.captured.lock().await;
         let sent = &captured[0].messages[0].content;
         assert!(!sent.contains("user@secret.com"), "PII leaked to provider");
-        assert!(sent.contains("[EMAIL_"), "Token not present in sanitized request");
+        assert!(
+            sent.contains("[EMAIL_"),
+            "Token not present in sanitized request"
+        );
 
         // 验证响应中 token 已还原
-        assert!(response.content.contains("user@secret.com"), "PII not restored in response");
+        assert!(
+            response.content.contains("user@secret.com"),
+            "PII not restored in response"
+        );
     }
 
     #[tokio::test]
@@ -79,7 +108,10 @@ mod tests {
         let captured = mock.captured.lock().await;
         let sent = &captured[0].messages[0].content;
         assert!(!sent.contains("13912345678"), "Phone leaked to provider");
-        assert!(response.content.contains("13912345678"), "Phone not restored");
+        assert!(
+            response.content.contains("13912345678"),
+            "Phone not restored"
+        );
     }
 
     #[tokio::test]
@@ -110,10 +142,22 @@ mod tests {
         let request = ChatRequest {
             model: "echo-1".into(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: "你是助手".into() },
-                ChatMessage { role: "user".into(), content: "邮箱 a@b.com".into() },
-                ChatMessage { role: "assistant".into(), content: "好的".into() },
-                ChatMessage { role: "user".into(), content: "手机 13700137000".into() },
+                ChatMessage {
+                    role: "system".into(),
+                    content: "你是助手".into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: "邮箱 a@b.com".into(),
+                },
+                ChatMessage {
+                    role: "assistant".into(),
+                    content: "好的".into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: "手机 13700137000".into(),
+                },
             ],
             max_tokens: None,
             temperature: None,
@@ -141,7 +185,10 @@ mod tests {
         let captured = mock.captured.lock().await;
         let sent = &captured[0].messages[0].content;
         assert!(!sent.contains("x@y.com"), "Email should be sanitized");
-        assert!(sent.contains("13600136000"), "Phone should pass through when not in filter");
+        assert!(
+            sent.contains("13600136000"),
+            "Phone should pass through when not in filter"
+        );
     }
 
     #[tokio::test]
@@ -149,13 +196,21 @@ mod tests {
         struct FailProvider;
         #[async_trait]
         impl Provider for FailProvider {
-            fn name(&self) -> &str { "fail" }
-            fn available_models(&self) -> Vec<String> { vec![] }
+            fn name(&self) -> &str {
+                "fail"
+            }
+            fn available_models(&self) -> Vec<String> {
+                vec![]
+            }
             async fn chat(&self, _: &ChatRequest) -> anyhow::Result<ChatResponse> {
                 anyhow::bail!("provider error")
             }
-            async fn embed(&self, _: &str) -> anyhow::Result<Vec<f32>> { anyhow::bail!("no") }
-            async fn validate_key(&self) -> anyhow::Result<bool> { Ok(false) }
+            async fn embed(&self, _: &str) -> anyhow::Result<Vec<f32>> {
+                anyhow::bail!("no")
+            }
+            async fn validate_key(&self) -> anyhow::Result<bool> {
+                Ok(false)
+            }
         }
 
         let provider = SanitizingProvider::wrap(Arc::new(FailProvider), SanitizerConfig::default());

@@ -9,7 +9,7 @@ use prometheus_core::memory::{EpisodicMemory, KnowledgeBase, WorkingMemory};
 use prometheus_core::orchestrator::{ChatOrchestrator, ProviderChatBackend};
 use prometheus_core::persona::PersonaEngine;
 use prometheus_core::privacy::ConsentManager;
-use prometheus_core::security::{PromptGuard, InputValidator, RateLimiter, SecurityAuditLog};
+use prometheus_core::security::{InputValidator, PromptGuard, RateLimiter, SecurityAuditLog};
 use prometheus_core::session::HistoryStore;
 use prometheus_core::sync::SyncEngine;
 

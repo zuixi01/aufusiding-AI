@@ -45,10 +45,7 @@ impl AgentTool for MemoryTool {
     }
 
     async fn execute(&self, params: Value) -> ToolResult {
-        let query = params
-            .get("query")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let query = params.get("query").and_then(|v| v.as_str()).unwrap_or("");
         let max_items = params
             .get("max_items")
             .and_then(|v| v.as_u64())
@@ -103,10 +100,7 @@ impl AgentTool for PluginTool {
             Some(id) => id,
             None => return ToolResult::err("缺少 plugin_id 参数"),
         };
-        let input = params
-            .get("input")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let input = params.get("input").and_then(|v| v.as_str()).unwrap_or("");
 
         let mgr = self.manager.read().await;
         match mgr.execute(plugin_id, input) {
@@ -200,8 +194,10 @@ mod tests {
     #[tokio::test]
     async fn code_search_finds_matches() {
         let tool = CodeSearchTool::new();
-        tool.add_snippet("src/main.rs", "fn main() { println!(\"hello\"); }").await;
-        tool.add_snippet("src/lib.rs", "pub fn add(a: i32, b: i32) -> i32 { a + b }").await;
+        tool.add_snippet("src/main.rs", "fn main() { println!(\"hello\"); }")
+            .await;
+        tool.add_snippet("src/lib.rs", "pub fn add(a: i32, b: i32) -> i32 { a + b }")
+            .await;
 
         let result = tool.execute(serde_json::json!({"keyword": "main"})).await;
         assert!(result.success);
@@ -213,7 +209,9 @@ mod tests {
         let tool = CodeSearchTool::new();
         tool.add_snippet("src/lib.rs", "pub fn add() {}").await;
 
-        let result = tool.execute(serde_json::json!({"keyword": "nonexistent"})).await;
+        let result = tool
+            .execute(serde_json::json!({"keyword": "nonexistent"}))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["count"], 0);
     }

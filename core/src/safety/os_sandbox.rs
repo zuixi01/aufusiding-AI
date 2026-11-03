@@ -116,9 +116,7 @@ impl SandboxEnvironment {
                 SandboxCapability::FilesystemIsolation,
                 SandboxCapability::ProcessIsolation,
             ],
-            SandboxPlatform::Generic => vec![
-                SandboxCapability::ProcessIsolation,
-            ],
+            SandboxPlatform::Generic => vec![SandboxCapability::ProcessIsolation],
         }
     }
 
@@ -246,11 +244,20 @@ impl SeccompProfile {
     pub fn minimal() -> Self {
         Self {
             allowed_syscalls: vec![
-                "read".into(), "write".into(), "close".into(),
-                "fstat".into(), "mmap".into(), "mprotect".into(),
-                "munmap".into(), "brk".into(), "exit_group".into(),
-                "exit".into(), "arch_prctl".into(), "futex".into(),
-                "clock_gettime".into(), "getpid".into(),
+                "read".into(),
+                "write".into(),
+                "close".into(),
+                "fstat".into(),
+                "mmap".into(),
+                "mprotect".into(),
+                "munmap".into(),
+                "brk".into(),
+                "exit_group".into(),
+                "exit".into(),
+                "arch_prctl".into(),
+                "futex".into(),
+                "clock_gettime".into(),
+                "getpid".into(),
             ],
             default_action: SeccompAction::Errno,
         }

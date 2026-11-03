@@ -155,16 +155,29 @@ impl GoogleHomeAdapter {
         let payload = parsed
             .payload
             .ok_or_else(|| anyhow::anyhow!("query: missing payload"))?;
-        let devices_map = payload.devices.as_object()
+        let devices_map = payload
+            .devices
+            .as_object()
             .ok_or_else(|| anyhow::anyhow!("query: devices is not an object"))?;
         let state = devices_map
             .get(device_id)
             .ok_or_else(|| anyhow::anyhow!("query: device {} not found in response", device_id))?;
-        let online = state.get("online").and_then(|v| v.as_bool()).unwrap_or(false);
+        let online = state
+            .get("online")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         Ok(GoogleHomeDevice {
             id: device_id.to_string(),
-            name: state.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            device_type: state.get("type").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            name: state
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            device_type: state
+                .get("type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             online,
             state: state.clone(),
         })
@@ -198,15 +211,28 @@ impl GoogleHomeAdapter {
         let payload = parsed
             .payload
             .ok_or_else(|| anyhow::anyhow!("list_devices: missing payload"))?;
-        let devices_map = payload.devices.as_object()
+        let devices_map = payload
+            .devices
+            .as_object()
             .ok_or_else(|| anyhow::anyhow!("list_devices: devices is not an object"))?;
         let mut result = Vec::new();
         for (id, state) in devices_map {
-            let online = state.get("online").and_then(|v| v.as_bool()).unwrap_or(false);
+            let online = state
+                .get("online")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             result.push(GoogleHomeDevice {
                 id: id.clone(),
-                name: state.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                device_type: state.get("type").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                name: state
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                device_type: state
+                    .get("type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 online,
                 state: state.clone(),
             });
@@ -267,10 +293,7 @@ impl GoogleHomeAdapter {
     /// Map a property name to the Google Home command string.
     fn command_for_property(property: &str) -> anyhow::Result<(&'static str, &'static str)> {
         match property {
-            "brightness" => Ok((
-                "action.devices.commands.BrightnessAbsolute",
-                "brightness",
-            )),
+            "brightness" => Ok(("action.devices.commands.BrightnessAbsolute", "brightness")),
             "color_temperature" => Ok((
                 "action.devices.commands.ColorAbsoluteTemperature",
                 "temperature",
@@ -399,7 +422,7 @@ mod tests {
             when.method(POST)
                 .path("/v1/devices:requestSync")
                 .header("Authorization", "Bearer test-oauth-token")
-                .json_body_partial(r#"{"agentUserId":"user-1"}"#);
+                .json_body_includes(r#"{"agentUserId":"user-1"}"#);
             then.status(200).json_body(json!({}));
         });
         let gh = adapter(&server);
@@ -418,7 +441,10 @@ mod tests {
         let gh = adapter(&server);
         let result = gh.request_sync("user-1").await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("requestSync failed (403)"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("requestSync failed (403)"));
     }
 
     // 3. query_device sends correct POST body
@@ -429,7 +455,8 @@ mod tests {
             when.method(POST)
                 .path("/v1/devices:query")
                 .header("Authorization", "Bearer test-oauth-token");
-            then.status(200).json_body(query_response_for("dev-1", json!({"online": true})));
+            then.status(200)
+                .json_body(query_response_for("dev-1", json!({"online": true})));
         });
         let gh = adapter(&server);
         gh.query_device("dev-1").await.unwrap();
@@ -464,7 +491,10 @@ mod tests {
         let gh = adapter(&server);
         let result = gh.query_device("dev-1").await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("query failed (500)"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("query failed (500)"));
     }
 
     // 6. query_device unknown device returns error
@@ -473,12 +503,16 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(POST).path("/v1/devices:query");
-            then.status(200).json_body(query_response_for("other-dev", json!({"online": true})));
+            then.status(200)
+                .json_body(query_response_for("other-dev", json!({"online": true})));
         });
         let gh = adapter(&server);
         let result = gh.query_device("ghost").await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("device ghost not found"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("device ghost not found"));
     }
 
     // 7. list_devices returns multiple devices
@@ -511,7 +545,10 @@ mod tests {
         let gh = adapter(&server);
         let result = gh.list_devices(&["dev-1"]).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("list_devices failed (401)"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("list_devices failed (401)"));
     }
     // 9. execute_command sends correct POST body
     #[tokio::test]
@@ -524,9 +561,13 @@ mod tests {
             then.status(200).json_body(success_execute_body());
         });
         let gh = adapter(&server);
-        gh.execute_command("dev-1", "action.devices.commands.OnOff", json!({"on": true}))
-            .await
-            .unwrap();
+        gh.execute_command(
+            "dev-1",
+            "action.devices.commands.OnOff",
+            json!({"on": true}),
+        )
+        .await
+        .unwrap();
         mock.assert();
     }
 
@@ -540,7 +581,11 @@ mod tests {
         });
         let gh = adapter(&server);
         let states = gh
-            .execute_command("dev-1", "action.devices.commands.OnOff", json!({"on": true}))
+            .execute_command(
+                "dev-1",
+                "action.devices.commands.OnOff",
+                json!({"on": true}),
+            )
             .await
             .unwrap();
         assert_eq!(states["on"], true);
@@ -553,11 +598,16 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(POST).path("/v1/devices:execute");
-            then.status(200).json_body(error_execute_body("deviceOffline"));
+            then.status(200)
+                .json_body(error_execute_body("deviceOffline"));
         });
         let gh = adapter(&server);
         let result = gh
-            .execute_command("dev-1", "action.devices.commands.OnOff", json!({"on": true}))
+            .execute_command(
+                "dev-1",
+                "action.devices.commands.OnOff",
+                json!({"on": true}),
+            )
             .await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("deviceOffline"));
@@ -573,10 +623,17 @@ mod tests {
         });
         let gh = adapter(&server);
         let result = gh
-            .execute_command("dev-1", "action.devices.commands.OnOff", json!({"on": true}))
+            .execute_command(
+                "dev-1",
+                "action.devices.commands.OnOff",
+                json!({"on": true}),
+            )
             .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("execute failed (503)"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("execute failed (503)"));
     }
     // 13. turn_on sends OnOff command with on=true
     #[tokio::test]
@@ -622,7 +679,9 @@ mod tests {
             then.status(200).json_body(success_execute_body());
         });
         let gh = adapter(&server);
-        gh.set_property("dev-1", "brightness", json!(75)).await.unwrap();
+        gh.set_property("dev-1", "brightness", json!(75))
+            .await
+            .unwrap();
         mock.assert();
     }
 
@@ -662,7 +721,10 @@ mod tests {
         let gh = adapter(&server);
         let result = gh.set_property("dev-1", "warp_speed", json!(9)).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("unsupported Google Home property"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("unsupported Google Home property"));
     }
 
     // 19. get_state returns correct JSON structure

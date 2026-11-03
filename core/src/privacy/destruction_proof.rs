@@ -29,11 +29,7 @@ impl DestructionProof {
     /// 为一组被销毁的原始数据值生成销毁证明
     ///
     /// `signing_key` 用于 HMAC 签名，`originals` 是被销毁的原文列表。
-    pub fn generate(
-        signing_key: &[u8],
-        originals: &[String],
-        method: &str,
-    ) -> Self {
+    pub fn generate(signing_key: &[u8], originals: &[String], method: &str) -> Self {
         let proof_id = Uuid::new_v4().to_string();
         let timestamp = Utc::now();
         let data_hashes: Vec<String> = originals
@@ -46,7 +42,8 @@ impl DestructionProof {
         let items_destroyed = originals.len();
 
         // 构造待签名载荷：proof_id || timestamp || method || items_destroyed || all hashes
-        let payload = Self::build_payload(&proof_id, &timestamp, method, items_destroyed, &data_hashes);
+        let payload =
+            Self::build_payload(&proof_id, &timestamp, method, items_destroyed, &data_hashes);
         let key = hmac::Key::new(hmac::HMAC_SHA256, signing_key);
         let tag = hmac::sign(&key, payload.as_bytes());
         let signature = hex_encode(tag.as_ref());

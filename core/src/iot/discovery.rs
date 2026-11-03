@@ -55,7 +55,10 @@ impl DeviceDiscovery {
     }
 
     /// 设置聚合器委托
-    pub fn with_aggregator(mut self, agg: super::discovery_aggregator::DiscoveryAggregator) -> Self {
+    pub fn with_aggregator(
+        mut self,
+        agg: super::discovery_aggregator::DiscoveryAggregator,
+    ) -> Self {
         self.aggregator = Some(agg);
         self
     }

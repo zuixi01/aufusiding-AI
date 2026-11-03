@@ -5,82 +5,95 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-Dwarnings"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
 
 jobs:
   check:
-    name: Cargo Check
-    runs-on: ubuntu-latest
+    name: Workspace check, tests and Clippy (Linux)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+          components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --workspace --all-targets
-
-  test:
-    name: Cargo Test
-    runs-on: ubuntu-latest
-    needs: check
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace
+        with:
+          cache-on-failure: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
+            pkg-config libasound2-dev
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+      - name: Build frontend assets required by Tauri
+        working-directory: apps/desktop
+        run: npm run build
+      - name: Generate Swift and Kotlin bindings with the locked UniFFI version
+        run: bash scripts/generate-bindings.sh "$RUNNER_TEMP/uniffi-bindings"
+      - name: Save generated bindings for verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: uniffi-bindings-${{ github.sha }}
+          path: ${{ runner.temp }}/uniffi-bindings
+          if-no-files-found: error
+          retention-days: 7
+      - name: Verify checked-in Swift and Kotlin bindings
+        run: diff -ru ffi/generated "$RUNNER_TEMP/uniffi-bindings"
+      - run: cargo check --workspace --all-targets --keep-going --locked
+      - run: cargo clippy --workspace --all-targets --keep-going --locked --features prometheus-core/audio-capture -- -D warnings
+      - run: cargo test --workspace --all-targets --locked
+      - name: Test audio configuration without hardware
+        run: cargo test -p prometheus-core --lib --features audio-capture --locked ambient::cpal_audio
+      - run: cargo test --workspace --doc --locked
 
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.99.1
           components: rustfmt
       - run: cargo fmt --all -- --check
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-
-  security-audit:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-  android-check:
-    name: Android Check
-    runs-on: ubuntu-latest
-    needs: check
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo check -p prometheus-ffi --target aarch64-linux-android
-
-  desktop-check:
-    name: Desktop Check
+  portability:
+    name: CLI, server and FFI (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    needs: check
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check -p prometheus-ffi -p prometheus-cli -p prometheus-server
+      - run: cargo check -p prometheus-ffi -p prometheus-cli -p prometheus-server --all-targets --locked

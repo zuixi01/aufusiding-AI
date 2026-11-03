@@ -22,10 +22,10 @@ pub mod wakeword;
 pub mod whisper_stt;
 
 pub use pipeline::VoicePipeline;
-pub use stt::SpeechToText;
 pub use streaming_pipeline::StreamingVoicePipeline;
 pub use streaming_traits::{StreamingSttEngine, StreamingTtsEngine, VadEngine};
 pub use streaming_types::{AudioChunk, StreamEvent, StreamingConfig, VadDecision};
+pub use stt::SpeechToText;
 pub use traits::{SpeechToTextEngine, TextToSpeechEngine, WakewordEngine};
 pub use tts::TextToSpeech;
 pub use types::AudioBuffer;

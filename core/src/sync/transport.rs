@@ -89,13 +89,25 @@ impl Transport for MockTransport {
 
 /// WebSocket 传输实现
 pub struct WebSocketTransport {
-    writer: Option<tokio::sync::Mutex<futures_util::stream::SplitSink<
-        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-        tokio_tungstenite::tungstenite::Message,
-    >>>,
-    reader: Option<tokio::sync::Mutex<futures_util::stream::SplitStream<
-        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-    >>>,
+    writer: Option<
+        tokio::sync::Mutex<
+            futures_util::stream::SplitSink<
+                tokio_tungstenite::WebSocketStream<
+                    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+                >,
+                tokio_tungstenite::tungstenite::Message,
+            >,
+        >,
+    >,
+    reader: Option<
+        tokio::sync::Mutex<
+            futures_util::stream::SplitStream<
+                tokio_tungstenite::WebSocketStream<
+                    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+                >,
+            >,
+        >,
+    >,
     connected: bool,
 }
 
@@ -128,11 +140,15 @@ impl Transport for WebSocketTransport {
     async fn send(&self, data: &[u8]) -> anyhow::Result<()> {
         use futures_util::SinkExt;
 
-        let writer = self.writer.as_ref()
+        let writer = self
+            .writer
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("not connected"))?;
         let mut guard = writer.lock().await;
         guard
-            .send(tokio_tungstenite::tungstenite::Message::Binary(data.to_vec()))
+            .send(tokio_tungstenite::tungstenite::Message::binary(
+                data.to_vec(),
+            ))
             .await
             .map_err(|e| anyhow::anyhow!("websocket send failed: {}", e))?;
         Ok(())
@@ -141,7 +157,9 @@ impl Transport for WebSocketTransport {
     async fn receive(&self) -> anyhow::Result<Vec<u8>> {
         use futures_util::StreamExt;
 
-        let reader = self.reader.as_ref()
+        let reader = self
+            .reader
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("not connected"))?;
         let mut guard = reader.lock().await;
         match guard.next().await {
@@ -156,7 +174,9 @@ impl Transport for WebSocketTransport {
 
         if let Some(ref writer) = self.writer {
             let mut guard = writer.lock().await;
-            let _ = guard.send(tokio_tungstenite::tungstenite::Message::Close(None)).await;
+            let _ = guard
+                .send(tokio_tungstenite::tungstenite::Message::Close(None))
+                .await;
         }
         self.writer = None;
         self.reader = None;
@@ -172,6 +192,41 @@ impl Transport for WebSocketTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn websocket_binary_roundtrip_preserves_payload() {
+        use futures_util::{SinkExt, StreamExt};
+        use std::time::Duration;
+
+        const PAYLOAD: &[u8] = b"\x00\xffbinary-sync\x80";
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("ws://{}/sync", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.unwrap();
+            let mut websocket = tokio_tungstenite::accept_async(socket).await.unwrap();
+            let message = websocket.next().await.unwrap().unwrap();
+            assert!(message.is_binary());
+            assert_eq!(message.clone().into_data().as_ref(), PAYLOAD);
+            websocket.send(message).await.unwrap();
+            assert!(websocket.next().await.unwrap().unwrap().is_close());
+        });
+
+        let mut transport = WebSocketTransport::new();
+        transport.connect(&url).await.unwrap();
+        assert!(transport.is_connected());
+        transport.send(PAYLOAD).await.unwrap();
+        let received = tokio::time::timeout(Duration::from_secs(5), transport.receive())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(received, PAYLOAD);
+        transport.disconnect().await.unwrap();
+        assert!(!transport.is_connected());
+        tokio::time::timeout(Duration::from_secs(5), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
 
     #[tokio::test]
     async fn connect_sets_flag() {

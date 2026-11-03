@@ -97,7 +97,11 @@ impl SpeechToText {
             anyhow::bail!("音频文件不存在: {}", audio_path.display());
         }
         // 未来集成 whisper.cpp 时在此读取文件并转录
-        Ok(format!("[STT:file:{}:{}]", audio_path.display(), self.language))
+        Ok(format!(
+            "[STT:file:{}:{}]",
+            audio_path.display(),
+            self.language
+        ))
     }
 
     /// 转录音频数据
@@ -151,9 +155,7 @@ mod tests {
 
     fn speech_audio() -> AudioBuffer {
         // 模拟有语音的音频（高能量）
-        let samples: Vec<f32> = (0..16000)
-            .map(|i| (i as f32 * 0.1).sin() * 0.5)
-            .collect();
+        let samples: Vec<f32> = (0..16000).map(|i| (i as f32 * 0.1).sin() * 0.5).collect();
         AudioBuffer::new(samples, 16000, 1).unwrap()
     }
 

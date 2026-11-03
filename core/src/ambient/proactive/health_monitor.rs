@@ -136,7 +136,10 @@ impl HealthMonitor {
             ));
         }
 
-        parts.push(format!("今日步数 {}，目标 {}", self.steps_today, self.step_goal));
+        parts.push(format!(
+            "今日步数 {}，目标 {}",
+            self.steps_today, self.step_goal
+        ));
 
         if let Some(hr) = self.heart_rate {
             parts.push(format!("当前心率 {} bpm", hr));

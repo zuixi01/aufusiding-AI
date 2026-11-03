@@ -146,7 +146,9 @@ impl FileManagerCapability {
                     report.total_bytes += bytes;
                 }
                 Err(e) => {
-                    report.errors.push(format!("复制失败 {}: {}", src_path.display(), e));
+                    report
+                        .errors
+                        .push(format!("复制失败 {}: {}", src_path.display(), e));
                 }
             }
         }

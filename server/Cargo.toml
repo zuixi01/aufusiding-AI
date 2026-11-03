@@ -3,6 +3,7 @@ name = "prometheus-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "Prometheus HTTP API 服务器"
 
 [[bin]]

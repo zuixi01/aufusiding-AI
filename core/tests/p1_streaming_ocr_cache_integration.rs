@@ -1,13 +1,13 @@
 //! P1 流式语音 + OCR + Prompt缓存 — 跨模块集成测试
 
 use prometheus_core::inference::PromptCache;
-use prometheus_core::screen::ocr::ImagePreprocessor;
-use prometheus_core::screen::ocr_mock::MockOcrEngine;
-use prometheus_core::screen::vision::VisionAnalyzer;
-use prometheus_core::screen::ScreenAnalyzer;
 use prometheus_core::screen::analyzer::TextRegion;
 use prometheus_core::screen::capture::{ImageFormat, ScreenSnapshot};
+use prometheus_core::screen::ocr::ImagePreprocessor;
+use prometheus_core::screen::ocr_mock::MockOcrEngine;
 use prometheus_core::screen::types::ScreenRegion;
+use prometheus_core::screen::vision::VisionAnalyzer;
+use prometheus_core::screen::ScreenAnalyzer;
 use prometheus_core::voice::streaming_mock::{MockStreamingStt, MockStreamingTts};
 use prometheus_core::voice::streaming_pipeline::StreamingVoicePipeline;
 use prometheus_core::voice::streaming_types::{AudioChunk, StreamEvent, StreamingConfig};
@@ -42,9 +42,7 @@ async fn streaming_voice_full_turn() {
     });
 
     pipeline
-        .run_turn(&mut audio_rx, &event_tx, |text| {
-            format!("回复: {}", text)
-        })
+        .run_turn(&mut audio_rx, &event_tx, |text| format!("回复: {}", text))
         .await
         .unwrap();
 
@@ -54,9 +52,13 @@ async fn streaming_voice_full_turn() {
         events.push(e);
     }
 
-    assert!(events.iter().any(|e| matches!(e, StreamEvent::SpeechStarted)));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, StreamEvent::SpeechStarted)));
     assert!(events.iter().any(|e| matches!(e, StreamEvent::SpeechEnded)));
-    assert!(events.iter().any(|e| matches!(e, StreamEvent::SynthesizedChunk(_))));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, StreamEvent::SynthesizedChunk(_))));
     assert!(events.iter().any(|e| matches!(e, StreamEvent::Done)));
 }
 
@@ -77,7 +79,9 @@ async fn vad_silence_triggers_finalize() {
     // 一个语音块
     let speech = AudioChunk::new(vec![0.5; 480], 16000, 1, 0, 0);
     let events = pipeline.process_chunk(&speech).await.unwrap();
-    assert!(events.iter().any(|e| matches!(e, StreamEvent::SpeechStarted)));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, StreamEvent::SpeechStarted)));
 
     // 连续静音块直到超时
     let mut ended = false;
@@ -99,12 +103,22 @@ async fn vision_analyzer_as_screen_analyzer() {
     let regions = vec![
         TextRegion {
             text: "确定".into(),
-            bounds: ScreenRegion { x: 100, y: 200, width: 80, height: 30 },
+            bounds: ScreenRegion {
+                x: 100,
+                y: 200,
+                width: 80,
+                height: 30,
+            },
             confidence: 0.9,
         },
         TextRegion {
             text: "用户名输入框".into(),
-            bounds: ScreenRegion { x: 10, y: 10, width: 300, height: 40 },
+            bounds: ScreenRegion {
+                x: 10,
+                y: 10,
+                width: 300,
+                height: 40,
+            },
             confidence: 0.85,
         },
     ];
@@ -112,8 +126,11 @@ async fn vision_analyzer_as_screen_analyzer() {
     let sa: &dyn ScreenAnalyzer = &analyzer;
 
     let snap = ScreenSnapshot {
-        width: 800, height: 600, data: vec![0u8; 100],
-        format: ImageFormat::Raw, captured_at: chrono::Utc::now(),
+        width: 800,
+        height: 600,
+        data: vec![0u8; 100],
+        format: ImageFormat::Raw,
+        captured_at: chrono::Utc::now(),
     };
 
     let elements = sa.detect_elements(&snap).await.unwrap();

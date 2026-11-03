@@ -19,8 +19,18 @@ mod unit {
     #[test]
     fn notification_push_and_count() {
         let hub = NotificationHub::new();
-        hub.push(Notification::new("微信", "新消息", "你好", NotificationPriority::Normal));
-        hub.push(Notification::new("邮件", "会议", "明天开会", NotificationPriority::High));
+        hub.push(Notification::new(
+            "微信",
+            "新消息",
+            "你好",
+            NotificationPriority::Normal,
+        ));
+        hub.push(Notification::new(
+            "邮件",
+            "会议",
+            "明天开会",
+            NotificationPriority::High,
+        ));
         assert_eq!(hub.pending_count(), 2);
         assert_eq!(hub.total_count(), 2);
     }
@@ -29,8 +39,18 @@ mod unit {
     fn notification_priority_sorting() {
         let hub = NotificationHub::new();
         hub.push(Notification::new("a", "低", "x", NotificationPriority::Low));
-        hub.push(Notification::new("b", "紧急", "y", NotificationPriority::Critical));
-        hub.push(Notification::new("c", "普通", "z", NotificationPriority::Normal));
+        hub.push(Notification::new(
+            "b",
+            "紧急",
+            "y",
+            NotificationPriority::Critical,
+        ));
+        hub.push(Notification::new(
+            "c",
+            "普通",
+            "z",
+            NotificationPriority::Normal,
+        ));
 
         let sorted = hub.pending_sorted();
         assert_eq!(sorted[0].priority, NotificationPriority::Critical);
@@ -52,7 +72,12 @@ mod unit {
     #[test]
     fn notification_dismiss_all() {
         let hub = NotificationHub::new();
-        hub.push(Notification::new("a", "1", "x", NotificationPriority::Normal));
+        hub.push(Notification::new(
+            "a",
+            "1",
+            "x",
+            NotificationPriority::Normal,
+        ));
         hub.push(Notification::new("b", "2", "y", NotificationPriority::High));
         hub.dismiss_all();
         assert_eq!(hub.pending_count(), 0);
@@ -67,8 +92,18 @@ mod unit {
     #[test]
     fn notification_voice_summary_with_items() {
         let hub = NotificationHub::new();
-        hub.push(Notification::new("微信", "张三", "你好", NotificationPriority::Normal));
-        hub.push(Notification::new("邮件", "会议通知", "明天开会", NotificationPriority::Critical));
+        hub.push(Notification::new(
+            "微信",
+            "张三",
+            "你好",
+            NotificationPriority::Normal,
+        ));
+        hub.push(Notification::new(
+            "邮件",
+            "会议通知",
+            "明天开会",
+            NotificationPriority::Critical,
+        ));
         let summary = hub.voice_summary();
         assert!(summary.contains("2 条新通知"));
         assert!(summary.contains("1 条紧急"));
@@ -77,7 +112,12 @@ mod unit {
     #[test]
     fn notification_clear_read() {
         let hub = NotificationHub::new();
-        hub.push(Notification::new("a", "1", "x", NotificationPriority::Normal));
+        hub.push(Notification::new(
+            "a",
+            "1",
+            "x",
+            NotificationPriority::Normal,
+        ));
         hub.dismiss_all();
         hub.clear_read();
         assert_eq!(hub.total_count(), 0);
@@ -158,7 +198,9 @@ mod unit {
             awake_minutes: 30,
         });
         let alerts = monitor.check_anomalies();
-        assert!(alerts.iter().any(|a| a.alert_type == HealthAlertType::SleepDeficit));
+        assert!(alerts
+            .iter()
+            .any(|a| a.alert_type == HealthAlertType::SleepDeficit));
     }
 
     #[test]
@@ -406,7 +448,12 @@ mod unit {
         let hub = Arc::new(NotificationHub::new());
         let health = Arc::new(HealthMonitor::new());
 
-        hub.push(Notification::new("微信", "消息", "你好", NotificationPriority::Normal));
+        hub.push(Notification::new(
+            "微信",
+            "消息",
+            "你好",
+            NotificationPriority::Normal,
+        ));
 
         let briefing = DailyBriefing::new(weather, calendar, hub, health, "北京".into());
         let text = briefing.generate("张三").await.unwrap();

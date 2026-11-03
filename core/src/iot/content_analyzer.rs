@@ -59,7 +59,10 @@ impl ContentAnalyzer {
 
         // 检测图表特征
         let chart_indicators = ["图表", "chart", "graph", "数据", "统计", "趋势"];
-        if chart_indicators.iter().any(|kw| content.to_lowercase().contains(kw)) {
+        if chart_indicators
+            .iter()
+            .any(|kw| content.to_lowercase().contains(kw))
+        {
             return ContentType::Chart;
         }
 
@@ -73,7 +76,10 @@ impl ContentAnalyzer {
 
     /// 判断内容是否适合语音输出
     pub fn is_voice_friendly(&self, content_type: ContentType) -> bool {
-        matches!(content_type, ContentType::ShortMessage | ContentType::Text | ContentType::Audio)
+        matches!(
+            content_type,
+            ContentType::ShortMessage | ContentType::Text | ContentType::Audio
+        )
     }
 
     /// 判断内容是否需要屏幕展示

@@ -42,7 +42,11 @@ impl IrBridgeAdapter {
     }
 
     /// 创建 HTTP 模式的红外网关适配器
-    pub fn with_http_gateway(gateway_ip: String, gateway_type: IrGatewayType, http_url: &str) -> Self {
+    pub fn with_http_gateway(
+        gateway_ip: String,
+        gateway_type: IrGatewayType,
+        http_url: &str,
+    ) -> Self {
         Self {
             gateway_ip,
             gateway_type,
@@ -115,7 +119,8 @@ impl IrBridgeAdapter {
 #[async_trait]
 impl DeviceController for IrBridgeAdapter {
     async fn turn_on(&self, device_id: &str) -> anyhow::Result<()> {
-        let code = self.get_code(device_id, "power_on")
+        let code = self
+            .get_code(device_id, "power_on")
             .ok_or_else(|| anyhow::anyhow!("未找到 {} 的开机红外码", device_id))?;
         self.send_ir(code).await?;
         let mut states = self.states.lock().unwrap_or_else(|e| e.into_inner());
@@ -124,7 +129,8 @@ impl DeviceController for IrBridgeAdapter {
     }
 
     async fn turn_off(&self, device_id: &str) -> anyhow::Result<()> {
-        let code = self.get_code(device_id, "power_off")
+        let code = self
+            .get_code(device_id, "power_off")
             .ok_or_else(|| anyhow::anyhow!("未找到 {} 的关机红外码", device_id))?;
         self.send_ir(code).await?;
         let mut states = self.states.lock().unwrap_or_else(|e| e.into_inner());
@@ -132,13 +138,21 @@ impl DeviceController for IrBridgeAdapter {
         Ok(())
     }
 
-    async fn set_property(&self, device_id: &str, property: &str, value: Value) -> anyhow::Result<()> {
+    async fn set_property(
+        &self,
+        device_id: &str,
+        property: &str,
+        value: Value,
+    ) -> anyhow::Result<()> {
         let command = format!("set_{}", property);
-        let code = self.get_code(device_id, &command)
+        let code = self
+            .get_code(device_id, &command)
             .ok_or_else(|| anyhow::anyhow!("未找到 {} 的 {} 红外码", device_id, command))?;
         self.send_ir(code).await?;
         let mut states = self.states.lock().unwrap_or_else(|e| e.into_inner());
-        let state = states.entry(device_id.to_string()).or_insert_with(|| serde_json::json!({}));
+        let state = states
+            .entry(device_id.to_string())
+            .or_insert_with(|| serde_json::json!({}));
         if let Some(obj) = state.as_object_mut() {
             obj.insert(property.to_string(), value);
         }

@@ -2,15 +2,15 @@
 
 #[cfg(test)]
 mod unit {
-    use crate::iot::output_router::*;
-    use crate::iot::content_analyzer::*;
+    use crate::iot::adapters::hdmi_cec::*;
+    use crate::iot::adapters::ir_bridge::*;
+    use crate::iot::adapters::projector::*;
     use crate::iot::casting::*;
+    use crate::iot::content_analyzer::*;
+    use crate::iot::control::DeviceController;
     use crate::iot::device_handoff::*;
     use crate::iot::geofence_trigger::*;
-    use crate::iot::adapters::ir_bridge::*;
-    use crate::iot::adapters::hdmi_cec::*;
-    use crate::iot::adapters::projector::*;
-    use crate::iot::control::DeviceController;
+    use crate::iot::output_router::*;
     use crate::iot::types::DeviceType;
 
     // ─── ContentAnalyzer ───────────────────────────────
@@ -45,7 +45,11 @@ mod unit {
         let a = ContentAnalyzer::new();
         // 需要超过 100 个 chars 才不会被判为 ShortMessage
         let text = "以下是销售数据统计图表，展示了过去一年的趋势变化，包含多个维度的分析结果和对比数据。这份报告涵盖了各季度的详细统计信息和图表展示，同时还包括了各地区的销售对比分析，以及未来三个季度的预测数据和增长趋势分析报告。";
-        assert!(text.chars().count() > 100, "test text should be >100 chars, got {}", text.chars().count());
+        assert!(
+            text.chars().count() > 100,
+            "test text should be >100 chars, got {}",
+            text.chars().count()
+        );
         assert_eq!(a.analyze(text, None), ContentType::Chart);
     }
 
@@ -188,7 +192,10 @@ mod unit {
     async fn hdmi_cec_set_property() {
         let adapter = HdmiCecAdapter::new("/dev/cec0".into());
         adapter.turn_on("tv-1").await.unwrap();
-        adapter.set_property("tv-1", "active_source", serde_json::json!("hdmi2")).await.unwrap();
+        adapter
+            .set_property("tv-1", "active_source", serde_json::json!("hdmi2"))
+            .await
+            .unwrap();
         let state = adapter.get_state("tv-1").await.unwrap();
         assert_eq!(state["active_source"], "hdmi2");
     }
@@ -204,7 +211,10 @@ mod unit {
         let state = adapter.get_state("proj-1").await.unwrap();
         assert_eq!(state["powered"], true);
 
-        adapter.set_property("proj-1", "input_source", serde_json::json!("hdmi2")).await.unwrap();
+        adapter
+            .set_property("proj-1", "input_source", serde_json::json!("hdmi2"))
+            .await
+            .unwrap();
         let state = adapter.get_state("proj-1").await.unwrap();
         assert_eq!(state["input_source"], "hdmi2");
     }
@@ -222,12 +232,21 @@ mod unit {
             port: 8080,
         };
 
-        let session_id = service.cast(&target, "http://example.com/video.mp4").await.unwrap();
+        let session_id = service
+            .cast(&target, "http://example.com/video.mp4")
+            .await
+            .unwrap();
         assert_eq!(service.active_count(), 1);
-        assert_eq!(service.session_state(session_id), Some(CastSessionState::Casting));
+        assert_eq!(
+            service.session_state(session_id),
+            Some(CastSessionState::Casting)
+        );
 
         service.pause(session_id).unwrap();
-        assert_eq!(service.session_state(session_id), Some(CastSessionState::Paused));
+        assert_eq!(
+            service.session_state(session_id),
+            Some(CastSessionState::Paused)
+        );
 
         service.stop(session_id).unwrap();
         assert_eq!(service.active_count(), 0);

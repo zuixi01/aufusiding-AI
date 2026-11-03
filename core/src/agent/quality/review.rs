@@ -92,7 +92,10 @@ impl ReviewResult {
 
     /// 统计各严重程度的评论数
     pub fn count_by_severity(&self, severity: &Severity) -> usize {
-        self.comments.iter().filter(|c| &c.severity == severity).count()
+        self.comments
+            .iter()
+            .filter(|c| &c.severity == severity)
+            .count()
     }
 
     /// 是否有阻断性问题
@@ -160,14 +163,18 @@ mod tests {
     #[test]
     fn review_comment_blocking() {
         let critical = ReviewComment::new(
-            Severity::Critical, ReviewCategory::Security,
-            "auth.rs:42", "SQL injection",
+            Severity::Critical,
+            ReviewCategory::Security,
+            "auth.rs:42",
+            "SQL injection",
         );
         assert!(critical.is_blocking());
 
         let info = ReviewComment::new(
-            Severity::Info, ReviewCategory::Style,
-            "main.rs:1", "考虑重命名",
+            Severity::Info,
+            ReviewCategory::Style,
+            "main.rs:1",
+            "考虑重命名",
         );
         assert!(!info.is_blocking());
     }
@@ -175,8 +182,10 @@ mod tests {
     #[test]
     fn review_comment_with_suggestion() {
         let c = ReviewComment::new(
-            Severity::Medium, ReviewCategory::Logic,
-            "lib.rs:10", "边界条件未处理",
+            Severity::Medium,
+            ReviewCategory::Logic,
+            "lib.rs:10",
+            "边界条件未处理",
         )
         .with_suggestion("添加 if len == 0 的检查");
         assert_eq!(c.suggestion, Some("添加 if len == 0 的检查".into()));
@@ -192,7 +201,12 @@ mod tests {
     #[test]
     fn review_result_reject_with_counts() {
         let comments = vec![
-            ReviewComment::new(Severity::Critical, ReviewCategory::Security, "a.rs:1", "vuln"),
+            ReviewComment::new(
+                Severity::Critical,
+                ReviewCategory::Security,
+                "a.rs:1",
+                "vuln",
+            ),
             ReviewComment::new(Severity::Medium, ReviewCategory::Style, "b.rs:2", "style"),
             ReviewComment::new(Severity::Critical, ReviewCategory::Logic, "c.rs:3", "bug"),
         ];

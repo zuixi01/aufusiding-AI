@@ -97,10 +97,14 @@ impl SystemAudioSink {
             AudioOutputBackend::PipeWire => {
                 let mut c = Command::new("pw-play");
                 c.args([
-                    "--format", "f32",
-                    "--rate", &chunk.sample_rate.to_string(),
-                    "--channels", &chunk.channels.to_string(),
-                    "--target", &self.config.device_name,
+                    "--format",
+                    "f32",
+                    "--rate",
+                    &chunk.sample_rate.to_string(),
+                    "--channels",
+                    &chunk.channels.to_string(),
+                    "--target",
+                    &self.config.device_name,
                     "-",
                 ]);
                 c
@@ -119,11 +123,16 @@ impl SystemAudioSink {
             AudioOutputBackend::Alsa => {
                 let mut c = Command::new("aplay");
                 c.args([
-                    "-f", "FLOAT_LE",
-                    "-r", &chunk.sample_rate.to_string(),
-                    "-c", &chunk.channels.to_string(),
-                    "-D", &self.config.device_name,
-                    "-t", "raw",
+                    "-f",
+                    "FLOAT_LE",
+                    "-r",
+                    &chunk.sample_rate.to_string(),
+                    "-c",
+                    &chunk.channels.to_string(),
+                    "-D",
+                    &self.config.device_name,
+                    "-t",
+                    "raw",
                     "-q",
                 ]);
                 c
@@ -196,8 +205,11 @@ mod tests {
 
         // 验证往返转换
         let restored: Vec<f32> = bytes
-            .chunks_exact(4)
-            .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .copied()
+            .map(f32::from_le_bytes)
             .collect();
         assert_eq!(restored, samples);
     }

@@ -11,7 +11,7 @@ use prometheus_core::mind::economics::{CostRecord, EconomicCortex};
 use prometheus_core::mind::reflection::ReflectionModule;
 use prometheus_core::providers::ollama::OllamaProvider;
 use prometheus_core::providers::traits::Provider;
-use prometheus_core::router::classifier::{IntentClassifier, IntentType};
+use prometheus_core::router::classifier::IntentClassifier;
 use prometheus_core::router::strategy::{Router, RoutingStrategy};
 use std::sync::Arc;
 
@@ -32,12 +32,14 @@ async fn ollama_integration_with_mock_server() {
         when.method(POST).path("/api/chat");
         then.status(200)
             .header("content-type", "application/json")
-            .body(r#"{
+            .body(
+                r#"{
                 "message": {"role": "assistant", "content": "这是一个快速排序算法实现"},
                 "model": "qwen2.5:1.5b",
                 "eval_count": 50,
                 "prompt_eval_count": 20
-            }"#);
+            }"#,
+            );
     });
 
     // Mock /api/embed 端点（注意是 embed 不是 embeddings）
@@ -46,13 +48,15 @@ async fn ollama_integration_with_mock_server() {
         when.method(POST).path("/api/embed");
         then.status(200)
             .header("content-type", "application/json")
-            .body(format!(r#"{{"embeddings":[{}]}}"#, serde_json::to_string(&embedding_vec).unwrap()));
+            .body(format!(
+                r#"{{"embeddings":[{}]}}"#,
+                serde_json::to_string(&embedding_vec).unwrap()
+            ));
     });
 
     // 初始化 Ollama Provider，指向 mock server
-    let ollama_provider = Arc::new(
-        OllamaProvider::new().with_base_url(&server.base_url())
-    ) as Arc<dyn Provider>;
+    let ollama_provider =
+        Arc::new(OllamaProvider::new().with_base_url(&server.base_url())) as Arc<dyn Provider>;
 
     // 验证 mock Ollama 可用
     let is_valid = ollama_provider.validate_key().await.unwrap();
@@ -62,7 +66,11 @@ async fn ollama_integration_with_mock_server() {
     let classifier = IntentClassifier::new().with_llm_provider(ollama_provider.clone());
     let classification = classifier.classify("帮我写一个排序算法").await.unwrap();
     // Task 5: 简化断言 - 只验证分类成功，不强制要求特定类型
-    assert!(classification.confidence > 0.5, "置信度应 > 0.5，实际: {}", classification.confidence);
+    assert!(
+        classification.confidence > 0.5,
+        "置信度应 > 0.5，实际: {}",
+        classification.confidence
+    );
 
     // 2. 反思模块（使用 LLM）
     let mut reflection_module = ReflectionModule::new().with_llm_provider(ollama_provider.clone());
@@ -75,7 +83,11 @@ async fn ollama_integration_with_mock_server() {
     let reflection = reflection_module
         .reflect_on_conversation(&messages, Some(0.9))
         .await;
-    assert!(reflection.quality_score >= 0.3, "反思分数应 >= 0.3，实际: {}", reflection.quality_score);
+    assert!(
+        reflection.quality_score >= 0.3,
+        "反思分数应 >= 0.3，实际: {}",
+        reflection.quality_score
+    );
 
     // 3. Embedding 服务（使用 mock Ollama）
     let embedding_service = Arc::new(ProviderEmbeddingService::new(ollama_provider.clone(), 384));
@@ -118,13 +130,15 @@ async fn full_conversation_with_mock_ollama() {
         when.method(POST).path("/api/embed");
         then.status(200)
             .header("content-type", "application/json")
-            .body(format!(r#"{{"embeddings":[{}]}}"#, serde_json::to_string(&embedding_vec).unwrap()));
+            .body(format!(
+                r#"{{"embeddings":[{}]}}"#,
+                serde_json::to_string(&embedding_vec).unwrap()
+            ));
     });
 
     // 初始化 Ollama Provider
-    let ollama_provider = Arc::new(
-        OllamaProvider::new().with_base_url(&server.base_url())
-    ) as Arc<dyn Provider>;
+    let ollama_provider =
+        Arc::new(OllamaProvider::new().with_base_url(&server.base_url())) as Arc<dyn Provider>;
 
     // 验证可用
     assert!(
@@ -170,7 +184,10 @@ async fn full_conversation_with_mock_ollama() {
     };
     let chat_response = ollama_provider.chat(&chat_request).await.unwrap();
     assert!(!chat_response.content.is_empty(), "LLM 应该返回内容");
-    assert!(chat_response.content.contains("factorial"), "应该包含阶乘函数");
+    assert!(
+        chat_response.content.contains("factorial"),
+        "应该包含阶乘函数"
+    );
 
     // 4. 工作记忆
     working_memory.add(user_input.to_string(), 0.8);
@@ -194,7 +211,11 @@ async fn full_conversation_with_mock_ollama() {
     let reflection = reflection_module
         .reflect_on_conversation(&conversation_texts, Some(0.85))
         .await;
-    assert!(reflection.quality_score >= 0.3, "反思分数应 >= 0.3，实际: {}", reflection.quality_score);
+    assert!(
+        reflection.quality_score >= 0.3,
+        "反思分数应 >= 0.3，实际: {}",
+        reflection.quality_score
+    );
 
     // 7. 成本追踪
     let cost_record = CostRecord {

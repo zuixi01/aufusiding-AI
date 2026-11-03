@@ -168,7 +168,12 @@ impl DeviceController for HomeKitAdapter {
         self.set_characteristic(entry.aid, 8, json!(false)).await
     }
 
-    async fn set_property(&self, device_id: &str, property: &str, value: Value) -> anyhow::Result<()> {
+    async fn set_property(
+        &self,
+        device_id: &str,
+        property: &str,
+        value: Value,
+    ) -> anyhow::Result<()> {
         let entry = self.get_entry(device_id)?;
         let iid: u64 = match property {
             "brightness" => 9,
@@ -243,7 +248,9 @@ mod tests {
     async fn get_characteristic_sends_correct_request() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(GET).path("/characteristics").query_param("id", "1.8");
+            when.method(GET)
+                .path("/characteristics")
+                .query_param("id", "1.8");
             then.status(200).json_body(json!({
                 "characteristics": [{"aid": 1, "iid": 8, "value": true}]
             }));
@@ -258,7 +265,9 @@ mod tests {
     async fn get_characteristic_parses_value() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET).path("/characteristics").query_param("id", "1.9");
+            when.method(GET)
+                .path("/characteristics")
+                .query_param("id", "1.9");
             then.status(200).json_body(json!({
                 "characteristics": [{"aid": 1, "iid": 9, "value": 75}]
             }));
@@ -273,11 +282,9 @@ mod tests {
     async fn set_characteristic_sends_put() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(PUT)
-                .path("/characteristics")
-                .json_body(json!({
-                    "characteristics": [{"aid": 1, "iid": 8, "value": true}]
-                }));
+            when.method(PUT).path("/characteristics").json_body(json!({
+                "characteristics": [{"aid": 1, "iid": 8, "value": true}]
+            }));
             then.status(204);
         });
         let adapter = setup(&server);
@@ -296,7 +303,10 @@ mod tests {
         let adapter = setup(&server);
         let result = adapter.set_characteristic(1, 8, json!(true)).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("set characteristic failed"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("set characteristic failed"));
     }
 
     // 7. turn_on sends correct characteristic (aid, iid=8, value=true)
@@ -304,11 +314,9 @@ mod tests {
     async fn turn_on_sends_correct_characteristic() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(PUT)
-                .path("/characteristics")
-                .json_body(json!({
-                    "characteristics": [{"aid": 1, "iid": 8, "value": true}]
-                }));
+            when.method(PUT).path("/characteristics").json_body(json!({
+                "characteristics": [{"aid": 1, "iid": 8, "value": true}]
+            }));
             then.status(204);
         });
         let adapter = setup(&server);
@@ -321,11 +329,9 @@ mod tests {
     async fn turn_off_sends_correct_characteristic() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(PUT)
-                .path("/characteristics")
-                .json_body(json!({
-                    "characteristics": [{"aid": 1, "iid": 8, "value": false}]
-                }));
+            when.method(PUT).path("/characteristics").json_body(json!({
+                "characteristics": [{"aid": 1, "iid": 8, "value": false}]
+            }));
             then.status(204);
         });
         let adapter = setup(&server);
@@ -338,15 +344,16 @@ mod tests {
     async fn set_property_brightness_maps_to_iid_9() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(PUT)
-                .path("/characteristics")
-                .json_body(json!({
-                    "characteristics": [{"aid": 1, "iid": 9, "value": 80}]
-                }));
+            when.method(PUT).path("/characteristics").json_body(json!({
+                "characteristics": [{"aid": 1, "iid": 9, "value": 80}]
+            }));
             then.status(204);
         });
         let adapter = setup(&server);
-        adapter.set_property("light-1", "brightness", json!(80)).await.unwrap();
+        adapter
+            .set_property("light-1", "brightness", json!(80))
+            .await
+            .unwrap();
         mock.assert();
     }
 
@@ -355,15 +362,16 @@ mod tests {
     async fn set_property_color_temperature_maps_to_iid_10() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(PUT)
-                .path("/characteristics")
-                .json_body(json!({
-                    "characteristics": [{"aid": 1, "iid": 10, "value": 350}]
-                }));
+            when.method(PUT).path("/characteristics").json_body(json!({
+                "characteristics": [{"aid": 1, "iid": 10, "value": 350}]
+            }));
             then.status(204);
         });
         let adapter = setup(&server);
-        adapter.set_property("light-1", "color_temperature", json!(350)).await.unwrap();
+        adapter
+            .set_property("light-1", "color_temperature", json!(350))
+            .await
+            .unwrap();
         mock.assert();
     }
 
@@ -372,9 +380,14 @@ mod tests {
     async fn set_property_unsupported_returns_error() {
         let server = MockServer::start();
         let adapter = setup(&server);
-        let result = adapter.set_property("light-1", "warp_drive", json!(9)).await;
+        let result = adapter
+            .set_property("light-1", "warp_drive", json!(9))
+            .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("unsupported HomeKit property"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("unsupported HomeKit property"));
     }
 
     // 12. get_state returns JSON with aid, name, type, on fields
@@ -382,7 +395,9 @@ mod tests {
     async fn get_state_returns_correct_json() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET).path("/characteristics").query_param("id", "1.8");
+            when.method(GET)
+                .path("/characteristics")
+                .query_param("id", "1.8");
             then.status(200).json_body(json!({
                 "characteristics": [{"aid": 1, "iid": 8, "value": true}]
             }));
@@ -420,6 +435,9 @@ mod tests {
         let adapter = setup(&server);
         let result = adapter.turn_on("ghost-device").await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("unknown HomeKit accessory"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("unknown HomeKit accessory"));
     }
 }

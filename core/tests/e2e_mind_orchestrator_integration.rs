@@ -2,6 +2,7 @@
 //!
 //! 验证认知集成层与编排器的协同工作。
 
+use async_trait::async_trait;
 use prometheus_core::mind::economics::BudgetConfig;
 use prometheus_core::mind::integration::MindIntegration;
 use prometheus_core::orchestrator::{BackendReply, ChatBackend, ChatOrchestrator};
@@ -9,7 +10,6 @@ use prometheus_core::providers::traits::TokenUsage;
 use prometheus_core::router::classifier::ClassificationResult;
 use prometheus_core::router::strategy::RouteDecision;
 use prometheus_core::session::history::{HistoryStore, Message};
-use async_trait::async_trait;
 use tempfile::TempDir;
 
 /// 带 token 统计的测试后端
@@ -119,7 +119,7 @@ async fn e2e_new_domain_detected_as_knowledge_gap() {
 
     // 新领域应被好奇心引擎检测
     let mind = orch.mind().unwrap();
-    assert!(mind.curiosity().gaps().len() > 0 || !turn.knowledge_gaps.is_empty());
+    assert!(!mind.curiosity().gaps().is_empty() || !turn.knowledge_gaps.is_empty());
 }
 
 #[tokio::test]

@@ -172,7 +172,11 @@ impl EconomicCortex {
     pub fn get_best_roi_model(&self) -> Option<(String, f64)> {
         self.model_stats
             .iter()
-            .max_by(|a, b| a.1.roi_score.partial_cmp(&b.1.roi_score).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.1.roi_score
+                    .partial_cmp(&b.1.roi_score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|(id, stats)| (id.clone(), stats.roi_score))
     }
 
@@ -192,7 +196,11 @@ impl EconomicCortex {
             .collect();
 
         // 按 ROI 排序
-        candidates.sort_by(|a, b| b.1.roi_score.partial_cmp(&a.1.roi_score).unwrap_or(std::cmp::Ordering::Equal));
+        candidates.sort_by(|a, b| {
+            b.1.roi_score
+                .partial_cmp(&a.1.roi_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         candidates.first().map(|(id, _)| id.to_string())
     }
@@ -323,7 +331,10 @@ impl EconomicCortex {
         let total_calls: usize = self.model_stats.values().map(|s| s.call_count).sum();
         let total_cost: f64 = self.model_stats.values().map(|s| s.total_cost).sum();
         let avg_satisfaction: f64 = if model_count > 0 {
-            self.model_stats.values().map(|s| s.avg_satisfaction_ema).sum::<f64>()
+            self.model_stats
+                .values()
+                .map(|s| s.avg_satisfaction_ema)
+                .sum::<f64>()
                 / model_count as f64
         } else {
             0.0
@@ -362,10 +373,15 @@ impl EconomicCortex {
             recs.push(EconomicRecommendation {
                 priority: RecommendationPriority::Critical,
                 category: "budget".to_string(),
-                message: format!("日预算已超支 {:.1}%，建议切换到更经济的模型", (daily_util - 1.0) * 100.0),
+                message: format!(
+                    "日预算已超支 {:.1}%，建议切换到更经济的模型",
+                    (daily_util - 1.0) * 100.0
+                ),
                 action: RecommendedAction::SwitchModel {
                     from: self.most_expensive_model().unwrap_or_default(),
-                    to: self.recommend_model(Some(self.budget.daily_budget * 0.1)).unwrap_or_default(),
+                    to: self
+                        .recommend_model(Some(self.budget.daily_budget * 0.1))
+                        .unwrap_or_default(),
                 },
             });
         } else if daily_util > self.budget.alert_threshold {
@@ -387,9 +403,14 @@ impl EconomicCortex {
                     category: "optimization".to_string(),
                     message: format!(
                         "模型「{}」ROI 是「{}」的 {:.1} 倍，建议迁移低价值调用",
-                        best, worst, best_roi / worst_roi.max(0.001)
+                        best,
+                        worst,
+                        best_roi / worst_roi.max(0.001)
                     ),
-                    action: RecommendedAction::SwitchModel { from: worst, to: best },
+                    action: RecommendedAction::SwitchModel {
+                        from: worst,
+                        to: best,
+                    },
                 });
             }
         }
@@ -399,7 +420,10 @@ impl EconomicCortex {
             recs.push(EconomicRecommendation {
                 priority: RecommendationPriority::Low,
                 category: "budget".to_string(),
-                message: format!("月预算利用率仅 {:.1}%，可考虑降低预算或升级模型", monthly_util * 100.0),
+                message: format!(
+                    "月预算利用率仅 {:.1}%，可考虑降低预算或升级模型",
+                    monthly_util * 100.0
+                ),
                 action: RecommendedAction::AdjustBudget,
             });
         }
@@ -411,7 +435,11 @@ impl EconomicCortex {
     fn get_worst_roi_model(&self) -> Option<(String, f64)> {
         self.model_stats
             .iter()
-            .min_by(|a, b| a.1.roi_score.partial_cmp(&b.1.roi_score).unwrap_or(std::cmp::Ordering::Equal))
+            .min_by(|a, b| {
+                a.1.roi_score
+                    .partial_cmp(&b.1.roi_score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|(id, stats)| (id.clone(), stats.roi_score))
     }
 
@@ -419,7 +447,11 @@ impl EconomicCortex {
     fn most_expensive_model(&self) -> Option<String> {
         self.model_stats
             .iter()
-            .max_by(|a, b| a.1.avg_cost_ema.partial_cmp(&b.1.avg_cost_ema).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.1.avg_cost_ema
+                    .partial_cmp(&b.1.avg_cost_ema)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|(id, _)| id.clone())
     }
 }
@@ -775,7 +807,9 @@ mod tests {
         cortex.record_cost(create_test_record("gpt-4", 0.01, 500, Some(0.9)));
 
         let recs = cortex.agent_recommendations();
-        assert!(recs.iter().any(|r| r.priority == RecommendationPriority::Low));
+        assert!(recs
+            .iter()
+            .any(|r| r.priority == RecommendationPriority::Low));
     }
 
     #[test]
@@ -803,6 +837,8 @@ mod tests {
 
         let recs = cortex.agent_recommendations();
         // 正常使用不应有 Critical 告警
-        assert!(!recs.iter().any(|r| r.priority == RecommendationPriority::Critical));
+        assert!(!recs
+            .iter()
+            .any(|r| r.priority == RecommendationPriority::Critical));
     }
 }

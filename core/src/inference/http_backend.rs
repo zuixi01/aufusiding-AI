@@ -118,10 +118,7 @@ impl InferenceBackend for HttpInferenceBackend {
             .first()
             .map(|c| c.text.clone())
             .unwrap_or_default();
-        let tokens_used = api_resp
-            .usage
-            .map(|u| u.total_tokens)
-            .unwrap_or(0);
+        let tokens_used = api_resp.usage.map(|u| u.total_tokens).unwrap_or(0);
         let latency_ms = start.elapsed().as_millis() as u64;
 
         Ok(InferenceResponse {
@@ -163,7 +160,7 @@ mod tests {
             when.method(POST)
                 .path("/v1/completions")
                 .header("Authorization", "Bearer test-key")
-                .body_contains(r#""model":"test-model""#);
+                .body_includes(r#""model":"test-model""#);
             then.status(200)
                 .json_body(mock_completions_response("hello world", 12));
         });
@@ -214,8 +211,7 @@ mod tests {
             then.status(429).body("rate limited");
         });
 
-        let backend =
-            HttpInferenceBackend::with_base_url("key", "model", &server.base_url());
+        let backend = HttpInferenceBackend::with_base_url("key", "model", &server.base_url());
         let req = InferenceRequest {
             prompt: "test".into(),
             max_tokens: 10,
@@ -245,8 +241,7 @@ mod tests {
 
     #[tokio::test]
     async fn memory_usage_returns_zero() {
-        let backend =
-            HttpInferenceBackend::with_base_url("key", "model", "http://localhost:9999");
+        let backend = HttpInferenceBackend::with_base_url("key", "model", "http://localhost:9999");
         assert_eq!(backend.memory_usage(), 0);
         assert_eq!(backend.name(), "http-openai-completions");
     }

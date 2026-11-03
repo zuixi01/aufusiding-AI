@@ -14,5 +14,5 @@ pub use detector::ExternalToolDetector;
 pub use executor::CodeExecutor;
 pub use file_ops::FileOpsTool;
 pub use runner::ExternalToolRunner;
-pub use sandbox::{CodeSandbox, SandboxConfig, SandboxPermissions, ResourceLimits};
+pub use sandbox::{CodeSandbox, ResourceLimits, SandboxConfig, SandboxPermissions};
 pub use search::ProjectSearchTool;

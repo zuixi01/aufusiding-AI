@@ -1,11 +1,13 @@
 //! P3 智能进化 — 跨模块集成测试
 
-use prometheus_core::mind::curiosity::{CuriosityEngine, GapSource};
-use prometheus_core::mind::thought_log::{ThinkingPhase, ThoughtLogger, ThoughtQuery};
-use prometheus_core::mind::evolution::{Dimension, EvolutionEngine};
-use prometheus_core::mind::economics::{BudgetConfig, EconomicCortex, CostRecord, RecommendationPriority};
-use prometheus_core::mind::pbric::PbricLoop;
 use chrono::Utc;
+use prometheus_core::mind::curiosity::{CuriosityEngine, GapSource};
+use prometheus_core::mind::economics::{
+    BudgetConfig, CostRecord, EconomicCortex, RecommendationPriority,
+};
+use prometheus_core::mind::evolution::{Dimension, EvolutionEngine};
+use prometheus_core::mind::pbric::PbricLoop;
+use prometheus_core::mind::thought_log::{ThinkingPhase, ThoughtLogger, ThoughtQuery};
 
 // ── 场景 1: PBRIC 完整循环 + 思维日志记录 ──
 
@@ -61,11 +63,56 @@ fn thought_log_query_and_summarize() {
     let mut logger = ThoughtLogger::new(1000);
     let chain_id = logger.begin_chain("s1", "测试输入");
 
-    logger.log_thought("s1", ThinkingPhase::Perceive, "感知", "接收输入", "ctx", None, 0.9, 10);
-    logger.log_thought("s1", ThinkingPhase::Believe, "信念", "更新偏好", "ctx", None, 0.7, 20);
-    logger.log_thought("s1", ThinkingPhase::Reason, "推理", "分析意图", "ctx", Some("直接回答"), 0.8, 30);
-    logger.log_thought("s1", ThinkingPhase::Intend, "意图", "形成计划", "ctx", Some("回答"), 0.85, 15);
-    logger.log_thought("s1", ThinkingPhase::Commit, "承诺", "执行输出", "ctx", Some("result"), 0.95, 5);
+    logger.log_thought(
+        "s1",
+        ThinkingPhase::Perceive,
+        "感知",
+        "接收输入",
+        "ctx",
+        None,
+        0.9,
+        10,
+    );
+    logger.log_thought(
+        "s1",
+        ThinkingPhase::Believe,
+        "信念",
+        "更新偏好",
+        "ctx",
+        None,
+        0.7,
+        20,
+    );
+    logger.log_thought(
+        "s1",
+        ThinkingPhase::Reason,
+        "推理",
+        "分析意图",
+        "ctx",
+        Some("直接回答"),
+        0.8,
+        30,
+    );
+    logger.log_thought(
+        "s1",
+        ThinkingPhase::Intend,
+        "意图",
+        "形成计划",
+        "ctx",
+        Some("回答"),
+        0.85,
+        15,
+    );
+    logger.log_thought(
+        "s1",
+        ThinkingPhase::Commit,
+        "承诺",
+        "执行输出",
+        "ctx",
+        Some("result"),
+        0.95,
+        5,
+    );
 
     logger.end_chain(Some("最终输出"));
 
@@ -146,15 +193,19 @@ fn economic_cortex_v2_dashboard_and_agent() {
     cortex.record_cost(CostRecord {
         timestamp: Utc::now(),
         model_id: "local-7b".to_string(),
-        input_tokens: 200, output_tokens: 100,
-        cost: 0.0, latency_ms: 100,
+        input_tokens: 200,
+        output_tokens: 100,
+        cost: 0.0,
+        latency_ms: 100,
         satisfaction: Some(0.75),
     });
     cortex.record_cost(CostRecord {
         timestamp: Utc::now(),
         model_id: "cloud-gpt4".to_string(),
-        input_tokens: 500, output_tokens: 300,
-        cost: 0.12, latency_ms: 1200,
+        input_tokens: 500,
+        output_tokens: 300,
+        cost: 0.12,
+        latency_ms: 1200,
         satisfaction: Some(0.9),
     });
 
@@ -168,7 +219,9 @@ fn economic_cortex_v2_dashboard_and_agent() {
     // 经济代理应发出超支告警
     let recs = cortex.agent_recommendations();
     assert!(!recs.is_empty());
-    assert!(recs.iter().any(|r| r.priority == RecommendationPriority::Critical));
+    assert!(recs
+        .iter()
+        .any(|r| r.priority == RecommendationPriority::Critical));
 }
 
 // ── 场景 6: 多轮 PBRIC + 进化追踪协同 ──
@@ -186,7 +239,8 @@ async fn pbric_with_evolution_tracking() {
 
         // 根据输出评估对话能力
         let outputs = pbric.phase_outputs();
-        let avg_conf: f64 = outputs.iter().map(|o| o.confidence).sum::<f64>() / outputs.len() as f64;
+        let avg_conf: f64 =
+            outputs.iter().map(|o| o.confidence).sum::<f64>() / outputs.len() as f64;
         evolution.record_event(Dimension::Conversation, avg_conf * 100.0, input);
     }
 

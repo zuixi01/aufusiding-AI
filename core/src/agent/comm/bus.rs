@@ -102,7 +102,11 @@ mod tests {
     }
 
     fn shutdown_envelope(from: &AgentId) -> AgentEnvelope {
-        AgentEnvelope::new(from.clone(), MessageTarget::Broadcast, AgentMessage::Shutdown)
+        AgentEnvelope::new(
+            from.clone(),
+            MessageTarget::Broadcast,
+            AgentMessage::Shutdown,
+        )
     }
 
     #[tokio::test]

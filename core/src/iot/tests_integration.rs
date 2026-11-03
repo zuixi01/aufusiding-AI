@@ -92,7 +92,9 @@ mod tests {
                 event_kind: EventKind::StateChanged,
             }],
             conditions: vec![],
-            actions: vec![Action::RunScene { scene_id: "come-home".into() }],
+            actions: vec![Action::RunScene {
+                scene_id: "come-home".into(),
+            }],
             last_triggered: None,
             cooldown_secs: None,
         };
@@ -100,7 +102,9 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "door-001", DeviceType::Lock, EventKind::StateChanged,
+            "door-001",
+            DeviceType::Lock,
+            EventKind::StateChanged,
             serde_json::json!({"opened": true}),
         ));
         tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
@@ -114,7 +118,9 @@ mod tests {
     async fn threshold_with_condition_evaluation() {
         let bus = Arc::new(EventBus::new(64));
         let cache = Arc::new(DeviceStateCache::new());
-        cache.set("sensor-001", serde_json::json!({"temperature": 35})).await;
+        cache
+            .set("sensor-001", serde_json::json!({"temperature": 35}))
+            .await;
 
         let mut gc = GenericController::new();
         let mock = MockDeviceController::new("ac");
@@ -147,7 +153,10 @@ mod tests {
                     command: "turn_on".into(),
                     params: serde_json::json!({}),
                 },
-                Action::Notify { message: "AC on".into(), level: NotifyLevel::Info },
+                Action::Notify {
+                    message: "AC on".into(),
+                    level: NotifyLevel::Info,
+                },
             ],
             last_triggered: None,
             cooldown_secs: None,
@@ -156,7 +165,9 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor, EventKind::PropertyChanged,
+            "sensor-001",
+            DeviceType::Sensor,
+            EventKind::PropertyChanged,
             serde_json::json!({"temperature": 35}),
         ));
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -175,7 +186,9 @@ mod tests {
 
         let mut agg = DiscoveryAggregator::new().with_event_bus(Arc::clone(&bus));
         let mdns_socket = SimulatedMdnsSocket::typical_lan_devices();
-        agg.add_provider(Box::new(MdnsDiscoveryProvider::with_socket(Box::new(mdns_socket))));
+        agg.add_provider(Box::new(MdnsDiscoveryProvider::with_socket(Box::new(
+            mdns_socket,
+        ))));
 
         let devices = agg.scan_all(1).await.unwrap();
         assert!(!devices.is_empty());
@@ -214,7 +227,9 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "phone-001", DeviceType::Other("phone".into()), EventKind::StateChanged,
+            "phone-001",
+            DeviceType::Other("phone".into()),
+            EventKind::StateChanged,
             serde_json::json!({
                 "zone_id": "home",
                 "transition": "Enter"
@@ -269,7 +284,9 @@ mod tests {
 
         // Trigger
         bus.publish(DeviceEvent::new(
-            "sensor-temp", DeviceType::Sensor, EventKind::PropertyChanged,
+            "sensor-temp",
+            DeviceType::Sensor,
+            EventKind::PropertyChanged,
             serde_json::json!({"temperature": 22}),
         ));
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -306,7 +323,9 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor, EventKind::StateChanged,
+            "sensor-001",
+            DeviceType::Sensor,
+            EventKind::StateChanged,
             serde_json::json!({}),
         ));
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -327,7 +346,9 @@ mod tests {
             enabled: true,
             triggers: vec![],
             conditions: vec![],
-            actions: vec![Action::RunScene { scene_id: "movie-time".into() }],
+            actions: vec![Action::RunScene {
+                scene_id: "movie-time".into(),
+            }],
             last_triggered: None,
             cooldown_secs: None,
         };
@@ -351,9 +372,18 @@ mod tests {
             triggers: vec![],
             conditions: vec![],
             actions: vec![
-                Action::Notify { message: "info msg".into(), level: NotifyLevel::Info },
-                Action::Notify { message: "warn msg".into(), level: NotifyLevel::Warning },
-                Action::Notify { message: "crit msg".into(), level: NotifyLevel::Critical },
+                Action::Notify {
+                    message: "info msg".into(),
+                    level: NotifyLevel::Info,
+                },
+                Action::Notify {
+                    message: "warn msg".into(),
+                    level: NotifyLevel::Warning,
+                },
+                Action::Notify {
+                    message: "crit msg".into(),
+                    level: NotifyLevel::Critical,
+                },
             ],
             last_triggered: None,
             cooldown_secs: None,
@@ -377,8 +407,7 @@ mod tests {
         mock.register_device("ac-001", "ac");
         gc.register_adapter(Box::new(mock));
 
-        let engine = AutomationEngine::new(Arc::clone(&bus))
-            .with_controller(Arc::new(gc));
+        let engine = AutomationEngine::new(Arc::clone(&bus)).with_controller(Arc::new(gc));
 
         let rule = AutomationRule {
             id: "seq-test".into(),
@@ -399,7 +428,10 @@ mod tests {
                         level: NotifyLevel::Info,
                     }),
                 },
-                Action::Notify { message: "end".into(), level: NotifyLevel::Info },
+                Action::Notify {
+                    message: "end".into(),
+                    level: NotifyLevel::Info,
+                },
             ])],
             last_triggered: None,
             cooldown_secs: None,
@@ -455,7 +487,9 @@ mod tests {
         // Trigger the reloaded rule
         engine2.start().await;
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor, EventKind::StateChanged,
+            "sensor-001",
+            DeviceType::Sensor,
+            EventKind::StateChanged,
             serde_json::json!({}),
         ));
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -473,14 +507,18 @@ mod tests {
         cache.start(&bus).await;
 
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor, EventKind::PropertyChanged,
+            "sensor-001",
+            DeviceType::Sensor,
+            EventKind::PropertyChanged,
             serde_json::json!({"temperature": 25}),
         ));
         tokio::task::yield_now().await;
         tokio::task::yield_now().await;
 
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor, EventKind::PropertyChanged,
+            "sensor-001",
+            DeviceType::Sensor,
+            EventKind::PropertyChanged,
             serde_json::json!({"humidity": 60}),
         ));
         tokio::task::yield_now().await;
@@ -508,15 +546,15 @@ mod tests {
     #[tokio::test]
     async fn aggregator_three_providers_dedup() {
         let mut agg = DiscoveryAggregator::new();
-        agg.add_provider(Box::new(MdnsDiscoveryProvider::with_socket(
-            Box::new(SimulatedMdnsSocket::typical_lan_devices()),
-        )));
-        agg.add_provider(Box::new(SsdpDiscoveryProvider::with_socket(
-            Box::new(SimulatedSsdpSocket::typical_upnp_devices()),
-        )));
-        agg.add_provider(Box::new(BleDiscoveryProvider::with_scanner(
-            Box::new(SimulatedBleScanner::typical_ble_devices()),
-        )));
+        agg.add_provider(Box::new(MdnsDiscoveryProvider::with_socket(Box::new(
+            SimulatedMdnsSocket::typical_lan_devices(),
+        ))));
+        agg.add_provider(Box::new(SsdpDiscoveryProvider::with_socket(Box::new(
+            SimulatedSsdpSocket::typical_upnp_devices(),
+        ))));
+        agg.add_provider(Box::new(BleDiscoveryProvider::with_scanner(Box::new(
+            SimulatedBleScanner::typical_ble_devices(),
+        ))));
 
         let devices = agg.scan_all(1).await.unwrap();
         // mDNS: 5, SSDP: 3, BLE: 2 — all unique IPs so 10 total
@@ -571,7 +609,9 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            "sensor-001", DeviceType::Sensor, EventKind::StateChanged,
+            "sensor-001",
+            DeviceType::Sensor,
+            EventKind::StateChanged,
             serde_json::json!({}),
         ));
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
@@ -606,7 +646,9 @@ mod tests {
 
         for _ in 0..5 {
             bus.publish(DeviceEvent::new(
-                "sensor-001", DeviceType::Sensor, EventKind::StateChanged,
+                "sensor-001",
+                DeviceType::Sensor,
+                EventKind::StateChanged,
                 serde_json::json!({}),
             ));
             tokio::time::sleep(tokio::time::Duration::from_millis(20)).await;
@@ -629,7 +671,9 @@ mod tests {
             enabled: true,
             triggers: vec![],
             conditions: vec![],
-            actions: vec![Action::RunScene { scene_id: "good-night".into() }],
+            actions: vec![Action::RunScene {
+                scene_id: "good-night".into(),
+            }],
             last_triggered: None,
             cooldown_secs: None,
         };
@@ -691,7 +735,9 @@ mod tests {
     #[tokio::test]
     async fn combined_conditions() {
         let cache = Arc::new(DeviceStateCache::new());
-        cache.set("sensor-001", serde_json::json!({"temperature": 35})).await;
+        cache
+            .set("sensor-001", serde_json::json!({"temperature": 35}))
+            .await;
         let snap = cache.snapshot().await;
 
         let cond = Condition::And(vec![
@@ -720,17 +766,18 @@ mod tests {
         let registry = temp_registry();
 
         let mut agg = DiscoveryAggregator::new();
-        agg.add_provider(Box::new(MdnsDiscoveryProvider::with_socket(
-            Box::new(SimulatedMdnsSocket::new(vec![
-                crate::iot::discovery_mdns::MdnsResponse {
+        agg.add_provider(Box::new(MdnsDiscoveryProvider::with_socket(Box::new(
+            SimulatedMdnsSocket::new(
+                vec![crate::iot::discovery_mdns::MdnsResponse {
                     hostname: "sensor.local".into(),
                     ip: "192.168.1.100".into(),
                     port: 8080,
                     service_type: "_http._tcp.local.".into(),
                     txt_records: HashMap::from([("name".into(), "Temp Sensor".into())]),
-                },
-            ], 0)),
-        )));
+                }],
+                0,
+            ),
+        ))));
         let discovered = agg.scan_all(1).await.unwrap();
         assert_eq!(discovered.len(), 1);
 
@@ -741,10 +788,11 @@ mod tests {
         assert_eq!(registry.list_all().unwrap().len(), 1);
 
         let cache = Arc::new(DeviceStateCache::new());
-        cache.set(&discovered[0].id, serde_json::json!({"temperature": 35})).await;
+        cache
+            .set(&discovered[0].id, serde_json::json!({"temperature": 35}))
+            .await;
 
-        let engine = AutomationEngine::new(Arc::clone(&bus))
-            .with_state_cache(Arc::clone(&cache));
+        let engine = AutomationEngine::new(Arc::clone(&bus)).with_state_cache(Arc::clone(&cache));
 
         let rule = AutomationRule {
             id: "e2e".into(),
@@ -773,7 +821,9 @@ mod tests {
         engine.start().await;
 
         bus.publish(DeviceEvent::new(
-            &discovered[0].id, DeviceType::Sensor, EventKind::PropertyChanged,
+            &discovered[0].id,
+            DeviceType::Sensor,
+            EventKind::PropertyChanged,
             serde_json::json!({"temperature": 35}),
         ));
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;

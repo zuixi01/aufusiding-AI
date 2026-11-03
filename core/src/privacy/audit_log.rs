@@ -95,7 +95,9 @@ impl SanitizationAuditLog {
         let data_hash = sha256_hex(original_data.as_bytes());
 
         // 获取前一条记录的 chain_hash
-        let prev_hash = self.get_last_chain_hash()?.unwrap_or_else(|| "GENESIS".to_string());
+        let prev_hash = self
+            .get_last_chain_hash()?
+            .unwrap_or_else(|| "GENESIS".to_string());
 
         // 构造 entry 字节用于链式哈希
         let entry_bytes = format!(
@@ -126,11 +128,11 @@ impl SanitizationAuditLog {
         )?;
 
         // 返回插入的 id
-        let ids = self.db.query_map(
-            "SELECT last_insert_rowid()",
-            &[],
-            |row| row.get::<_, i64>(0),
-        )?;
+        let ids = self
+            .db
+            .query_map("SELECT last_insert_rowid()", &[], |row| {
+                row.get::<_, i64>(0)
+            })?;
         Ok(ids.into_iter().next().unwrap_or(0))
     }
 
@@ -149,8 +151,12 @@ impl SanitizationAuditLog {
             let ts_ms = entry.timestamp.timestamp_millis();
             let entry_bytes = format!(
                 "{}|{}|{}|{}|{}|{}",
-                ts_ms, entry.operation, entry.entity_type,
-                entry.strategy_used, entry.sensitivity_level, entry.data_hash
+                ts_ms,
+                entry.operation,
+                entry.entity_type,
+                entry.strategy_used,
+                entry.sensitivity_level,
+                entry.data_hash
             );
 
             // 验证链式哈希
@@ -197,11 +203,11 @@ impl SanitizationAuditLog {
 
     /// 获取审计条目数量
     pub fn entry_count(&self) -> anyhow::Result<usize> {
-        let counts = self.db.query_map(
-            "SELECT COUNT(*) FROM sanitization_audit",
-            &[],
-            |row| row.get::<_, i64>(0),
-        )?;
+        let counts = self
+            .db
+            .query_map("SELECT COUNT(*) FROM sanitization_audit", &[], |row| {
+                row.get::<_, i64>(0)
+            })?;
         Ok(counts.into_iter().next().unwrap_or(0) as usize)
     }
 
@@ -236,10 +242,25 @@ mod tests {
     #[test]
     fn log_and_verify_chain() {
         let db = test_db();
-        let log = SanitizationAuditLog::new(db, b"test-signing-key-32bytes!!!!!!!!".to_vec()).unwrap();
+        let log =
+            SanitizationAuditLog::new(db, b"test-signing-key-32bytes!!!!!!!!".to_vec()).unwrap();
 
-        log.log_operation(AuditOperation::Sanitize, "EMAIL", "Tokenize", 1, "test@mail.com").unwrap();
-        log.log_operation(AuditOperation::Sanitize, "PHONE", "Redact", 3, "13812345678").unwrap();
+        log.log_operation(
+            AuditOperation::Sanitize,
+            "EMAIL",
+            "Tokenize",
+            1,
+            "test@mail.com",
+        )
+        .unwrap();
+        log.log_operation(
+            AuditOperation::Sanitize,
+            "PHONE",
+            "Redact",
+            3,
+            "13812345678",
+        )
+        .unwrap();
 
         assert_eq!(log.entry_count().unwrap(), 2);
         assert!(log.verify_chain().unwrap());
@@ -248,16 +269,21 @@ mod tests {
     #[test]
     fn tampered_entry_detected() {
         let db = test_db();
-        let log = SanitizationAuditLog::new(db.clone(), b"test-signing-key-32bytes!!!!!!!!".to_vec()).unwrap();
+        let log =
+            SanitizationAuditLog::new(db.clone(), b"test-signing-key-32bytes!!!!!!!!".to_vec())
+                .unwrap();
 
-        log.log_operation(AuditOperation::Sanitize, "EMAIL", "Tokenize", 1, "a@b.com").unwrap();
-        log.log_operation(AuditOperation::Destroy, "PHONE", "Redact", 2, "13800000000").unwrap();
+        log.log_operation(AuditOperation::Sanitize, "EMAIL", "Tokenize", 1, "a@b.com")
+            .unwrap();
+        log.log_operation(AuditOperation::Destroy, "PHONE", "Redact", 2, "13800000000")
+            .unwrap();
 
         // 篡改第一条记录的 data_hash
         db.execute(
             "UPDATE sanitization_audit SET data_hash = 'tampered' WHERE id = 1",
             &[],
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(!log.verify_chain().unwrap());
     }
@@ -265,18 +291,23 @@ mod tests {
     #[test]
     fn empty_chain_is_valid() {
         let db = test_db();
-        let log = SanitizationAuditLog::new(db, b"key-for-empty-chain-test!!!!!!!!".to_vec()).unwrap();
+        let log =
+            SanitizationAuditLog::new(db, b"key-for-empty-chain-test!!!!!!!!".to_vec()).unwrap();
         assert!(log.verify_chain().unwrap());
     }
 
     #[test]
     fn entries_ordered_by_id() {
         let db = test_db();
-        let log = SanitizationAuditLog::new(db, b"key-for-ordering-test!!!!!!!!!!!".to_vec()).unwrap();
+        let log =
+            SanitizationAuditLog::new(db, b"key-for-ordering-test!!!!!!!!!!!".to_vec()).unwrap();
 
-        log.log_operation(AuditOperation::Sanitize, "EMAIL", "Tokenize", 1, "first").unwrap();
-        log.log_operation(AuditOperation::KeyRotate, "SYSTEM", "N/A", 0, "rotate").unwrap();
-        log.log_operation(AuditOperation::TtlExpire, "PHONE", "Tokenize", 1, "expire").unwrap();
+        log.log_operation(AuditOperation::Sanitize, "EMAIL", "Tokenize", 1, "first")
+            .unwrap();
+        log.log_operation(AuditOperation::KeyRotate, "SYSTEM", "N/A", 0, "rotate")
+            .unwrap();
+        log.log_operation(AuditOperation::TtlExpire, "PHONE", "Tokenize", 1, "expire")
+            .unwrap();
 
         let entries = log.get_all_entries().unwrap();
         assert_eq!(entries.len(), 3);

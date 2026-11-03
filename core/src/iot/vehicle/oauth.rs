@@ -383,11 +383,11 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/oauth/token")
-                .x_www_form_urlencoded_tuple("grant_type", "authorization_code")
-                .x_www_form_urlencoded_tuple("code", "auth-code-xyz")
-                .x_www_form_urlencoded_tuple("client_id", "test-client-id")
-                .x_www_form_urlencoded_tuple("client_secret", "test-secret")
-                .x_www_form_urlencoded_tuple("code_verifier", "test-verifier");
+                .form_urlencoded_tuple("grant_type", "authorization_code")
+                .form_urlencoded_tuple("code", "auth-code-xyz")
+                .form_urlencoded_tuple("client_id", "test-client-id")
+                .form_urlencoded_tuple("client_secret", "test-secret")
+                .form_urlencoded_tuple("code_verifier", "test-verifier");
             then.status(200)
                 .header("content-type", "application/json")
                 .json_body(serde_json::json!({
@@ -435,9 +435,9 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/oauth/token")
-                .x_www_form_urlencoded_tuple("grant_type", "refresh_token")
-                .x_www_form_urlencoded_tuple("refresh_token", "refresh-456")
-                .x_www_form_urlencoded_tuple("client_id", "test-client-id");
+                .form_urlencoded_tuple("grant_type", "refresh_token")
+                .form_urlencoded_tuple("refresh_token", "refresh-456")
+                .form_urlencoded_tuple("client_id", "test-client-id");
             then.status(200)
                 .header("content-type", "application/json")
                 .json_body(serde_json::json!({

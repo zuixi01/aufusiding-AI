@@ -56,12 +56,20 @@ impl NotificationHub {
 
     /// 推送通知
     pub fn push(&self, notification: Notification) {
-        self.queue.lock().unwrap_or_else(|e| e.into_inner()).push(notification);
+        self.queue
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(notification);
     }
 
     /// 待处理通知数
     pub fn pending_count(&self) -> usize {
-        self.queue.lock().unwrap_or_else(|e| e.into_inner()).iter().filter(|n| !n.read).count()
+        self.queue
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .filter(|n| !n.read)
+            .count()
     }
 
     /// 总通知数
@@ -73,7 +81,7 @@ impl NotificationHub {
     pub fn pending_sorted(&self) -> Vec<Notification> {
         let queue = self.queue.lock().unwrap_or_else(|e| e.into_inner());
         let mut pending: Vec<Notification> = queue.iter().filter(|n| !n.read).cloned().collect();
-        pending.sort_by(|a, b| b.priority.cmp(&a.priority));
+        pending.sort_by_key(|notification| std::cmp::Reverse(notification.priority));
         pending
     }
 
@@ -85,7 +93,10 @@ impl NotificationHub {
         }
 
         let count = pending.len();
-        let critical = pending.iter().filter(|n| n.priority == NotificationPriority::Critical).count();
+        let critical = pending
+            .iter()
+            .filter(|n| n.priority == NotificationPriority::Critical)
+            .count();
 
         let mut summary = format!("你有 {} 条新通知", count);
         if critical > 0 {

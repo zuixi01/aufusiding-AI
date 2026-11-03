@@ -23,12 +23,7 @@ pub fn template() -> RoleTemplate {
         decision_scope: DecisionScope::Module,
         quality_standards: QualityStandards::engineering_default(),
         can_veto: false,
-        collaborates_with: vec![
-            Role::Architect,
-            Role::Engineer,
-            Role::Security,
-            Role::QA,
-        ],
+        collaborates_with: vec![Role::Architect, Role::Engineer, Role::Security, Role::QA],
         watches: &["deployment_request", "incident_alert", "infra_change"],
     }
 }

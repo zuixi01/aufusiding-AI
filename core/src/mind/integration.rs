@@ -80,8 +80,7 @@ impl MindIntegration {
         let avg_confidence = if phase_outputs.is_empty() {
             0.5
         } else {
-            phase_outputs.iter().map(|o| o.confidence).sum::<f64>()
-                / phase_outputs.len() as f64
+            phase_outputs.iter().map(|o| o.confidence).sum::<f64>() / phase_outputs.len() as f64
         };
 
         // 2. 好奇心检测
@@ -115,7 +114,8 @@ impl MindIntegration {
         // 4. 进化追踪：根据置信度评估各维度
         let dimension = classify_dimension(user_input);
         let score = avg_confidence * 100.0;
-        self.evolution.record_event(dimension.clone(), score, user_input);
+        self.evolution
+            .record_event(dimension.clone(), score, user_input);
 
         let dimension_scores: Vec<(String, f64)> = [
             Dimension::Conversation,
@@ -131,10 +131,16 @@ impl MindIntegration {
         self.thought_logger.log_thought(
             &self.session_id,
             ThinkingPhase::Reflect,
-            &format!("第 {} 轮完成，置信度 {:.2}", self.turn_count, avg_confidence),
+            &format!(
+                "第 {} 轮完成，置信度 {:.2}",
+                self.turn_count, avg_confidence
+            ),
             &format!(
                 "模型={}, 成本=${:.4}, 延迟={}ms, 缺口={}",
-                model_id, cost, latency_ms, knowledge_gaps.len()
+                model_id,
+                cost,
+                latency_ms,
+                knowledge_gaps.len()
             ),
             user_input,
             Some(&pbric_output),
@@ -202,22 +208,35 @@ fn estimate_tokens(text: &str) -> usize {
     let chars = text.chars().count();
     let words = text.split_whitespace().count();
     // 中文为主时按字符数，英文为主时按词数
-    if chars > words * 2 { chars } else { words }
+    if chars > words * 2 {
+        chars
+    } else {
+        words
+    }
 }
 
 /// 根据输入内容分类能力维度
 fn classify_dimension(input: &str) -> Dimension {
     let lower = input.to_lowercase();
-    if lower.contains("代码") || lower.contains("code") || lower.contains("bug")
-        || lower.contains("编程") || lower.contains("函数")
+    if lower.contains("代码")
+        || lower.contains("code")
+        || lower.contains("bug")
+        || lower.contains("编程")
+        || lower.contains("函数")
     {
         Dimension::ToolUse
-    } else if lower.contains("推理") || lower.contains("分析") || lower.contains("为什么")
-        || lower.contains("原因") || lower.contains("逻辑")
+    } else if lower.contains("推理")
+        || lower.contains("分析")
+        || lower.contains("为什么")
+        || lower.contains("原因")
+        || lower.contains("逻辑")
     {
         Dimension::Reasoning
-    } else if lower.contains("写") || lower.contains("诗") || lower.contains("故事")
-        || lower.contains("创作") || lower.contains("设计")
+    } else if lower.contains("写")
+        || lower.contains("诗")
+        || lower.contains("故事")
+        || lower.contains("创作")
+        || lower.contains("设计")
     {
         Dimension::Creativity
     } else {
@@ -312,15 +331,9 @@ mod tests {
         let mut mind = MindIntegration::new("multi_test");
 
         for i in 0..5 {
-            mind.process_turn(
-                &format!("第 {} 轮对话", i),
-                "local",
-                0.0,
-                50,
-                Some(0.8),
-            )
-            .await
-            .unwrap();
+            mind.process_turn(&format!("第 {} 轮对话", i), "local", 0.0, 50, Some(0.8))
+                .await
+                .unwrap();
         }
 
         assert_eq!(mind.turn_count(), 5);

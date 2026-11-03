@@ -80,7 +80,11 @@ impl SsdpSocket for RealSsdpSocket {
 
         let request = build_msearch_request();
         if let Err(e) = sock.send_to(&request, SSDP_MULTICAST_ADDR).await {
-            tracing::warn!("SSDP: failed to send M-SEARCH to {}: {}", SSDP_MULTICAST_ADDR, e);
+            tracing::warn!(
+                "SSDP: failed to send M-SEARCH to {}: {}",
+                SSDP_MULTICAST_ADDR,
+                e
+            );
         }
 
         *self.socket.write().await = Some(sock);
@@ -99,8 +103,7 @@ impl SsdpSocket for RealSsdpSocket {
 
         let mut responses = Vec::new();
         let mut buf = [0u8; 4096];
-        let deadline = tokio::time::Instant::now()
-            + tokio::time::Duration::from_secs(timeout_secs);
+        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
 
         loop {
             let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
@@ -264,12 +267,12 @@ fn parse_location(location: &str) -> (String, u16) {
                 return (host_port.to_string(), 80);
             }
         } else if let Some(colon) = rest.find(':') {
-                let ip = rest[..colon].to_string();
-                let port = rest[colon + 1..].parse().unwrap_or(80);
-                return (ip, port);
-            } else {
-                return (rest.to_string(), 80);
-            }
+            let ip = rest[..colon].to_string();
+            let port = rest[colon + 1..].parse().unwrap_or(80);
+            return (ip, port);
+        } else {
+            return (rest.to_string(), 80);
+        }
     }
     ("0.0.0.0".to_string(), 0)
 }
@@ -320,7 +323,10 @@ mod tests {
 
         let resp = parsed.unwrap();
         assert_eq!(resp.location, "http://192.168.1.100:8080/description.xml");
-        assert_eq!(resp.search_target, "urn:schemas-upnp-org:device:MediaRenderer:1");
+        assert_eq!(
+            resp.search_target,
+            "urn:schemas-upnp-org:device:MediaRenderer:1"
+        );
         assert!(resp.usn.contains("uuid:12345678"));
         assert_eq!(resp.server, "Linux/3.0 UPnP/1.0 Device/1.0");
     }
@@ -347,7 +353,9 @@ mod tests {
             "Nas"
         );
         assert_eq!(
-            SsdpDiscoveryProvider::infer_from_urn("urn:schemas-upnp-org:device:InternetGatewayDevice:1"),
+            SsdpDiscoveryProvider::infer_from_urn(
+                "urn:schemas-upnp-org:device:InternetGatewayDevice:1"
+            ),
             "Computer"
         );
         assert_eq!(
@@ -367,7 +375,9 @@ mod tests {
             "Thermostat"
         );
         assert_eq!(
-            SsdpDiscoveryProvider::infer_from_urn("urn:schemas-upnp-org:device:DigitalSecurityCamera:1"),
+            SsdpDiscoveryProvider::infer_from_urn(
+                "urn:schemas-upnp-org:device:DigitalSecurityCamera:1"
+            ),
             "Camera"
         );
         assert_eq!(

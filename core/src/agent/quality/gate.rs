@@ -66,11 +66,7 @@ impl GatePipeline {
     }
 
     /// 提交交付物到门禁流水线，返回审查结果
-    pub fn submit(
-        &self,
-        _deliverable: &Deliverable,
-        reviews: Vec<ReviewResult>,
-    ) -> GateOutcome {
+    pub fn submit(&self, _deliverable: &Deliverable, reviews: Vec<ReviewResult>) -> GateOutcome {
         let mut passed_gates = Vec::new();
 
         for (i, gate) in self.gates.iter().enumerate() {
@@ -105,9 +101,7 @@ impl GatePipeline {
 #[derive(Debug, Clone)]
 pub enum GateOutcome {
     /// 全部通过
-    Approved {
-        passed_gates: Vec<GateKind>,
-    },
+    Approved { passed_gates: Vec<GateKind> },
     /// 被某道门禁打回
     Rejected {
         failed_gate: GateKind,
@@ -124,9 +118,9 @@ pub enum GateOutcome {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent::quality::review::ReviewComment;
     use crate::agent::comm::protocol::Severity;
     use crate::agent::quality::review::ReviewCategory;
+    use crate::agent::quality::review::ReviewComment;
     use crate::agent::types::{AgentId, DeliverableType};
     use chrono::Utc;
 
@@ -185,7 +179,11 @@ mod tests {
         ];
         let outcome = pipeline.submit(&d, reviews);
         match outcome {
-            GateOutcome::Rejected { failed_gate, passed_gates, review } => {
+            GateOutcome::Rejected {
+                failed_gate,
+                passed_gates,
+                review,
+            } => {
                 assert_eq!(failed_gate, GateKind::Security);
                 assert_eq!(passed_gates.len(), 1);
                 assert!(!review.approved);
@@ -198,12 +196,13 @@ mod tests {
     fn pipeline_pending_next_gate() {
         let pipeline = GatePipeline::new();
         let d = sample_deliverable();
-        let reviews = vec![
-            ReviewResult::approve("functional", AgentId::new()),
-        ];
+        let reviews = vec![ReviewResult::approve("functional", AgentId::new())];
         let outcome = pipeline.submit(&d, reviews);
         match outcome {
-            GateOutcome::Pending { next_gate, passed_gates } => {
+            GateOutcome::Pending {
+                next_gate,
+                passed_gates,
+            } => {
                 assert_eq!(next_gate, GateKind::Security);
                 assert_eq!(passed_gates.len(), 1);
             }
@@ -217,7 +216,10 @@ mod tests {
         let d = sample_deliverable();
         let outcome = pipeline.submit(&d, vec![]);
         match outcome {
-            GateOutcome::Pending { next_gate, passed_gates } => {
+            GateOutcome::Pending {
+                next_gate,
+                passed_gates,
+            } => {
                 assert_eq!(next_gate, GateKind::Functional);
                 assert!(passed_gates.is_empty());
             }
@@ -232,12 +234,21 @@ mod tests {
         assert_eq!(pipeline.rejection_action(&record), RejectionAction::None);
 
         record.add_rejection(ReviewResult::reject("g", AgentId::new(), vec![]));
-        assert_eq!(pipeline.rejection_action(&record), RejectionAction::FixAndResubmit);
+        assert_eq!(
+            pipeline.rejection_action(&record),
+            RejectionAction::FixAndResubmit
+        );
 
         record.add_rejection(ReviewResult::reject("g", AgentId::new(), vec![]));
-        assert_eq!(pipeline.rejection_action(&record), RejectionAction::PairReview);
+        assert_eq!(
+            pipeline.rejection_action(&record),
+            RejectionAction::PairReview
+        );
 
         record.add_rejection(ReviewResult::reject("g", AgentId::new(), vec![]));
-        assert_eq!(pipeline.rejection_action(&record), RejectionAction::EscalateToRoundtable);
+        assert_eq!(
+            pipeline.rejection_action(&record),
+            RejectionAction::EscalateToRoundtable
+        );
     }
 }

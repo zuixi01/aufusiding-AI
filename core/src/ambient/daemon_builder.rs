@@ -8,8 +8,8 @@ use crate::config::AppConfig;
 use crate::daemon::DaemonProcess;
 use crate::iot::adapter_factory::AdapterFactory;
 use crate::iot::event_bus::EventBus;
-use crate::iot::semantic::profile::SemanticProfileStore;
 use crate::iot::semantic::proactive_monitor::ProactiveMonitor;
+use crate::iot::semantic::profile::SemanticProfileStore;
 use crate::providers::traits::Provider;
 
 use super::audio_sink::AudioSink;
@@ -34,12 +34,19 @@ pub struct DaemonComponents {
 /// 守护进程构建器
 pub struct DaemonBuilder;
 
+/// 可选的 LLM Provider 与调用配置。
+#[derive(Default)]
+pub struct DaemonProviderOptions {
+    /// 注入 Chat/Agent 分支的模型提供商；默认不注入。
+    pub provider: Option<Arc<dyn Provider>>,
+    /// 可选系统提示词。
+    pub system_prompt: Option<String>,
+    /// LLM 调用超时（毫秒）；未设置时沿用 Dispatcher 默认值。
+    pub llm_timeout_ms: Option<u64>,
+}
+
 impl DaemonBuilder {
     /// 从 AppConfig + 外部注入的音频/语音组件构建完整守护进程
-    ///
-    /// `provider` 为可选 LLM Provider，注入到 IntentDispatcher 的 Chat/Agent 分支。
-    /// `system_prompt` 为可选系统提示词。
-    /// `llm_timeout_ms` 为可选 LLM 调用超时（毫秒），默认 10000。
     pub fn build(
         config: &AppConfig,
         audio_source: Box<dyn AudioSource>,
@@ -48,10 +55,18 @@ impl DaemonBuilder {
         stt: Box<dyn StreamingSttEngine>,
         tts: Box<dyn StreamingTtsEngine>,
     ) -> anyhow::Result<DaemonComponents> {
-        Self::build_with_provider(config, audio_source, audio_sink, vad, stt, tts, None, None, None)
+        Self::build_with_provider(
+            config,
+            audio_source,
+            audio_sink,
+            vad,
+            stt,
+            tts,
+            DaemonProviderOptions::default(),
+        )
     }
 
-    /// 带 Provider 注入的完整构建方法
+    /// 通过 options 注入 Provider、系统提示词及调用超时。
     pub fn build_with_provider(
         config: &AppConfig,
         audio_source: Box<dyn AudioSource>,
@@ -59,9 +74,7 @@ impl DaemonBuilder {
         vad: Box<dyn VadEngine>,
         stt: Box<dyn StreamingSttEngine>,
         tts: Box<dyn StreamingTtsEngine>,
-        provider: Option<Arc<dyn Provider>>,
-        system_prompt: Option<String>,
-        llm_timeout_ms: Option<u64>,
+        options: DaemonProviderOptions,
     ) -> anyhow::Result<DaemonComponents> {
         // 1. EventBus
         let event_bus = Arc::new(EventBus::new(256));
@@ -73,25 +86,24 @@ impl DaemonBuilder {
         let profile_store = Arc::new(SemanticProfileStore::new());
 
         // 4. IntentDispatcher (with semantic pipeline + optional provider)
-        let mut intent_dispatcher = IntentDispatcher::with_semantic(
-            Arc::clone(&profile_store),
-            Arc::clone(&controller),
-        );
-        if let Some(p) = provider {
+        let mut intent_dispatcher =
+            IntentDispatcher::with_semantic(Arc::clone(&profile_store), Arc::clone(&controller));
+        if let Some(p) = options.provider {
             intent_dispatcher = intent_dispatcher.with_provider(p);
         }
-        if let Some(prompt) = system_prompt {
+        if let Some(prompt) = options.system_prompt {
             intent_dispatcher = intent_dispatcher.with_system_prompt(prompt);
         }
-        if let Some(timeout) = llm_timeout_ms {
+        if let Some(timeout) = options.llm_timeout_ms {
             intent_dispatcher = intent_dispatcher.with_llm_timeout(timeout);
         }
 
         // 5. PrivacyAwareDispatcher 包装
         let privacy_config = SanitizerConfig::default();
-        let dispatcher: Box<dyn Dispatcher> = Box::new(
-            PrivacyAwareDispatcher::new(intent_dispatcher, privacy_config),
-        );
+        let dispatcher: Box<dyn Dispatcher> = Box::new(PrivacyAwareDispatcher::new(
+            intent_dispatcher,
+            privacy_config,
+        ));
 
         // 6. ProactiveMonitor
         let monitor = ProactiveMonitor::new(&event_bus, Arc::clone(&profile_store));
@@ -122,9 +134,7 @@ impl DaemonBuilder {
         );
 
         // 10. DaemonProcess
-        let process = DaemonProcess::new(
-            config.data_dir.join("daemon.pid"),
-        );
+        let process = DaemonProcess::new(config.data_dir.join("daemon.pid"));
 
         // 11. AmbientDaemon
         let daemon = AmbientDaemon::new(
@@ -163,9 +173,15 @@ mod tests {
     struct TestStt;
     #[async_trait]
     impl StreamingSttEngine for TestStt {
-        async fn feed_chunk(&self, _chunk: &AudioChunk) -> anyhow::Result<Option<String>> { Ok(None) }
-        async fn finalize(&self) -> anyhow::Result<String> { Ok("测试".into()) }
-        async fn reset(&self) -> anyhow::Result<()> { Ok(()) }
+        async fn feed_chunk(&self, _chunk: &AudioChunk) -> anyhow::Result<Option<String>> {
+            Ok(None)
+        }
+        async fn finalize(&self) -> anyhow::Result<String> {
+            Ok("测试".into())
+        }
+        async fn reset(&self) -> anyhow::Result<()> {
+            Ok(())
+        }
     }
 
     struct TestTts;
@@ -206,9 +222,10 @@ mod tests {
             Box::new(TestVad),
             Box::new(TestStt),
             Box::new(TestTts),
-            provider,
-            None,
-            None,
+            DaemonProviderOptions {
+                provider,
+                ..Default::default()
+            },
         )
         .unwrap()
     }
@@ -337,9 +354,11 @@ mod tests {
             Box::new(TestVad),
             Box::new(TestStt),
             Box::new(TestTts),
-            Some(Arc::new(MockProvider::new("prompt-test"))),
-            Some("你是一个智能家居助手".into()),
-            None,
+            DaemonProviderOptions {
+                provider: Some(Arc::new(MockProvider::new("prompt-test"))),
+                system_prompt: Some("你是一个智能家居助手".into()),
+                ..Default::default()
+            },
         );
         assert!(result.is_ok());
     }
@@ -356,9 +375,11 @@ mod tests {
             Box::new(TestVad),
             Box::new(TestStt),
             Box::new(TestTts),
-            Some(Arc::new(MockProvider::new("timeout-test"))),
-            None,
-            Some(5000),
+            DaemonProviderOptions {
+                provider: Some(Arc::new(MockProvider::new("timeout-test"))),
+                llm_timeout_ms: Some(5000),
+                ..Default::default()
+            },
         );
         assert!(result.is_ok());
     }

@@ -38,15 +38,33 @@ pub struct NotificationPolicy {
 
 impl NotificationPolicy {
     pub fn allow_all() -> Self {
-        Self { allow_critical: true, allow_high: true, allow_normal: true, allow_low: true, silent: false }
+        Self {
+            allow_critical: true,
+            allow_high: true,
+            allow_normal: true,
+            allow_low: true,
+            silent: false,
+        }
     }
 
     pub fn critical_only() -> Self {
-        Self { allow_critical: true, allow_high: false, allow_normal: false, allow_low: false, silent: true }
+        Self {
+            allow_critical: true,
+            allow_high: false,
+            allow_normal: false,
+            allow_low: false,
+            silent: true,
+        }
     }
 
     pub fn silent() -> Self {
-        Self { allow_critical: true, allow_high: false, allow_normal: false, allow_low: false, silent: true }
+        Self {
+            allow_critical: true,
+            allow_high: false,
+            allow_normal: false,
+            allow_low: false,
+            silent: true,
+        }
     }
 }
 
@@ -120,22 +138,34 @@ impl MockModeTransitionHook {
     }
 
     pub fn entered_modes(&self) -> Vec<SystemMode> {
-        self.entered.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.entered
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     pub fn exited_modes(&self) -> Vec<SystemMode> {
-        self.exited.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.exited
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 
 #[async_trait]
 impl ModeTransitionHook for MockModeTransitionHook {
     async fn on_enter(&self, mode: SystemMode) -> anyhow::Result<()> {
-        self.entered.lock().unwrap_or_else(|e| e.into_inner()).push(mode);
+        self.entered
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(mode);
         Ok(())
     }
     async fn on_exit(&self, mode: SystemMode) -> anyhow::Result<()> {
-        self.exited.lock().unwrap_or_else(|e| e.into_inner()).push(mode);
+        self.exited
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(mode);
         Ok(())
     }
 }
@@ -185,7 +215,10 @@ impl ModeManager {
     }
 
     pub fn is_manual_override(&self) -> bool {
-        *self.manual_override.lock().unwrap_or_else(|e| e.into_inner())
+        *self
+            .manual_override
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
     }
 
     pub async fn switch_mode(
@@ -214,7 +247,10 @@ impl ModeManager {
 
         // set manual override flag
         {
-            let mut mo = self.manual_override.lock().unwrap_or_else(|e| e.into_inner());
+            let mut mo = self
+                .manual_override
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             *mo = matches!(source, AutoDetectSource::Manual);
         }
 
@@ -249,9 +285,14 @@ impl ModeManager {
                 }
                 AutoDetectSource::TimeRange { start, end } => {
                     if let Some(now) = context.current_time {
-                        if start <= end { now >= *start && now < *end }
-                        else { now >= *start || now < *end }
-                    } else { false }
+                        if start <= end {
+                            now >= *start && now < *end
+                        } else {
+                            now >= *start || now < *end
+                        }
+                    } else {
+                        false
+                    }
                 }
                 AutoDetectSource::VehicleConnection { device_id } => {
                     context.connected_vehicle.as_deref() == Some(device_id.as_str())
@@ -263,7 +304,8 @@ impl ModeManager {
             }
         }
         let current = self.current_mode();
-        best.filter(|r| r.target_mode != current).map(|r| r.target_mode)
+        best.filter(|r| r.target_mode != current)
+            .map(|r| r.target_mode)
     }
 
     pub fn notification_policy(&self) -> NotificationPolicy {
@@ -279,49 +321,70 @@ impl ModeManager {
     }
 
     pub fn history(&self) -> Vec<ModeTransition> {
-        self.history.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     fn default_profiles() -> Vec<(SystemMode, ModeProfile)> {
         vec![
-            (SystemMode::Home, ModeProfile {
-                mode: SystemMode::Home,
-                notification_policy: NotificationPolicy::allow_all(),
-                active_scenes: vec!["welcome_home".into()],
-                deactivate_scenes: vec![],
-                device_configs: HashMap::new(),
-                volume_level: 60,
-            }),
-            (SystemMode::Work, ModeProfile {
-                mode: SystemMode::Work,
-                notification_policy: NotificationPolicy {
-                    allow_critical: true, allow_high: true,
-                    allow_normal: false, allow_low: false, silent: false,
+            (
+                SystemMode::Home,
+                ModeProfile {
+                    mode: SystemMode::Home,
+                    notification_policy: NotificationPolicy::allow_all(),
+                    active_scenes: vec!["welcome_home".into()],
+                    deactivate_scenes: vec![],
+                    device_configs: HashMap::new(),
+                    volume_level: 60,
                 },
-                active_scenes: vec!["work_focus".into()],
-                deactivate_scenes: vec!["welcome_home".into()],
-                device_configs: HashMap::new(),
-                volume_level: 30,
-            }),
-            (SystemMode::Sleep, ModeProfile {
-                mode: SystemMode::Sleep,
-                notification_policy: NotificationPolicy::critical_only(),
-                active_scenes: vec!["good_night".into()],
-                deactivate_scenes: vec!["welcome_home".into(), "work_focus".into()],
-                device_configs: HashMap::new(),
-                volume_level: 10,
-            }),
-            (SystemMode::Driving, ModeProfile {
-                mode: SystemMode::Driving,
-                notification_policy: NotificationPolicy {
-                    allow_critical: true, allow_high: true,
-                    allow_normal: false, allow_low: false, silent: false,
+            ),
+            (
+                SystemMode::Work,
+                ModeProfile {
+                    mode: SystemMode::Work,
+                    notification_policy: NotificationPolicy {
+                        allow_critical: true,
+                        allow_high: true,
+                        allow_normal: false,
+                        allow_low: false,
+                        silent: false,
+                    },
+                    active_scenes: vec!["work_focus".into()],
+                    deactivate_scenes: vec!["welcome_home".into()],
+                    device_configs: HashMap::new(),
+                    volume_level: 30,
                 },
-                active_scenes: vec!["driving".into()],
-                deactivate_scenes: vec![],
-                device_configs: HashMap::new(),
-                volume_level: 50,
-            }),
+            ),
+            (
+                SystemMode::Sleep,
+                ModeProfile {
+                    mode: SystemMode::Sleep,
+                    notification_policy: NotificationPolicy::critical_only(),
+                    active_scenes: vec!["good_night".into()],
+                    deactivate_scenes: vec!["welcome_home".into(), "work_focus".into()],
+                    device_configs: HashMap::new(),
+                    volume_level: 10,
+                },
+            ),
+            (
+                SystemMode::Driving,
+                ModeProfile {
+                    mode: SystemMode::Driving,
+                    notification_policy: NotificationPolicy {
+                        allow_critical: true,
+                        allow_high: true,
+                        allow_normal: false,
+                        allow_low: false,
+                        silent: false,
+                    },
+                    active_scenes: vec!["driving".into()],
+                    deactivate_scenes: vec![],
+                    device_configs: HashMap::new(),
+                    volume_level: 50,
+                },
+            ),
         ]
     }
 }
@@ -337,7 +400,10 @@ mod tests {
 
     impl TestHook {
         fn new() -> Self {
-            Self { entered: Mutex::new(Vec::new()), exited: Mutex::new(Vec::new()) }
+            Self {
+                entered: Mutex::new(Vec::new()),
+                exited: Mutex::new(Vec::new()),
+            }
         }
     }
 
@@ -383,22 +449,32 @@ mod tests {
     #[tokio::test]
     async fn switch_mode_updates_current() {
         let mgr = ModeManager::new(SystemMode::Home);
-        mgr.switch_mode(SystemMode::Work, AutoDetectSource::Manual).await.unwrap();
+        mgr.switch_mode(SystemMode::Work, AutoDetectSource::Manual)
+            .await
+            .unwrap();
         assert_eq!(mgr.current_mode(), SystemMode::Work);
     }
 
     #[tokio::test]
     async fn switch_same_mode_noop() {
         let mgr = ModeManager::new(SystemMode::Home);
-        mgr.switch_mode(SystemMode::Home, AutoDetectSource::Manual).await.unwrap();
+        mgr.switch_mode(SystemMode::Home, AutoDetectSource::Manual)
+            .await
+            .unwrap();
         assert!(mgr.history().is_empty());
     }
 
     #[tokio::test]
     async fn switch_mode_records_history() {
         let mgr = ModeManager::new(SystemMode::Home);
-        mgr.switch_mode(SystemMode::Sleep, AutoDetectSource::Geofence { zone_id: "home".into() })
-            .await.unwrap();
+        mgr.switch_mode(
+            SystemMode::Sleep,
+            AutoDetectSource::Geofence {
+                zone_id: "home".into(),
+            },
+        )
+        .await
+        .unwrap();
         let hist = mgr.history();
         assert_eq!(hist.len(), 1);
         assert_eq!(hist[0].from, SystemMode::Home);
@@ -409,17 +485,22 @@ mod tests {
     async fn manual_override_flag() {
         let mgr = ModeManager::new(SystemMode::Home);
         assert!(!mgr.is_manual_override());
-        mgr.switch_mode(SystemMode::Focus, AutoDetectSource::Manual).await.unwrap();
+        mgr.switch_mode(SystemMode::Focus, AutoDetectSource::Manual)
+            .await
+            .unwrap();
         assert!(mgr.is_manual_override());
     }
 
     #[tokio::test]
     async fn hook_called_on_switch() {
         let hook = std::sync::Arc::new(TestHook::new());
-        let hook_clone: Box<dyn ModeTransitionHook> = Box::new(HookWrapper(std::sync::Arc::clone(&hook)));
+        let hook_clone: Box<dyn ModeTransitionHook> =
+            Box::new(HookWrapper(std::sync::Arc::clone(&hook)));
         let mut mgr = ModeManager::new(SystemMode::Home);
         mgr.register_hook(hook_clone);
-        mgr.switch_mode(SystemMode::Work, AutoDetectSource::Manual).await.unwrap();
+        mgr.switch_mode(SystemMode::Work, AutoDetectSource::Manual)
+            .await
+            .unwrap();
         assert_eq!(hook.exited.lock().unwrap().as_slice(), &[SystemMode::Home]);
         assert_eq!(hook.entered.lock().unwrap().as_slice(), &[SystemMode::Work]);
     }
@@ -428,11 +509,16 @@ mod tests {
     fn evaluate_auto_switch_geofence() {
         let mut mgr = ModeManager::new(SystemMode::Home);
         mgr.add_auto_rule(AutoRule {
-            source: AutoDetectSource::Geofence { zone_id: "office".into() },
+            source: AutoDetectSource::Geofence {
+                zone_id: "office".into(),
+            },
             target_mode: SystemMode::Work,
             priority: 10,
         });
-        let ctx = DetectContext { current_zone: Some("office".into()), ..Default::default() };
+        let ctx = DetectContext {
+            current_zone: Some("office".into()),
+            ..Default::default()
+        };
         assert_eq!(mgr.evaluate_auto_switch(&ctx), Some(SystemMode::Work));
     }
 
@@ -458,19 +544,29 @@ mod tests {
     fn evaluate_auto_switch_vehicle() {
         let mut mgr = ModeManager::new(SystemMode::Home);
         mgr.add_auto_rule(AutoRule {
-            source: AutoDetectSource::VehicleConnection { device_id: "tesla-001".into() },
+            source: AutoDetectSource::VehicleConnection {
+                device_id: "tesla-001".into(),
+            },
             target_mode: SystemMode::Driving,
             priority: 20,
         });
-        let ctx = DetectContext { connected_vehicle: Some("tesla-001".into()), ..Default::default() };
+        let ctx = DetectContext {
+            connected_vehicle: Some("tesla-001".into()),
+            ..Default::default()
+        };
         assert_eq!(mgr.evaluate_auto_switch(&ctx), Some(SystemMode::Driving));
     }
 
     #[tokio::test]
     async fn manual_override_blocks_auto_switch() {
         let mgr = ModeManager::new(SystemMode::Home);
-        mgr.switch_mode(SystemMode::Focus, AutoDetectSource::Manual).await.unwrap();
-        let ctx = DetectContext { current_zone: Some("office".into()), ..Default::default() };
+        mgr.switch_mode(SystemMode::Focus, AutoDetectSource::Manual)
+            .await
+            .unwrap();
+        let ctx = DetectContext {
+            current_zone: Some("office".into()),
+            ..Default::default()
+        };
         assert_eq!(mgr.evaluate_auto_switch(&ctx), None);
     }
 
@@ -485,11 +581,16 @@ mod tests {
     fn evaluate_same_mode_returns_none() {
         let mut mgr = ModeManager::new(SystemMode::Work);
         mgr.add_auto_rule(AutoRule {
-            source: AutoDetectSource::Geofence { zone_id: "office".into() },
+            source: AutoDetectSource::Geofence {
+                zone_id: "office".into(),
+            },
             target_mode: SystemMode::Work,
             priority: 10,
         });
-        let ctx = DetectContext { current_zone: Some("office".into()), ..Default::default() };
+        let ctx = DetectContext {
+            current_zone: Some("office".into()),
+            ..Default::default()
+        };
         assert_eq!(mgr.evaluate_auto_switch(&ctx), None);
     }
 
@@ -497,16 +598,23 @@ mod tests {
     fn evaluate_priority_wins() {
         let mut mgr = ModeManager::new(SystemMode::Home);
         mgr.add_auto_rule(AutoRule {
-            source: AutoDetectSource::Geofence { zone_id: "office".into() },
+            source: AutoDetectSource::Geofence {
+                zone_id: "office".into(),
+            },
             target_mode: SystemMode::Work,
             priority: 5,
         });
         mgr.add_auto_rule(AutoRule {
-            source: AutoDetectSource::Geofence { zone_id: "office".into() },
+            source: AutoDetectSource::Geofence {
+                zone_id: "office".into(),
+            },
             target_mode: SystemMode::Focus,
             priority: 15,
         });
-        let ctx = DetectContext { current_zone: Some("office".into()), ..Default::default() };
+        let ctx = DetectContext {
+            current_zone: Some("office".into()),
+            ..Default::default()
+        };
         assert_eq!(mgr.evaluate_auto_switch(&ctx), Some(SystemMode::Focus));
     }
 
@@ -548,7 +656,9 @@ mod tests {
             from: SystemMode::Home,
             to: SystemMode::Work,
             timestamp: Utc::now(),
-            source: AutoDetectSource::Geofence { zone_id: "office".into() },
+            source: AutoDetectSource::Geofence {
+                zone_id: "office".into(),
+            },
         };
         let json = serde_json::to_string(&t).unwrap();
         let back: ModeTransition = serde_json::from_str(&json).unwrap();

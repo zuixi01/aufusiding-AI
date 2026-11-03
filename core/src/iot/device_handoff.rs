@@ -69,7 +69,10 @@ impl DeviceHandoff {
         );
 
         let id = record.id;
-        self.records.lock().unwrap_or_else(|e| e.into_inner()).push(record);
+        self.records
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(record);
         Ok(id)
     }
 

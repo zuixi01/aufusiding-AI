@@ -95,10 +95,14 @@ impl SystemAudioSource {
             AudioInputBackend::PipeWire => {
                 let mut cmd = Command::new("pw-record");
                 cmd.args([
-                    "--format", "f32",
-                    "--rate", &self.config.sample_rate.to_string(),
-                    "--channels", &self.config.channels.to_string(),
-                    "--target", &self.config.device_name,
+                    "--format",
+                    "f32",
+                    "--rate",
+                    &self.config.sample_rate.to_string(),
+                    "--channels",
+                    &self.config.channels.to_string(),
+                    "--target",
+                    &self.config.device_name,
                     "-",
                 ]);
                 cmd
@@ -118,12 +122,18 @@ impl SystemAudioSource {
             AudioInputBackend::Alsa => {
                 let mut cmd = Command::new("arecord");
                 cmd.args([
-                    "-f", "FLOAT_LE",
-                    "-r", &self.config.sample_rate.to_string(),
-                    "-c", &self.config.channels.to_string(),
-                    "-D", &self.config.device_name,
-                    "-d", &format!("{:.3}", duration_sec),
-                    "-t", "raw",
+                    "-f",
+                    "FLOAT_LE",
+                    "-r",
+                    &self.config.sample_rate.to_string(),
+                    "-c",
+                    &self.config.channels.to_string(),
+                    "-D",
+                    &self.config.device_name,
+                    "-d",
+                    &format!("{:.3}", duration_sec),
+                    "-t",
+                    "raw",
                     "-q",
                     "-",
                 ]);
@@ -134,8 +144,11 @@ impl SystemAudioSource {
 
     /// 将原始字节转换为 f32 样本
     fn bytes_to_samples(data: &[u8]) -> Vec<f32> {
-        data.chunks_exact(4)
-            .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        data.as_chunks::<4>()
+            .0
+            .iter()
+            .copied()
+            .map(f32::from_le_bytes)
             .collect()
     }
 }
@@ -206,6 +219,16 @@ mod tests {
         assert_eq!(samples.len(), 2);
         assert!((samples[0] - 0.5).abs() < f32::EPSILON);
         assert!((samples[1] - 0.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn bytes_to_samples_ignores_incomplete_trailing_sample() {
+        for trailing_bytes in 1..4 {
+            let mut data = 0.5_f32.to_le_bytes().to_vec();
+            data.extend_from_slice(&[0xff; 3][..trailing_bytes]);
+            assert_eq!(SystemAudioSource::bytes_to_samples(&data), vec![0.5]);
+            assert!(SystemAudioSource::bytes_to_samples(&data[..trailing_bytes]).is_empty());
+        }
     }
 
     #[test]

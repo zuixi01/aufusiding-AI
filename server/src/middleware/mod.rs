@@ -22,9 +22,7 @@ use crate::state::AppState;
 /// CORS 中间件 — 支持 PROMETHEUS_CORS_ORIGINS 环境变量白名单
 pub fn cors_layer() -> CorsLayer {
     let origins = std::env::var("PROMETHEUS_CORS_ORIGINS").unwrap_or_default();
-    let layer = CorsLayer::new()
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let layer = CorsLayer::new().allow_methods(Any).allow_headers(Any);
 
     if origins.is_empty() {
         layer.allow_origin(Any)
@@ -55,10 +53,7 @@ pub fn timeout_layer() -> TimeoutLayer {
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
         .unwrap_or(30);
-    TimeoutLayer::with_status_code(
-        StatusCode::REQUEST_TIMEOUT,
-        Duration::from_secs(secs),
-    )
+    TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, Duration::from_secs(secs))
 }
 
 /// 并发请求限制 — 通过 PROMETHEUS_CONCURRENCY_LIMIT 配置（默认 64）

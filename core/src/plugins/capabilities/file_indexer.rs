@@ -35,7 +35,11 @@ impl FileIndexer {
         }
 
         let mut count = 0;
-        for entry in walkdir::WalkDir::new(path).max_depth(5).into_iter().flatten() {
+        for entry in walkdir::WalkDir::new(path)
+            .max_depth(5)
+            .into_iter()
+            .flatten()
+        {
             let metadata = entry.metadata()?;
             let file_path = entry.path().to_path_buf();
             let name = entry.file_name().to_string_lossy().to_string();
@@ -83,7 +87,7 @@ impl FileIndexer {
     /// 最近修改的文件
     pub fn recent_files(&self, count: usize) -> Vec<&FileEntry> {
         let mut sorted: Vec<&FileEntry> = self.entries.iter().filter(|e| !e.is_dir).collect();
-        sorted.sort_by(|a, b| b.modified_timestamp.cmp(&a.modified_timestamp));
+        sorted.sort_by_key(|entry| std::cmp::Reverse(entry.modified_timestamp));
         sorted.into_iter().take(count).collect()
     }
 

@@ -90,9 +90,7 @@ impl DataAnalysisTool {
                 let col = rows[0].len() - 1;
                 Self::extract_column_values(&rows, col)
             }
-            "json" => {
-                serde_json::from_str::<Vec<f64>>(data).unwrap_or_default()
-            }
+            "json" => serde_json::from_str::<Vec<f64>>(data).unwrap_or_default(),
             _ => return serde_json::json!({"error": "unsupported format"}),
         };
 
@@ -149,10 +147,18 @@ impl AgentTool for DataAnalysisTool {
             Some(d) => d,
             None => return ToolResult::err("missing 'data' parameter"),
         };
-        let format = params.get("format").and_then(|v| v.as_str()).unwrap_or("csv");
-        let operations: Vec<String> = params.get("operations")
+        let format = params
+            .get("format")
+            .and_then(|v| v.as_str())
+            .unwrap_or("csv");
+        let operations: Vec<String> = params
+            .get("operations")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
 
         let result = Self::execute_analysis(data, format, &operations);
@@ -181,7 +187,10 @@ mod tests {
 
     #[test]
     fn compute_mean_basic() {
-        assert_eq!(DataAnalysisTool::compute_mean(&[10.0, 20.0, 30.0]), Some(20.0));
+        assert_eq!(
+            DataAnalysisTool::compute_mean(&[10.0, 20.0, 30.0]),
+            Some(20.0)
+        );
     }
 
     #[test]
@@ -191,12 +200,18 @@ mod tests {
 
     #[test]
     fn compute_median_odd() {
-        assert_eq!(DataAnalysisTool::compute_median(&[3.0, 1.0, 2.0]), Some(2.0));
+        assert_eq!(
+            DataAnalysisTool::compute_median(&[3.0, 1.0, 2.0]),
+            Some(2.0)
+        );
     }
 
     #[test]
     fn compute_median_even() {
-        assert_eq!(DataAnalysisTool::compute_median(&[1.0, 2.0, 3.0, 4.0]), Some(2.5));
+        assert_eq!(
+            DataAnalysisTool::compute_median(&[1.0, 2.0, 3.0, 4.0]),
+            Some(2.5)
+        );
     }
 
     #[test]
@@ -232,11 +247,13 @@ mod tests {
     #[tokio::test]
     async fn execute_csv_mean() {
         let tool = DataAnalysisTool::new();
-        let result = tool.execute(serde_json::json!({
-            "data": "name,score\nA,10\nB,20\nC,30",
-            "format": "csv",
-            "operations": ["mean"]
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "data": "name,score\nA,10\nB,20\nC,30",
+                "format": "csv",
+                "operations": ["mean"]
+            }))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["mean"], 20.0);
         assert_eq!(result.output["count"], 3);
@@ -245,11 +262,13 @@ mod tests {
     #[tokio::test]
     async fn execute_json_median() {
         let tool = DataAnalysisTool::new();
-        let result = tool.execute(serde_json::json!({
-            "data": "[3,1,2,5,4]",
-            "format": "json",
-            "operations": ["median"]
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "data": "[3,1,2,5,4]",
+                "format": "json",
+                "operations": ["median"]
+            }))
+            .await;
         assert!(result.success);
         assert_eq!(result.output["median"], 3.0);
     }
@@ -264,13 +283,18 @@ mod tests {
     #[tokio::test]
     async fn execute_unsupported_format() {
         let tool = DataAnalysisTool::new();
-        let result = tool.execute(serde_json::json!({
-            "data": "hello",
-            "format": "xml",
-            "operations": ["mean"]
-        })).await;
+        let result = tool
+            .execute(serde_json::json!({
+                "data": "hello",
+                "format": "xml",
+                "operations": ["mean"]
+            }))
+            .await;
         assert!(result.success);
-        assert!(result.output["error"].as_str().unwrap().contains("unsupported"));
+        assert!(result.output["error"]
+            .as_str()
+            .unwrap()
+            .contains("unsupported"));
     }
 
     #[test]

@@ -80,9 +80,13 @@ impl CalDavProvider {
             description: api.description,
             is_all_day: api.is_all_day,
             attendees: api.attendees,
-            reminders: api.reminders.into_iter().map(|r| ReminderOffset {
-                minutes_before: r.minutes_before,
-            }).collect(),
+            reminders: api
+                .reminders
+                .into_iter()
+                .map(|r| ReminderOffset {
+                    minutes_before: r.minutes_before,
+                })
+                .collect(),
         }
     }
 
@@ -96,18 +100,32 @@ impl CalDavProvider {
             description: event.description.clone(),
             is_all_day: event.is_all_day,
             attendees: event.attendees.clone(),
-            reminders: event.reminders.iter().map(|r| ApiReminder {
-                minutes_before: r.minutes_before,
-            }).collect(),
+            reminders: event
+                .reminders
+                .iter()
+                .map(|r| ApiReminder {
+                    minutes_before: r.minutes_before,
+                })
+                .collect(),
         }
     }
 }
 
 #[async_trait]
 impl CalendarProvider for CalDavProvider {
-    async fn list_events(&self, from: DateTime<Utc>, to: DateTime<Utc>) -> anyhow::Result<Vec<CalendarEvent>> {
-        let resp = self.client
-            .get(format!("{}/events?from={}&to={}", self.base_url, from.to_rfc3339(), to.to_rfc3339()))
+    async fn list_events(
+        &self,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> anyhow::Result<Vec<CalendarEvent>> {
+        let resp = self
+            .client
+            .get(format!(
+                "{}/events?from={}&to={}",
+                self.base_url,
+                from.to_rfc3339(),
+                to.to_rfc3339()
+            ))
             .basic_auth(&self.username, Some(&self.password))
             .send()
             .await?;
@@ -120,7 +138,8 @@ impl CalendarProvider for CalDavProvider {
 
     async fn create_event(&self, event: CalendarEvent) -> anyhow::Result<Uuid> {
         let api_event = Self::to_api_event(&event);
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/events", self.base_url))
             .basic_auth(&self.username, Some(&self.password))
             .json(&api_event)
@@ -136,7 +155,8 @@ impl CalendarProvider for CalDavProvider {
 
     async fn update_event(&self, event: CalendarEvent) -> anyhow::Result<()> {
         let api_event = Self::to_api_event(&event);
-        let resp = self.client
+        let resp = self
+            .client
             .put(format!("{}/events/{}", self.base_url, event.id))
             .basic_auth(&self.username, Some(&self.password))
             .json(&api_event)
@@ -149,7 +169,8 @@ impl CalendarProvider for CalDavProvider {
     }
 
     async fn delete_event(&self, id: &Uuid) -> anyhow::Result<()> {
-        let resp = self.client
+        let resp = self
+            .client
             .delete(format!("{}/events/{}", self.base_url, id))
             .basic_auth(&self.username, Some(&self.password))
             .send()
@@ -209,7 +230,8 @@ mod tests {
             when.method(GET)
                 .path("/events")
                 .header("Authorization", "Basic Y2FsX3VzZXI6Y2FsX3Bhc3M=");
-            then.status(200).json_body(serde_json::json!({"events": []}));
+            then.status(200)
+                .json_body(serde_json::json!({"events": []}));
         });
         let provider = CalDavProvider::with_base_url(&server.base_url(), TEST_USER, TEST_PASS);
         let from = Utc::now();
@@ -223,7 +245,8 @@ mod tests {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
             when.method(POST).path("/events");
-            then.status(201).json_body(serde_json::json!({"id": TEST_EVENT_ID}));
+            then.status(201)
+                .json_body(serde_json::json!({"id": TEST_EVENT_ID}));
         });
         let provider = CalDavProvider::with_base_url(&server.base_url(), TEST_USER, TEST_PASS);
         let event = CalendarEvent {
@@ -256,8 +279,11 @@ mod tests {
             title: "Updated Meeting".into(),
             start: Utc::now(),
             end: Utc::now() + chrono::Duration::hours(1),
-            location: None, description: None,
-            is_all_day: false, attendees: vec![], reminders: vec![],
+            location: None,
+            description: None,
+            is_all_day: false,
+            attendees: vec![],
+            reminders: vec![],
         };
         provider.update_event(event).await.unwrap();
         mock.assert();
@@ -268,7 +294,8 @@ mod tests {
         let event_id = Uuid::parse_str(TEST_EVENT_ID).unwrap();
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(DELETE).path(format!("/events/{}", TEST_EVENT_ID));
+            when.method(DELETE)
+                .path(format!("/events/{}", TEST_EVENT_ID));
             then.status(204);
         });
         let provider = CalDavProvider::with_base_url(&server.base_url(), TEST_USER, TEST_PASS);
@@ -302,8 +329,11 @@ mod tests {
             title: "Fail".into(),
             start: Utc::now(),
             end: Utc::now() + chrono::Duration::hours(1),
-            location: None, description: None,
-            is_all_day: false, attendees: vec![], reminders: vec![],
+            location: None,
+            description: None,
+            is_all_day: false,
+            attendees: vec![],
+            reminders: vec![],
         };
         assert!(provider.create_event(event).await.is_err());
     }
@@ -312,7 +342,7 @@ mod tests {
     async fn delete_event_not_found() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(DELETE).path_contains("/events/");
+            when.method(DELETE).path_includes("/events/");
             then.status(404);
         });
         let provider = CalDavProvider::with_base_url(&server.base_url(), TEST_USER, TEST_PASS);

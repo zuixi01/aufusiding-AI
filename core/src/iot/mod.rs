@@ -25,8 +25,11 @@ pub mod event_bus;
 pub mod event_bus_controller;
 pub mod geofence_trigger;
 pub mod health;
+pub mod inventory;
 pub mod output_router;
 pub mod pairing;
+pub mod persistent_profile_store;
+pub mod persistent_state_cache;
 pub mod registry;
 pub mod rule_store;
 pub mod scene_executor;
@@ -34,18 +37,15 @@ pub mod scenes;
 pub mod semantic;
 pub mod types;
 pub mod vehicle;
-pub mod inventory;
-pub mod persistent_state_cache;
-pub mod persistent_profile_store;
 
-#[cfg(test)]
-mod tests_integration;
-#[cfg(test)]
-mod tests_stress;
 #[cfg(test)]
 mod tests_error_recovery;
 #[cfg(test)]
+mod tests_integration;
+#[cfg(test)]
 mod tests_output_router;
+#[cfg(test)]
+mod tests_stress;
 
 pub use control::{DeviceController, GenericController, MockDeviceController};
 pub use discovery::{DeviceDiscovery, DeviceInfo};

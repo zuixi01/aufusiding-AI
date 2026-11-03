@@ -33,7 +33,10 @@ impl MockAudioSource {
 
     /// 追加更多音频块
     pub fn push_chunk(&self, chunk: AudioChunk) {
-        self.chunks.lock().unwrap_or_else(|e| e.into_inner()).push(chunk);
+        self.chunks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(chunk);
     }
 }
 
@@ -46,7 +49,13 @@ impl AudioSource for MockAudioSource {
             Ok(chunks[idx].clone())
         } else {
             // 返回静音块
-            Ok(AudioChunk::new(vec![0.0; 480], 16000, 1, idx as u64, idx as u64 * 30))
+            Ok(AudioChunk::new(
+                vec![0.0; 480],
+                16000,
+                1,
+                idx as u64,
+                idx as u64 * 30,
+            ))
         }
     }
 

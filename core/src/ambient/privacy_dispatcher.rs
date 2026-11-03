@@ -58,7 +58,7 @@ impl PrivacyAwareDispatcher {
         // 从后往前替换，避免偏移量变化
         let mut result = text.to_string();
         let mut sorted: Vec<&PiiEntity> = filtered;
-        sorted.sort_by(|a, b| b.start.cmp(&a.start));
+        sorted.sort_by_key(|entity| std::cmp::Reverse(entity.start));
         for entity in sorted {
             let replacement = format!("[{}]", entity.entity_type);
             if entity.start < result.len() && entity.end <= result.len() {
@@ -99,7 +99,9 @@ mod tests {
     async fn sanitizes_email_from_input() {
         let inner = IntentDispatcher::new();
         let dispatcher = PrivacyAwareDispatcher::new(inner, SanitizerConfig::default());
-        let result = dispatcher.dispatch("我的邮箱是 test@example.com 帮我查天气").await;
+        let result = dispatcher
+            .dispatch("我的邮箱是 test@example.com 帮我查天气")
+            .await;
         assert!(!result.response.contains("test@example.com"));
     }
 
@@ -107,7 +109,9 @@ mod tests {
     async fn sanitizes_phone_from_input() {
         let inner = IntentDispatcher::new();
         let dispatcher = PrivacyAwareDispatcher::new(inner, SanitizerConfig::default());
-        let result = dispatcher.dispatch("我的电话是 13812345678 帮我查天气").await;
+        let result = dispatcher
+            .dispatch("我的电话是 13812345678 帮我查天气")
+            .await;
         assert!(!result.response.contains("13812345678"));
     }
 
@@ -190,9 +194,10 @@ mod tests {
     #[tokio::test]
     async fn privacy_dispatcher_implements_dispatcher_trait() {
         let inner = IntentDispatcher::new();
-        let d: Box<dyn Dispatcher> = Box::new(
-            PrivacyAwareDispatcher::new(inner, SanitizerConfig::default()),
-        );
+        let d: Box<dyn Dispatcher> = Box::new(PrivacyAwareDispatcher::new(
+            inner,
+            SanitizerConfig::default(),
+        ));
         let result = d.dispatch("你好").await;
         assert_eq!(result.target, DispatchTarget::Chat);
     }

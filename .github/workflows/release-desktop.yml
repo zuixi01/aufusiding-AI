@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   build:
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -27,25 +28,30 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.99.1
           targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: apps/desktop/src-tauri
+          workspaces: . -> target
 
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
 
       - name: Install Linux deps
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev \
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
       - name: Install frontend deps
         working-directory: apps/desktop
-        run: npm install
+        run: npm ci
 
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
@@ -54,9 +60,9 @@ jobs:
         with:
           projectPath: apps/desktop
           tauriScript: npx tauri
-          args: --target ${{ matrix.target }}
+          args: --target ${{ matrix.target }} -- --locked
           tagName: ${{ github.ref_name }}
           releaseName: 'Prometheus AI ${{ github.ref_name }}'
-          releaseBody: 'Download the installer for your platform below.'
-          releaseDraft: false
+          releaseBody: 'Candidate installers. Follow docs/release-checklist.md and validate each uploaded platform before publishing this draft.'
+          releaseDraft: true
           prerelease: false

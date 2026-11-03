@@ -3,6 +3,7 @@ name = "prometheus-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "Prometheus AI 智能助手 CLI"
 
 [[bin]]
@@ -19,10 +20,10 @@ serde_json = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 chrono = { workspace = true }
 uuid = { workspace = true }
-rustyline = { version = "15", features = ["derive"] }
+rustyline = { version = "18", features = ["derive"] }
 colored = "3"
 tabled = "0.17"
 toml = "0.8"
 dirs = "6"
-indicatif = "0.17"
+indicatif = "0.18"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }

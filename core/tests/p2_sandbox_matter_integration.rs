@@ -3,13 +3,10 @@
 use prometheus_core::coding::sandbox::{
     CodeSandbox, ResourceLimits, SandboxConfig, SandboxPermissions,
 };
-use prometheus_core::iot::adapters::matter::{
-    MatterAdapter, MatterDeviceType,
-};
+use prometheus_core::iot::adapters::matter::{MatterAdapter, MatterDeviceType};
 use prometheus_core::iot::control::DeviceController;
 use prometheus_core::safety::os_sandbox::{
-    LandlockRuleset, SandboxCapability,
-    SandboxEnvironment, SandboxPolicy, SeccompProfile,
+    LandlockRuleset, SandboxCapability, SandboxEnvironment, SandboxPolicy, SeccompProfile,
 };
 use std::path::PathBuf;
 
@@ -18,11 +15,13 @@ use std::path::PathBuf;
 #[tokio::test]
 async fn sandbox_executes_code_with_clean_env() {
     let dir = tempfile::tempdir().unwrap();
-    let config = SandboxConfig::new(dir.path().to_path_buf())
-        .with_env("SANDBOX_TEST", "isolated");
+    let config = SandboxConfig::new(dir.path().to_path_buf()).with_env("SANDBOX_TEST", "isolated");
     let sandbox = CodeSandbox::new(config);
 
-    let result = sandbox.execute_code("bash", "echo $SANDBOX_TEST").await.unwrap();
+    let result = sandbox
+        .execute_code("bash", "echo $SANDBOX_TEST")
+        .await
+        .unwrap();
     assert_eq!(result.exit_code, 0);
     assert!(result.stdout.trim() == "isolated");
 }

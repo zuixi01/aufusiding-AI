@@ -257,7 +257,7 @@ pub fn export_data(state: State<AppState>) -> String {
     let em = state.episodic_memory.lock().unwrap();
     let kb = state.knowledge_base.lock().unwrap();
     let wm = state.working_memory.lock().unwrap();
-    let exporter = DataExporter::new(&*hs, &*em, &*kb, &*wm);
+    let exporter = DataExporter::new(&hs, &em, &kb, &wm);
     match rt.block_on(exporter.export_all(state.session_id)) {
         Ok(data) => data.to_string(),
         Err(_) => "{}".into(),

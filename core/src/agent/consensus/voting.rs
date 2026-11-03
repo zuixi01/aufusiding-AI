@@ -105,8 +105,8 @@ mod tests {
     use super::*;
 
     fn vote(stance: Stance, weight: f64, veto: bool) -> WeightedVote {
-        let mut v = WeightedVote::new(AgentId::new(), Uuid::new_v4(), stance, "reason")
-            .with_weight(weight);
+        let mut v =
+            WeightedVote::new(AgentId::new(), Uuid::new_v4(), stance, "reason").with_weight(weight);
         if veto {
             v = v.with_veto_power();
         }

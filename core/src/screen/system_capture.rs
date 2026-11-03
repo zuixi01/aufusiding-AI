@@ -120,7 +120,11 @@ impl SystemScreenCapture {
     }
 
     /// 执行命令并读取输出文件
-    async fn run_and_read(&self, mut cmd: Command, path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
+    async fn run_and_read(
+        &self,
+        mut cmd: Command,
+        path: &std::path::Path,
+    ) -> anyhow::Result<Vec<u8>> {
         let status = cmd
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::piped())
@@ -149,7 +153,7 @@ impl ScreenCapture for SystemScreenCapture {
         let data = self.run_and_read(cmd, &path).await?;
 
         Ok(ScreenSnapshot {
-            width: 0,  // PNG 解码后填充实际值
+            width: 0, // PNG 解码后填充实际值
             height: 0,
             data,
             format: ImageFormat::Png,

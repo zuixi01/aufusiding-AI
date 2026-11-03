@@ -3,6 +3,7 @@ name = "prometheus-ffi"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "UniFFI 绑定层"
 
 [lib]
@@ -10,8 +11,8 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 prometheus-core = { path = "../core" }
-uniffi = "0.28"
-uniffi_bindgen = "0.28"
+uniffi = "0.31"
+uniffi_bindgen = "0.31"
 camino = "1"
 anyhow = { workspace = true }
 tokio = { workspace = true }
@@ -19,4 +20,4 @@ uuid = { workspace = true }
 serde_json = { workspace = true }
 
 [build-dependencies]
-uniffi = { version = "0.28", features = ["build"] }
+uniffi = { version = "0.31", features = ["build"] }

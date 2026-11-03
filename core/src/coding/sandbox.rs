@@ -61,7 +61,7 @@ impl Default for ResourceLimits {
             max_memory_bytes: 256 * 1024 * 1024, // 256 MB
             max_cpu_time: Duration::from_secs(30),
             max_wall_time: Duration::from_secs(60),
-            max_output_bytes: 1024 * 1024, // 1 MB
+            max_output_bytes: 1024 * 1024,         // 1 MB
             max_file_size_bytes: 10 * 1024 * 1024, // 10 MB
             max_processes: 4,
         }
@@ -128,11 +128,7 @@ impl CodeSandbox {
     }
 
     /// 在沙箱中执行命令
-    pub async fn execute(
-        &self,
-        program: &str,
-        args: &[&str],
-    ) -> anyhow::Result<SandboxResult> {
+    pub async fn execute(&self, program: &str, args: &[&str]) -> anyhow::Result<SandboxResult> {
         let start = std::time::Instant::now();
 
         // 确保工作目录存在
@@ -210,11 +206,7 @@ impl CodeSandbox {
     }
 
     /// 在沙箱中执行代码片段
-    pub async fn execute_code(
-        &self,
-        language: &str,
-        code: &str,
-    ) -> anyhow::Result<SandboxResult> {
+    pub async fn execute_code(&self, language: &str, code: &str) -> anyhow::Result<SandboxResult> {
         let (interpreter, ext) = match language {
             "python" | "python3" => ("python3", ".py"),
             "node" | "javascript" | "js" => ("node", ".js"),
@@ -226,7 +218,9 @@ impl CodeSandbox {
         let file_path = self.config.work_dir.join(&file_name);
         std::fs::write(&file_path, code)?;
 
-        let result = self.execute(interpreter, &[file_path.to_str().unwrap_or("")]).await;
+        let result = self
+            .execute(interpreter, &[file_path.to_str().unwrap_or("")])
+            .await;
 
         // 清理
         let _ = std::fs::remove_file(&file_path);
@@ -338,8 +332,7 @@ mod tests {
     async fn env_cleared_in_sandbox() {
         let dir = tempdir().unwrap();
         let sandbox = CodeSandbox::new(
-            SandboxConfig::new(dir.path().to_path_buf())
-                .with_env("TEST_VAR", "sandbox_value"),
+            SandboxConfig::new(dir.path().to_path_buf()).with_env("TEST_VAR", "sandbox_value"),
         );
         let result = sandbox
             .execute_code("bash", "echo $TEST_VAR")

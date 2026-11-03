@@ -11,9 +11,9 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
-use crate::voice::AudioChunk;
 use super::audio_sink::AudioSink;
 use super::cpal_audio_source::CpalAudioConfig;
+use crate::voice::AudioChunk;
 
 /// 共享输出状态（Send + Sync 安全）
 struct SharedOutputState {
@@ -51,11 +51,8 @@ impl CpalAudioSink {
             .ok_or_else(|| anyhow::anyhow!("无可用输出设备"))?;
 
         let supported = device.supported_output_configs()?;
-        let stream_config = find_matching_output_config(
-            supported,
-            self.config.sample_rate,
-            self.config.channels,
-        )?;
+        let stream_config =
+            find_matching_output_config(supported, self.config.sample_rate, self.config.channels)?;
 
         let state = Arc::clone(&self.state);
         let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
@@ -64,7 +61,7 @@ impl CpalAudioSink {
             let state_clone = Arc::clone(&state);
 
             let stream = device.build_output_stream(
-                &stream_config,
+                stream_config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                     let mut buf = state_clone.buffer.lock().unwrap_or_else(|e| e.into_inner());
                     for sample in data.iter_mut() {
@@ -108,7 +105,14 @@ impl CpalAudioSink {
         host.output_devices()
             .map(|devices| {
                 use cpal::traits::DeviceTrait;
-                devices.filter_map(|d| d.name().ok()).collect()
+                devices
+                    .filter_map(|device| {
+                        device
+                            .description()
+                            .ok()
+                            .map(|description| description.name().to_owned())
+                    })
+                    .collect()
             })
             .unwrap_or_default()
     }
@@ -132,7 +136,11 @@ impl AudioSink for CpalAudioSink {
 
     fn stop_playback(&self) {
         self.state.playing.store(false, Ordering::SeqCst);
-        self.state.buffer.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.state
+            .buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 
     fn is_playing(&self) -> bool {
@@ -142,12 +150,12 @@ impl AudioSink for CpalAudioSink {
 
 /// 从支持的配置中找到匹配的输出配置
 fn find_matching_output_config(
-    supported: cpal::SupportedOutputConfigs,
+    supported: impl IntoIterator<Item = cpal::SupportedStreamConfigRange>,
     sample_rate: u32,
     channels: u16,
 ) -> anyhow::Result<cpal::StreamConfig> {
     use cpal::SampleFormat;
-    let rate = cpal::SampleRate(sample_rate);
+    let rate: cpal::SampleRate = sample_rate;
     for cfg in supported {
         if cfg.channels() == channels
             && cfg.sample_format() == SampleFormat::F32
@@ -200,6 +208,31 @@ mod tests {
         for (a, b) in samples.iter().zip(recovered.iter()) {
             assert!((a - b).abs() < f32::EPSILON);
         }
+    }
+
+    #[test]
+    fn output_config_preserves_requested_rate_and_channels() {
+        let ranges = [
+            cpal::SupportedStreamConfigRange::new(
+                1,
+                16000,
+                48000,
+                cpal::SupportedBufferSize::Unknown,
+                cpal::SampleFormat::F32,
+            ),
+            cpal::SupportedStreamConfigRange::new(
+                2,
+                16000,
+                48000,
+                cpal::SupportedBufferSize::Unknown,
+                cpal::SampleFormat::F32,
+            ),
+        ];
+        let config = find_matching_output_config(ranges, 44100, 2).unwrap();
+        assert_eq!(config.sample_rate, 44100);
+        assert_eq!(config.channels, 2);
+        assert!(find_matching_output_config(ranges, 96000, 2).is_err());
+        assert!(find_matching_output_config(ranges, 44100, 4).is_err());
     }
 
     #[tokio::test]

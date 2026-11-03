@@ -16,21 +16,21 @@ use prometheus_core::memory::{EpisodicMemory, KnowledgeBase, WorkingMemory};
 use prometheus_core::orchestrator::{ChatOrchestrator, ProviderChatBackend};
 use prometheus_core::persona::PersonaEngine;
 use prometheus_core::privacy::ConsentManager;
+use prometheus_core::providers::anthropic::AnthropicProvider;
 use prometheus_core::providers::mock::MockProvider;
 use prometheus_core::providers::ollama::OllamaProvider;
 use prometheus_core::providers::openai::OpenAiProvider;
-use prometheus_core::providers::anthropic::AnthropicProvider;
 use prometheus_core::providers::registry::ProviderRegistry;
-use prometheus_core::security::{PromptGuard, InputValidator, RateLimiter, SecurityAuditLog};
 use prometheus_core::providers::traits::Provider;
 use prometheus_core::router::fallback::FallbackRouter;
 use prometheus_core::router::runtime::RoutingRuntime;
+use prometheus_core::security::{InputValidator, PromptGuard, RateLimiter, SecurityAuditLog};
 use prometheus_core::session::HistoryStore;
 use prometheus_core::sync::{E2EEncryption, SyncEngine};
 use state::AppState;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing_subscriber::EnvFilter;
@@ -43,14 +43,18 @@ struct ServerConfig {
     host: String,
     port: u16,
     data_dir: PathBuf,
+    mock_provider: bool,
+    model: Option<String>,
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            host: "0.0.0.0".into(),
+            host: "127.0.0.1".into(),
             port: 3000,
             data_dir: dirs_data_dir(),
+            mock_provider: false,
+            model: None,
         }
     }
 }
@@ -58,7 +62,7 @@ impl Default for ServerConfig {
 fn dirs_data_dir() -> PathBuf {
     std::env::var("PROMETHEUS_DATA_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/tmp/prometheus-server"))
+        .unwrap_or_else(|_| PathBuf::from("data"))
 }
 
 impl ServerConfig {
@@ -72,6 +76,12 @@ impl ServerConfig {
                 cfg.port = p;
             }
         }
+        cfg.mock_provider = std::env::var("PROMETHEUS_MOCK_PROVIDER")
+            .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        cfg.model = std::env::var("PROMETHEUS_MODEL")
+            .ok()
+            .filter(|model| !model.trim().is_empty());
         cfg
     }
 }
@@ -89,11 +99,7 @@ fn preflight_checks(config: &ServerConfig) -> anyhow::Result<()> {
 
     // 2. 确保数据目录可创建/可写
     std::fs::create_dir_all(&config.data_dir).map_err(|e| {
-        anyhow::anyhow!(
-            "无法创建数据目录 '{}': {}。请检查路径和权限。",
-            data_str,
-            e
-        )
+        anyhow::anyhow!("无法创建数据目录 '{}': {}。请检查路径和权限。", data_str, e)
     })?;
 
     // 写入测试文件验证可写性
@@ -123,69 +129,22 @@ fn build_app_state(config: &ServerConfig) -> anyhow::Result<AppState> {
     // API 查询用独立实例（共享同一 SQLite 文件）
     let history_for_api = HistoryStore::new(history_db);
 
-    let mut registry = ProviderRegistry::new();
-    let mut provider_order: Vec<String> = Vec::new();
+    let (registry, provider_order) = build_registry_from_env(config.mock_provider);
+    let default_model = match provider_order.first().map(String::as_str) {
+        Some("openai") => "gpt-4o-mini",
+        Some("anthropic") => "claude-3-5-sonnet-20241022",
+        Some("mock") => "mock-chat-1",
+        _ => "qwen2.5:1.5b",
+    };
 
-    // Ollama: PROMETHEUS_PROVIDER_OLLAMA_URL
-    if let Ok(url) = std::env::var("PROMETHEUS_PROVIDER_OLLAMA_URL") {
-        if !url.is_empty() {
-            let provider = OllamaProvider::new().with_base_url(&url);
-            let name = provider.name().to_string();
-            registry.register(Arc::new(provider));
-            provider_order.push(name);
-            tracing::info!("Registered Ollama provider at {}", url);
-        }
-    }
-
-    // OpenAI: PROMETHEUS_PROVIDER_OPENAI_KEY
-    if let Ok(key) = std::env::var("PROMETHEUS_PROVIDER_OPENAI_KEY") {
-        if !key.is_empty() {
-            let provider = OpenAiProvider::new(&key);
-            let name = provider.name().to_string();
-            registry.register(Arc::new(provider));
-            provider_order.push(name);
-            tracing::info!("Registered OpenAI provider");
-        }
-    }
-
-    // Anthropic: PROMETHEUS_PROVIDER_ANTHROPIC_KEY
-    if let Ok(key) = std::env::var("PROMETHEUS_PROVIDER_ANTHROPIC_KEY") {
-        if !key.is_empty() {
-            let provider = AnthropicProvider::new(&key);
-            let name = provider.name().to_string();
-            registry.register(Arc::new(provider));
-            provider_order.push(name);
-            tracing::info!("Registered Anthropic provider");
-        }
-    }
-
-    // Fallback: 无任何真实 provider 时使用 MockProvider
-    if registry.is_empty() {
-        tracing::warn!("No provider env vars set, using MockProvider fallback");
-        registry.register(Arc::new(MockProvider::new("qwen")));
-        registry.register(Arc::new(MockProvider::new("openai")));
-        registry.register(Arc::new(MockProvider::new("anthropic")));
-        provider_order = vec!["qwen".into(), "openai".into(), "anthropic".into()];
-    }
-
-    // PROMETHEUS_DEFAULT_PROVIDER 控制首选 provider
-    if let Ok(default_name) = std::env::var("PROMETHEUS_DEFAULT_PROVIDER") {
-        if !default_name.is_empty() && registry.get(&default_name).is_some() {
-            // 将 default provider 移到首位
-            provider_order.retain(|n| n != &default_name);
-            provider_order.insert(0, default_name);
-        }
-    }
-
-    let fallback = FallbackRouter::with_config(
-        provider_order,
-        2,
-        Duration::from_secs(30),
-    );
+    let fallback = FallbackRouter::with_config(provider_order, 2, Duration::from_secs(30));
     let runtime = RoutingRuntime::new(registry, fallback);
     let backend = ProviderChatBackend::new(runtime);
-    let orchestrator =
+    let mut orchestrator =
         ChatOrchestrator::new_with_persistence(session_db, history_for_orch, backend)?;
+    orchestrator.set_model_override(Some(
+        config.model.as_deref().unwrap_or(default_model).to_string(),
+    ));
 
     // 记忆系统初始化
     let episodic_db = config.data_dir.join("episodic.db");
@@ -252,9 +211,7 @@ fn build_app_state(config: &ServerConfig) -> anyhow::Result<AppState> {
 fn validate_auth_config(config: &crate::auth::AuthConfig) -> anyhow::Result<()> {
     if config.enabled {
         if config.jwt_secret == "dev-secret-change-in-production" {
-            anyhow::bail!(
-                "认证已启用但使用默认 JWT 密钥！请设置 PROMETHEUS_JWT_SECRET 环境变量"
-            );
+            anyhow::bail!("认证已启用但使用默认 JWT 密钥！请设置 PROMETHEUS_JWT_SECRET 环境变量");
         }
         if config.jwt_secret.len() < 32 {
             anyhow::bail!(
@@ -439,7 +396,9 @@ fn build_router(state: AppState) -> Router {
 
 async fn shutdown_signal() {
     let ctrl_c = async {
-        tokio::signal::ctrl_c().await.expect("failed to install Ctrl+C handler");
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
     };
     #[cfg(unix)]
     let terminate = async {
@@ -519,12 +478,15 @@ async fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-#[cfg(test)]
-fn build_registry_from_env() -> (prometheus_core::providers::registry::ProviderRegistry, Vec<String>) {
-    use prometheus_core::providers::registry::ProviderRegistry;
-
+fn build_registry_from_env(mock_provider: bool) -> (ProviderRegistry, Vec<String>) {
     let mut registry = ProviderRegistry::new();
     let mut provider_order: Vec<String> = Vec::new();
+
+    if mock_provider {
+        tracing::warn!("Demo mode enabled: MockProvider does not perform model inference");
+        registry.register(Arc::new(MockProvider::new("mock")));
+        return (registry, vec!["mock".into()]);
+    }
 
     if let Ok(url) = std::env::var("PROMETHEUS_PROVIDER_OLLAMA_URL") {
         if !url.is_empty() {
@@ -554,10 +516,8 @@ fn build_registry_from_env() -> (prometheus_core::providers::registry::ProviderR
     }
 
     if registry.is_empty() {
-        registry.register(Arc::new(MockProvider::new("qwen")));
-        registry.register(Arc::new(MockProvider::new("openai")));
-        registry.register(Arc::new(MockProvider::new("anthropic")));
-        provider_order = vec!["qwen".into(), "openai".into(), "anthropic".into()];
+        registry.register(Arc::new(OllamaProvider::new()));
+        provider_order = vec!["ollama".into()];
     }
 
     if let Ok(default_name) = std::env::var("PROMETHEUS_DEFAULT_PROVIDER") {
@@ -583,6 +543,8 @@ mod tests {
             host: "127.0.0.1".into(),
             port: 0,
             data_dir: dir.keep(),
+            mock_provider: true,
+            model: None,
         }
     }
 
@@ -680,13 +642,8 @@ mod tests {
             .unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
         let status = resp.status();
-        // 接受 200、408（超时）或 500（内部错误），因为测试环境可能较慢或 provider 未配置
-        assert!(
-            status == StatusCode::OK
-            || status == StatusCode::REQUEST_TIMEOUT
-            || status == StatusCode::INTERNAL_SERVER_ERROR,
-            "Expected 200/408/500, got {}", status
-        );
+        // 测试显式使用本地 Mock，超时和内部错误必须使回归测试失败。
+        assert_eq!(status, StatusCode::OK);
 
         if status == StatusCode::OK {
             let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
@@ -926,6 +883,24 @@ mod tests {
         assert!(doc["paths"].as_object().unwrap().len() >= 10);
     }
 
+    #[tokio::test]
+    async fn swagger_ui_serves_index_and_assets() {
+        let app = test_app();
+        for path in [
+            "/api/docs/",
+            "/api/docs/swagger-ui.css",
+            "/api/docs/swagger-ui-bundle.js",
+        ] {
+            let request = Request::builder().uri(path).body(Body::empty()).unwrap();
+            let response = app.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{path}");
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            assert!(!body.is_empty(), "{path}");
+        }
+    }
+
     // ── Deep Health Tests ──
 
     #[tokio::test]
@@ -1038,18 +1013,34 @@ mod tests {
     // ─── Task 4: Server Provider 注入测试 ──────────────────────────
 
     #[test]
-    fn no_env_uses_mock() {
+    fn no_env_uses_real_ollama() {
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::remove_var("PROMETHEUS_PROVIDER_OLLAMA_URL");
         std::env::remove_var("PROMETHEUS_PROVIDER_OPENAI_KEY");
         std::env::remove_var("PROMETHEUS_PROVIDER_ANTHROPIC_KEY");
 
-        let (registry, order) = build_registry_from_env();
-        let names = registry.list_names();
-        assert!(names.contains(&"qwen".to_string()), "应包含 mock qwen, 实际: {:?}", names);
-        assert!(names.contains(&"openai".to_string()), "应包含 mock openai, 实际: {:?}", names);
-        assert_eq!(registry.len(), 3, "无环境变量时应有 3 个 mock provider");
-        assert_eq!(order[0], "qwen", "默认首选应为 qwen");
+        let (registry, order) = build_registry_from_env(false);
+        assert!(registry.get("ollama").is_some());
+        assert_eq!(registry.len(), 1);
+        assert_eq!(order, vec!["ollama"]);
+    }
+
+    #[test]
+    fn mock_requires_explicit_selection() {
+        let (registry, order) = build_registry_from_env(true);
+        assert!(registry.get("mock").is_some());
+        assert_eq!(registry.len(), 1);
+        assert_eq!(order, vec!["mock"]);
+        assert_eq!(ServerConfig::default().host, "127.0.0.1");
+    }
+
+    #[tokio::test]
+    async fn configured_model_is_applied_to_orchestrator() {
+        let mut cfg = test_config();
+        cfg.model = Some("custom-model:latest".to_string());
+        let state = build_app_state(&cfg).unwrap();
+        let orchestrator = state.orchestrator.read().await;
+        assert_eq!(orchestrator.model_override(), Some("custom-model:latest"));
     }
 
     #[test]
@@ -1059,8 +1050,11 @@ mod tests {
         std::env::remove_var("PROMETHEUS_PROVIDER_OPENAI_KEY");
         std::env::remove_var("PROMETHEUS_PROVIDER_ANTHROPIC_KEY");
 
-        let (registry, order) = build_registry_from_env();
-        assert!(registry.get("ollama").is_some(), "Ollama provider 应注册为 ollama");
+        let (registry, order) = build_registry_from_env(false);
+        assert!(
+            registry.get("ollama").is_some(),
+            "Ollama provider 应注册为 ollama"
+        );
         assert_eq!(registry.len(), 1, "应只有 1 个 provider");
         assert_eq!(order[0], "ollama", "首选应为 ollama");
 
@@ -1074,8 +1068,12 @@ mod tests {
         std::env::set_var("PROMETHEUS_PROVIDER_OPENAI_KEY", "sk-test");
         std::env::remove_var("PROMETHEUS_PROVIDER_ANTHROPIC_KEY");
 
-        let (registry, order) = build_registry_from_env();
-        assert!(registry.len() >= 2, "应至少有 2 个 provider, 实际: {}", registry.len());
+        let (registry, order) = build_registry_from_env(false);
+        assert!(
+            registry.len() >= 2,
+            "应至少有 2 个 provider, 实际: {}",
+            registry.len()
+        );
         let names = registry.list_names();
         assert!(names.contains(&"ollama".to_string()), "应包含 ollama");
         assert!(names.contains(&"openai".to_string()), "应包含 openai");
@@ -1092,7 +1090,7 @@ mod tests {
         std::env::set_var("PROMETHEUS_PROVIDER_OPENAI_KEY", "sk-test");
         std::env::set_var("PROMETHEUS_PROVIDER_ANTHROPIC_KEY", "sk-ant-test");
 
-        let (registry, order) = build_registry_from_env();
+        let (registry, order) = build_registry_from_env(false);
         assert!(registry.len() >= 3, "应至少有 3 个 provider");
         // 注册顺序: ollama → openai → anthropic
         assert_eq!(order[0], "ollama", "首个应为 ollama");
@@ -1102,15 +1100,17 @@ mod tests {
         std::env::remove_var("PROMETHEUS_PROVIDER_ANTHROPIC_KEY");
     }
 
-    #[tokio::test]
-    async fn invalid_url_falls_back_mock() {
-        // 空 URL 应被忽略，回退到 Mock
+    #[test]
+    fn empty_url_uses_default_real_ollama() {
+        let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::set_var("PROMETHEUS_PROVIDER_OLLAMA_URL", "");
         std::env::remove_var("PROMETHEUS_PROVIDER_OPENAI_KEY");
+        std::env::remove_var("PROMETHEUS_PROVIDER_ANTHROPIC_KEY");
 
-        let cfg = test_config();
-        let state = build_app_state(&cfg).unwrap();
-        assert!(state.orchestrator.try_read().is_ok());
+        let (registry, order) = build_registry_from_env(false);
+        assert!(registry.get("ollama").is_some());
+        assert!(registry.get("mock").is_none());
+        assert_eq!(order, vec!["ollama"]);
 
         std::env::remove_var("PROMETHEUS_PROVIDER_OLLAMA_URL");
     }
@@ -1121,7 +1121,7 @@ mod tests {
         std::env::set_var("PROMETHEUS_PROVIDER_OLLAMA_URL", "http://localhost:11434");
         std::env::set_var("PROMETHEUS_PROVIDER_OPENAI_KEY", "sk-test");
 
-        let (registry, _order) = build_registry_from_env();
+        let (registry, _order) = build_registry_from_env(false);
         assert!(registry.len() >= 2, "应至少有 2 个 provider 共存");
         assert!(registry.get("ollama").is_some(), "ollama 应存在");
         assert!(registry.get("openai").is_some(), "openai 应存在");
@@ -1137,8 +1137,11 @@ mod tests {
         std::env::set_var("PROMETHEUS_PROVIDER_OPENAI_KEY", "sk-test");
         std::env::set_var("PROMETHEUS_DEFAULT_PROVIDER", "openai");
 
-        let (_registry, order) = build_registry_from_env();
-        assert_eq!(order[0], "openai", "DEFAULT_PROVIDER=openai 应使 openai 排首位");
+        let (_registry, order) = build_registry_from_env(false);
+        assert_eq!(
+            order[0], "openai",
+            "DEFAULT_PROVIDER=openai 应使 openai 排首位"
+        );
 
         std::env::remove_var("PROMETHEUS_PROVIDER_OLLAMA_URL");
         std::env::remove_var("PROMETHEUS_PROVIDER_OPENAI_KEY");
@@ -1146,10 +1149,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn chat_endpoint_uses_real_provider() {
-        std::env::remove_var("PROMETHEUS_PROVIDER_OLLAMA_URL");
-        std::env::remove_var("PROMETHEUS_PROVIDER_OPENAI_KEY");
-
+    async fn chat_endpoint_uses_explicit_mock_provider() {
         let app = test_app();
 
         // 创建会话
@@ -1161,7 +1161,9 @@ mod tests {
             .unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::CREATED);
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let session: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let sid = session["id"].as_str().unwrap();
 
@@ -1174,15 +1176,15 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let chat: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(chat["reply"].as_str().unwrap().contains("mock"));
     }
 
     #[tokio::test]
     async fn health_deep_reflects_provider() {
-        std::env::remove_var("PROMETHEUS_PROVIDER_OLLAMA_URL");
-
         let app = test_app();
         let req = Request::builder()
             .uri("/api/v1/health/deep")
@@ -1190,7 +1192,9 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let health: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(health["components"].is_array());
         assert!(health["components"].as_array().unwrap().len() >= 4);
@@ -1201,15 +1205,26 @@ mod tests {
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::set_var("PROMETHEUS_PROVIDER_OPENAI_KEY", "sk-secret-key-12345");
 
-        let (registry, order) = build_registry_from_env();
+        let (registry, order) = build_registry_from_env(false);
         // 验证 provider 注册成功
-        assert!(registry.get("openai").is_some(), "OpenAI provider 应注册成功");
+        assert!(
+            registry.get("openai").is_some(),
+            "OpenAI provider 应注册成功"
+        );
         // 验证 provider 名称和顺序中不包含 API key
         for name in &order {
-            assert!(!name.contains("sk-secret"), "provider order 不应泄漏 API key: {}", name);
+            assert!(
+                !name.contains("sk-secret"),
+                "provider order 不应泄漏 API key: {}",
+                name
+            );
         }
         for name in registry.list_names() {
-            assert!(!name.contains("sk-secret"), "provider name 不应泄漏 API key: {}", name);
+            assert!(
+                !name.contains("sk-secret"),
+                "provider name 不应泄漏 API key: {}",
+                name
+            );
         }
 
         std::env::remove_var("PROMETHEUS_PROVIDER_OPENAI_KEY");
@@ -1228,7 +1243,9 @@ mod tests {
             .body(Body::from(r#"{"title":"sec-test"}"#))
             .unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let session: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let sid = session["id"].as_str().unwrap();
         // 发送 prompt 注入
@@ -1252,7 +1269,9 @@ mod tests {
             .body(Body::from(r#"{"title":"sql-test"}"#))
             .unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let session: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let sid = session["id"].as_str().unwrap();
         let req = Request::builder()
@@ -1275,7 +1294,9 @@ mod tests {
             .body(Body::from(r#"{"title":"normal-test"}"#))
             .unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let session: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let sid = session["id"].as_str().unwrap();
         let req = Request::builder()
@@ -1288,7 +1309,8 @@ mod tests {
         let status = resp.status();
         assert!(
             status == StatusCode::OK || status == StatusCode::REQUEST_TIMEOUT,
-            "正常消息应返回 200 或 408, 实际: {}", status
+            "正常消息应返回 200 或 408, 实际: {}",
+            status
         );
     }
 
@@ -1404,7 +1426,9 @@ mod tests {
             .body(Body::from(r#"{"title":"rate-test"}"#))
             .unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let session: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let sid = session["id"].as_str().unwrap();
 
@@ -1447,7 +1471,9 @@ mod tests {
             .body(Body::from(r#"{"title":"rate-ok"}"#))
             .unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let session: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let sid = session["id"].as_str().unwrap();
 
@@ -1543,7 +1569,9 @@ mod tests {
             .body(Body::from(r#"{"title":"audit-test"}"#))
             .unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let session: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let sid = session["id"].as_str().unwrap();
 
@@ -1566,7 +1594,9 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let events: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let events_arr = events["events"].as_array().unwrap();
         assert!(!events_arr.is_empty(), "审计日志应记录安全事件");
@@ -1594,7 +1624,9 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let events: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let events_arr = events["events"].as_array().unwrap();
         assert!(
@@ -1623,11 +1655,7 @@ mod tests {
             .unwrap()
             .to_str()
             .unwrap();
-        assert!(
-            uuid::Uuid::parse_str(id).is_ok(),
-            "应为有效 UUID: {}",
-            id
-        );
+        assert!(uuid::Uuid::parse_str(id).is_ok(), "应为有效 UUID: {}", id);
     }
 
     #[tokio::test]

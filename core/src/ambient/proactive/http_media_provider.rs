@@ -83,7 +83,8 @@ impl MediaProvider for HttpMediaProvider {
             duration_secs: track.duration_secs,
             device_id: device_id.to_string(),
         };
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/playback/play", self.base_url))
             .json(&req)
             .send()
@@ -95,7 +96,8 @@ impl MediaProvider for HttpMediaProvider {
     }
 
     async fn pause(&self, device_id: &str) -> anyhow::Result<()> {
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/playback/pause", self.base_url))
             .query(&[("device_id", device_id)])
             .send()
@@ -107,7 +109,8 @@ impl MediaProvider for HttpMediaProvider {
     }
 
     async fn resume(&self, device_id: &str) -> anyhow::Result<()> {
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/playback/resume", self.base_url))
             .query(&[("device_id", device_id)])
             .send()
@@ -119,7 +122,8 @@ impl MediaProvider for HttpMediaProvider {
     }
 
     async fn stop(&self, device_id: &str) -> anyhow::Result<()> {
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/playback/stop", self.base_url))
             .query(&[("device_id", device_id)])
             .send()
@@ -132,7 +136,8 @@ impl MediaProvider for HttpMediaProvider {
 
     async fn seek(&self, device_id: &str, position_secs: u64) -> anyhow::Result<()> {
         let req = SeekRequest { position_secs };
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/playback/seek", self.base_url))
             .query(&[("device_id", device_id)])
             .json(&req)
@@ -145,7 +150,8 @@ impl MediaProvider for HttpMediaProvider {
     }
 
     async fn get_position(&self, device_id: &str) -> anyhow::Result<u64> {
-        let resp = self.client
+        let resp = self
+            .client
             .get(format!("{}/playback/position", self.base_url))
             .query(&[("device_id", device_id)])
             .send()
@@ -158,7 +164,8 @@ impl MediaProvider for HttpMediaProvider {
     }
 
     async fn get_queue(&self, device_id: &str) -> anyhow::Result<Vec<QueueItem>> {
-        let resp = self.client
+        let resp = self
+            .client
             .get(format!("{}/playback/queue", self.base_url))
             .query(&[("device_id", device_id)])
             .send()
@@ -167,16 +174,20 @@ impl MediaProvider for HttpMediaProvider {
             anyhow::bail!("get_queue failed: {}", resp.status());
         }
         let queue: QueueResponse = resp.json().await?;
-        Ok(queue.items.into_iter().map(|item| QueueItem {
-            track: TrackInfo {
-                title: item.title,
-                artist: item.artist,
-                album: item.album,
-                duration_secs: item.duration_secs,
-                cover_url: item.cover_url,
-            },
-            index: item.index,
-        }).collect())
+        Ok(queue
+            .items
+            .into_iter()
+            .map(|item| QueueItem {
+                track: TrackInfo {
+                    title: item.title,
+                    artist: item.artist,
+                    album: item.album,
+                    duration_secs: item.duration_secs,
+                    cover_url: item.cover_url,
+                },
+                index: item.index,
+            })
+            .collect())
     }
 }
 
@@ -262,7 +273,8 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path("/playback/position");
-            then.status(200).json_body(serde_json::json!({"position_secs": 42}));
+            then.status(200)
+                .json_body(serde_json::json!({"position_secs": 42}));
         });
         let provider = HttpMediaProvider::with_base_url("sonos", &server.base_url());
         let pos = provider.get_position("speaker-1").await.unwrap();

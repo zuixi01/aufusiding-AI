@@ -36,14 +36,21 @@ fn extract_state_string(payload: &Value, kind: &EventKind) -> String {
                     _ => action.to_string(),
                 }
             } else if let Some(powered) = payload.get("powered").and_then(|v| v.as_bool()) {
-                if powered { "on".to_string() } else { "off".to_string() }
+                if powered {
+                    "on".to_string()
+                } else {
+                    "off".to_string()
+                }
             } else {
                 "unknown".to_string()
             }
         }
         EventKind::PropertyChanged => {
             if let Some(prop) = payload.get("property").and_then(|v| v.as_str()) {
-                let val = payload.get("value").map(|v| v.to_string()).unwrap_or_default();
+                let val = payload
+                    .get("value")
+                    .map(|v| v.to_string())
+                    .unwrap_or_default();
                 format!("{}={}", prop, val)
             } else {
                 "changed".to_string()
@@ -194,10 +201,22 @@ mod tests {
 
     #[test]
     fn event_kind_to_string_all_variants() {
-        assert_eq!(event_kind_to_string(&EventKind::StateChanged), "state_changed");
-        assert_eq!(event_kind_to_string(&EventKind::PropertyChanged), "property_changed");
-        assert_eq!(event_kind_to_string(&EventKind::DeviceOnline), "device_online");
-        assert_eq!(event_kind_to_string(&EventKind::DeviceOffline), "device_offline");
+        assert_eq!(
+            event_kind_to_string(&EventKind::StateChanged),
+            "state_changed"
+        );
+        assert_eq!(
+            event_kind_to_string(&EventKind::PropertyChanged),
+            "property_changed"
+        );
+        assert_eq!(
+            event_kind_to_string(&EventKind::DeviceOnline),
+            "device_online"
+        );
+        assert_eq!(
+            event_kind_to_string(&EventKind::DeviceOffline),
+            "device_offline"
+        );
         assert_eq!(event_kind_to_string(&EventKind::Alert), "alert");
     }
 
@@ -213,7 +232,12 @@ mod tests {
         let contexts = bridge.drain_contexts();
         assert_eq!(contexts.len(), 3);
         assert_eq!(contexts[0].device_state.as_ref().unwrap().state, "on");
-        assert!(contexts[1].device_state.as_ref().unwrap().state.contains("brightness"));
+        assert!(contexts[1]
+            .device_state
+            .as_ref()
+            .unwrap()
+            .state
+            .contains("brightness"));
         assert_eq!(contexts[2].device_state.as_ref().unwrap().state, "off");
     }
 

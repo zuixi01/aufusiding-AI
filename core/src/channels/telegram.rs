@@ -110,7 +110,7 @@ mod tests {
     async fn send_message_calls_api() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(POST).path_contains("sendMessage");
+            when.method(POST).path_includes("sendMessage");
             then.status(200).json_body(serde_json::json!({"ok": true}));
         });
         let channel = TelegramChannel::with_base_url("test-token", &server.base_url());
@@ -126,7 +126,7 @@ mod tests {
     async fn send_with_attachments() {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(POST).path_contains("sendMessage");
+            when.method(POST).path_includes("sendMessage");
             then.status(200).json_body(serde_json::json!({"ok": true}));
         });
         let channel = TelegramChannel::with_base_url("test-token", &server.base_url());
@@ -142,7 +142,7 @@ mod tests {
     async fn receive_parses_updates() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET).path_contains("getUpdates");
+            when.method(GET).path_includes("getUpdates");
             then.status(200).json_body(serde_json::json!({
                 "ok": true,
                 "result": [{
@@ -165,7 +165,7 @@ mod tests {
     async fn receive_empty_returns_empty() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET).path_contains("getUpdates");
+            when.method(GET).path_includes("getUpdates");
             then.status(200)
                 .json_body(serde_json::json!({"ok": true, "result": []}));
         });
@@ -178,7 +178,7 @@ mod tests {
     async fn is_available_valid_token() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET).path_contains("getMe");
+            when.method(GET).path_includes("getMe");
             then.status(200).json_body(serde_json::json!({"ok": true}));
         });
         let channel = TelegramChannel::with_base_url("test-token", &server.base_url());
@@ -189,7 +189,7 @@ mod tests {
     async fn is_available_invalid_token() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET).path_contains("getMe");
+            when.method(GET).path_includes("getMe");
             then.status(401);
         });
         let channel = TelegramChannel::with_base_url("bad-token", &server.base_url());

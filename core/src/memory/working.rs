@@ -168,7 +168,7 @@ impl WorkingMemory {
         let mut important = Vec::new();
         let mut remaining = Vec::new();
 
-        for (item, weight) in self.items.drain(..).zip(weights.into_iter()) {
+        for (item, weight) in self.items.drain(..).zip(weights) {
             if weight >= min_importance {
                 important.push(item);
             } else {

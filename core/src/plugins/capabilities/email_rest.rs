@@ -93,11 +93,15 @@ impl RestEmailProvider {
             subject: api.subject,
             body: api.body,
             date: api.date,
-            attachments: api.attachments.into_iter().map(|a| EmailAttachment {
-                filename: a.filename,
-                mime_type: a.mime_type,
-                size_bytes: a.size_bytes,
-            }).collect(),
+            attachments: api
+                .attachments
+                .into_iter()
+                .map(|a| EmailAttachment {
+                    filename: a.filename,
+                    mime_type: a.mime_type,
+                    size_bytes: a.size_bytes,
+                })
+                .collect(),
             is_read: api.is_read,
             thread_id: api.thread_id,
         }
@@ -107,7 +111,8 @@ impl RestEmailProvider {
 #[async_trait]
 impl EmailProvider for RestEmailProvider {
     async fn fetch_inbox(&self, limit: usize) -> anyhow::Result<Vec<EmailMessage>> {
-        let resp = self.client
+        let resp = self
+            .client
             .get(format!("{}/messages?limit={}", self.base_url, limit))
             .bearer_auth(&self.access_token)
             .send()
@@ -116,7 +121,11 @@ impl EmailProvider for RestEmailProvider {
             anyhow::bail!("fetch_inbox failed: {}", resp.status());
         }
         let list: ApiMessageList = resp.json().await?;
-        Ok(list.messages.into_iter().map(Self::convert_message).collect())
+        Ok(list
+            .messages
+            .into_iter()
+            .map(Self::convert_message)
+            .collect())
     }
 
     async fn search(&self, query: &EmailSearchQuery) -> anyhow::Result<Vec<EmailMessage>> {
@@ -130,7 +139,8 @@ impl EmailProvider for RestEmailProvider {
         if query.unread_only {
             url.push_str("is_read=false&");
         }
-        let resp = self.client
+        let resp = self
+            .client
             .get(&url)
             .bearer_auth(&self.access_token)
             .send()
@@ -139,11 +149,16 @@ impl EmailProvider for RestEmailProvider {
             anyhow::bail!("search failed: {}", resp.status());
         }
         let list: ApiMessageList = resp.json().await?;
-        Ok(list.messages.into_iter().map(Self::convert_message).collect())
+        Ok(list
+            .messages
+            .into_iter()
+            .map(Self::convert_message)
+            .collect())
     }
 
     async fn get_message(&self, id: &Uuid) -> anyhow::Result<EmailMessage> {
-        let resp = self.client
+        let resp = self
+            .client
             .get(format!("{}/messages/{}", self.base_url, id))
             .bearer_auth(&self.access_token)
             .send()
@@ -161,7 +176,8 @@ impl EmailProvider for RestEmailProvider {
             subject: subject.to_string(),
             body: body.to_string(),
         };
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/messages", self.base_url))
             .bearer_auth(&self.access_token)
             .json(&req)
@@ -176,8 +192,11 @@ impl EmailProvider for RestEmailProvider {
     }
 
     async fn reply(&self, message_id: &Uuid, body: &str) -> anyhow::Result<Uuid> {
-        let req = ReplyRequest { body: body.to_string() };
-        let resp = self.client
+        let req = ReplyRequest {
+            body: body.to_string(),
+        };
+        let resp = self
+            .client
             .post(format!("{}/messages/{}/reply", self.base_url, message_id))
             .bearer_auth(&self.access_token)
             .json(&req)
@@ -192,7 +211,8 @@ impl EmailProvider for RestEmailProvider {
     }
 
     async fn mark_read(&self, id: &Uuid) -> anyhow::Result<()> {
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/messages/{}/read", self.base_url, id))
             .bearer_auth(&self.access_token)
             .send()
@@ -230,7 +250,9 @@ mod tests {
     async fn fetch_inbox_returns_messages() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET).path("/messages").query_param("limit", "10");
+            when.method(GET)
+                .path("/messages")
+                .query_param("limit", "10");
             then.status(200).json_body(serde_json::json!({
                 "messages": [mock_api_message(TEST_MSG_ID, "Weekly Report")]
             }));
@@ -247,8 +269,9 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(GET)
                 .path("/messages")
-                .header("Authorization", &format!("Bearer {}", TEST_TOKEN));
-            then.status(200).json_body(serde_json::json!({"messages": []}));
+                .header("Authorization", format!("Bearer {}", TEST_TOKEN));
+            then.status(200)
+                .json_body(serde_json::json!({"messages": []}));
         });
         let provider = RestEmailProvider::with_base_url(TEST_TOKEN, &server.base_url());
         provider.fetch_inbox(5).await.unwrap();
@@ -259,7 +282,9 @@ mod tests {
     async fn search_with_keyword() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET).path("/messages/search").query_param("q", "urgent");
+            when.method(GET)
+                .path("/messages/search")
+                .query_param("q", "urgent");
             then.status(200).json_body(serde_json::json!({
                 "messages": [mock_api_message(TEST_MSG_ID, "Urgent: Review")]
             }));
@@ -280,7 +305,8 @@ mod tests {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path(format!("/messages/{}", TEST_MSG_ID));
-            then.status(200).json_body(mock_api_message(TEST_MSG_ID, "Hello"));
+            then.status(200)
+                .json_body(mock_api_message(TEST_MSG_ID, "Hello"));
         });
         let provider = RestEmailProvider::with_base_url(TEST_TOKEN, &server.base_url());
         let msg = provider.get_message(&id).await.unwrap();
@@ -294,10 +320,14 @@ mod tests {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
             when.method(POST).path("/messages");
-            then.status(201).json_body(serde_json::json!({"id": reply_id}));
+            then.status(201)
+                .json_body(serde_json::json!({"id": reply_id}));
         });
         let provider = RestEmailProvider::with_base_url(TEST_TOKEN, &server.base_url());
-        let id = provider.send(&["bob@example.com".into()], "Test", "Body").await.unwrap();
+        let id = provider
+            .send(&["bob@example.com".into()], "Test", "Body")
+            .await
+            .unwrap();
         mock.assert();
         assert_eq!(id, Uuid::parse_str(reply_id).unwrap());
     }
@@ -308,8 +338,10 @@ mod tests {
         let reply_id = "770e8400-e29b-41d4-a716-446655440002";
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(POST).path(format!("/messages/{}/reply", TEST_MSG_ID));
-            then.status(201).json_body(serde_json::json!({"id": reply_id}));
+            when.method(POST)
+                .path(format!("/messages/{}/reply", TEST_MSG_ID));
+            then.status(201)
+                .json_body(serde_json::json!({"id": reply_id}));
         });
         let provider = RestEmailProvider::with_base_url(TEST_TOKEN, &server.base_url());
         let id = provider.reply(&original_id, "Thanks!").await.unwrap();
@@ -322,7 +354,8 @@ mod tests {
         let id = Uuid::parse_str(TEST_MSG_ID).unwrap();
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(POST).path(format!("/messages/{}/read", TEST_MSG_ID));
+            when.method(POST)
+                .path(format!("/messages/{}/read", TEST_MSG_ID));
             then.status(200);
         });
         let provider = RestEmailProvider::with_base_url(TEST_TOKEN, &server.base_url());
@@ -346,7 +379,7 @@ mod tests {
         let id = Uuid::new_v4();
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET).path_contains("/messages/");
+            when.method(GET).path_includes("/messages/");
             then.status(404);
         });
         let provider = RestEmailProvider::with_base_url(TEST_TOKEN, &server.base_url());
@@ -360,10 +393,14 @@ mod tests {
             when.method(GET)
                 .path("/messages/search")
                 .query_param("is_read", "false");
-            then.status(200).json_body(serde_json::json!({"messages": []}));
+            then.status(200)
+                .json_body(serde_json::json!({"messages": []}));
         });
         let provider = RestEmailProvider::with_base_url(TEST_TOKEN, &server.base_url());
-        let query = EmailSearchQuery { unread_only: true, ..Default::default() };
+        let query = EmailSearchQuery {
+            unread_only: true,
+            ..Default::default()
+        };
         let results = provider.search(&query).await.unwrap();
         mock.assert();
         assert!(results.is_empty());

@@ -158,13 +158,14 @@ impl ContextLeakDetector {
         // 直接匹配常见敏感变量
         if matches!(
             upper.as_str(),
-            "HOME" | "USER" | "USERNAME" | "USERPROFILE"
-            | "PATH" | "HOSTNAME" | "SSH_AUTH_SOCK"
+            "HOME" | "USER" | "USERNAME" | "USERPROFILE" | "PATH" | "HOSTNAME" | "SSH_AUTH_SOCK"
         ) {
             return true;
         }
         // 前缀匹配
-        self.sensitive_env_prefixes.iter().any(|p| upper.starts_with(p))
+        self.sensitive_env_prefixes
+            .iter()
+            .any(|p| upper.starts_with(p))
     }
 }
 
@@ -188,17 +189,17 @@ mod tests {
     #[test]
     fn detect_windows_file_path() {
         let entities = detector().detect(r"文件位于 C:\Users\admin\Documents\secret.txt");
-        assert!(entities.iter().any(|e| {
-            e.entity_type == PiiType::Custom("FILE_PATH".to_string())
-        }));
+        assert!(entities
+            .iter()
+            .any(|e| { e.entity_type == PiiType::Custom("FILE_PATH".to_string()) }));
     }
 
     #[test]
     fn detect_sensitive_env_var() {
         let entities = detector().detect("密钥存储在 $AWS_SECRET_ACCESS_KEY 中");
-        assert!(entities.iter().any(|e| {
-            e.entity_type == PiiType::Custom("ENV_VAR".to_string())
-        }));
+        assert!(entities
+            .iter()
+            .any(|e| { e.entity_type == PiiType::Custom("ENV_VAR".to_string()) }));
     }
 
     #[test]
@@ -213,17 +214,17 @@ mod tests {
     #[test]
     fn detect_10_network() {
         let entities = detector().detect("内网 10.0.0.1 可达");
-        assert!(entities.iter().any(|e| {
-            e.entity_type == PiiType::Custom("INTERNAL_NET".to_string())
-        }));
+        assert!(entities
+            .iter()
+            .any(|e| { e.entity_type == PiiType::Custom("INTERNAL_NET".to_string()) }));
     }
 
     #[test]
     fn detect_stack_trace() {
         let entities = detector().detect("error at /home/dev/app/src/main.rs:42");
-        assert!(entities.iter().any(|e| {
-            e.entity_type == PiiType::Custom("STACK_TRACE".to_string())
-        }));
+        assert!(entities
+            .iter()
+            .any(|e| { e.entity_type == PiiType::Custom("STACK_TRACE".to_string()) }));
     }
 
     #[test]
@@ -236,8 +237,8 @@ mod tests {
     fn custom_env_prefix() {
         let det = ContextLeakDetector::new(vec!["MYAPP_".to_string()]);
         let entities = det.detect("配置 $MYAPP_DB_PASSWORD 已设置");
-        assert!(entities.iter().any(|e| {
-            e.entity_type == PiiType::Custom("ENV_VAR".to_string())
-        }));
+        assert!(entities
+            .iter()
+            .any(|e| { e.entity_type == PiiType::Custom("ENV_VAR".to_string()) }));
     }
 }

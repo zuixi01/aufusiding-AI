@@ -108,18 +108,26 @@ impl AutoProvisioner {
                 if event.event_kind != EventKind::DeviceDiscovered {
                     continue;
                 }
-                let name = event.payload.get("name")
+                let name = event
+                    .payload
+                    .get("name")
                     .and_then(|v| v.as_str())
                     .unwrap_or("Unknown")
                     .to_string();
-                let ip = event.payload.get("ip")
+                let ip = event
+                    .payload
+                    .get("ip")
                     .and_then(|v| v.as_str())
                     .unwrap_or("0.0.0.0")
                     .to_string();
-                let port = event.payload.get("port")
+                let port = event
+                    .payload
+                    .get("port")
                     .and_then(|v| v.as_u64())
                     .unwrap_or(0) as u16;
-                let protocol = event.payload.get("protocol")
+                let protocol = event
+                    .payload
+                    .get("protocol")
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown")
                     .to_string();
@@ -250,14 +258,34 @@ mod tests {
     #[test]
     fn protocol_adapter_map_covers_adapters() {
         let expected = vec![
-            "ipp", "onvif", "homekit", "matter", "mqtt", "http", "smb",
-            "dlna", "ble", "zigbee", "zwave", "tuya", "mihome", "midea",
-            "haier", "google_home", "homeassistant", "obd2", "tesla_api",
+            "ipp",
+            "onvif",
+            "homekit",
+            "matter",
+            "mqtt",
+            "http",
+            "smb",
+            "dlna",
+            "ble",
+            "zigbee",
+            "zwave",
+            "tuya",
+            "mihome",
+            "midea",
+            "haier",
+            "google_home",
+            "homeassistant",
+            "obd2",
+            "tesla_api",
             "smartcar_api",
         ];
         for proto in expected {
             let adapter = AutoProvisioner::infer_adapter(proto);
-            assert_ne!(adapter, "Generic", "protocol '{}' should have a specific adapter", proto);
+            assert_ne!(
+                adapter, "Generic",
+                "protocol '{}' should have a specific adapter",
+                proto
+            );
         }
     }
 

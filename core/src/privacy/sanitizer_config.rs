@@ -116,8 +116,8 @@ mod tests {
 
     #[test]
     fn with_types_restricts() {
-        let config = SanitizerConfig::default()
-            .with_types(vec![PiiType::Email, PiiType::ChinesePhone]);
+        let config =
+            SanitizerConfig::default().with_types(vec![PiiType::Email, PiiType::ChinesePhone]);
         assert!(config.is_type_enabled(&PiiType::Email));
         assert!(!config.is_type_enabled(&PiiType::IpAddress));
     }

@@ -1,11 +1,11 @@
 # ── Stage 1: Build ──
-FROM rust:1.82-bookworm AS builder
+FROM rust:1.99.1-bookworm AS builder
 
 WORKDIR /app
 COPY . .
 
 # 构建 release 二进制
-RUN cargo build --release -p prometheus-server \
+RUN cargo build --locked --release -p prometheus-server \
     && strip target/release/prometheus-server
 
 # ── Stage 2: Runtime ──

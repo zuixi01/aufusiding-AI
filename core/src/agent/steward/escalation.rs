@@ -68,7 +68,10 @@ mod tests {
     fn low_confidence_triggers_roundtable() {
         let policy = EscalationPolicy::default_policy();
         let reason = EscalationReason::LowConfidence { score: 0.5 };
-        assert_eq!(policy.should_escalate(&reason), EscalationAction::Roundtable);
+        assert_eq!(
+            policy.should_escalate(&reason),
+            EscalationAction::Roundtable
+        );
     }
 
     #[test]
@@ -89,7 +92,10 @@ mod tests {
     fn repeated_failure_at_threshold_escalates() {
         let policy = EscalationPolicy::default_policy();
         let reason = EscalationReason::RepeatedFailure { attempts: 3 };
-        assert_eq!(policy.should_escalate(&reason), EscalationAction::Roundtable);
+        assert_eq!(
+            policy.should_escalate(&reason),
+            EscalationAction::Roundtable
+        );
     }
 
     #[test]

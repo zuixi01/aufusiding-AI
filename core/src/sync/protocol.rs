@@ -163,7 +163,7 @@ impl SyncProtocol {
             }
         }
         // Sort by timestamp (LWW)
-        all.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        all.sort_by_key(|operation| operation.timestamp);
         all
     }
 

@@ -91,7 +91,8 @@ impl ComplexityAssessor {
             IntentType::CodeGen => {
                 roles.push(Role::Engineer);
                 roles.push(Role::QA);
-                if input.contains("安全") || input.contains("认证") || input.contains("加密") {
+                if input.contains("安全") || input.contains("认证") || input.contains("加密")
+                {
                     roles.push(Role::Security);
                 }
                 if classification.complexity >= 8 {
@@ -146,7 +147,9 @@ mod tests {
         let c = make_classification(IntentType::CodeGen, 8);
         let route = assessor.assess(&c, "实现一个分布式缓存系统");
         match route {
-            TaskRoute::Complex { suggested_roles, .. } => {
+            TaskRoute::Complex {
+                suggested_roles, ..
+            } => {
                 assert!(suggested_roles.contains(&Role::Engineer));
                 assert!(suggested_roles.contains(&Role::Architect));
             }
@@ -168,7 +171,9 @@ mod tests {
         let c = make_classification(IntentType::CodeGen, 8);
         let route = assessor.assess(&c, "实现安全认证系统");
         match route {
-            TaskRoute::Complex { suggested_roles, .. } => {
+            TaskRoute::Complex {
+                suggested_roles, ..
+            } => {
                 assert!(suggested_roles.contains(&Role::Security));
             }
             _ => panic!("expected Complex"),
@@ -189,7 +194,9 @@ mod tests {
         let c = make_classification(IntentType::Reasoning, 8);
         let route = assessor.assess(&c, "分析系统瓶颈");
         match route {
-            TaskRoute::Complex { suggested_roles, .. } => {
+            TaskRoute::Complex {
+                suggested_roles, ..
+            } => {
                 assert!(suggested_roles.contains(&Role::Architect));
                 assert!(suggested_roles.contains(&Role::Researcher));
             }

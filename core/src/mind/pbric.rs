@@ -55,7 +55,11 @@ pub struct PbricLoop {
 }
 
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max { s.to_string() } else { format!("{}...", &s[..max]) }
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max])
+    }
 }
 
 impl PbricLoop {
@@ -115,12 +119,20 @@ impl PbricLoop {
 
         let summary = format!("感知输入：{} 字符", cleaned.len());
         self.thought_logger.log_thought(
-            &self.session_id, ThinkingPhase::Perceive,
+            &self.session_id,
+            ThinkingPhase::Perceive,
             &summary,
             &format!("接收原始输入并规范化：「{}」", truncate(&cleaned, 100)),
-            input, None, 0.95, 1,
+            input,
+            None,
+            0.95,
+            1,
         );
-        PhaseOutput { phase: PbricPhase::Perceive, summary, confidence: 0.95 }
+        PhaseOutput {
+            phase: PbricPhase::Perceive,
+            summary,
+            confidence: 0.95,
+        }
     }
 
     /// 信念阶段：基于输入更新信念状态
@@ -137,18 +149,26 @@ impl PbricLoop {
         });
 
         let confidence = self.belief.get_confidence();
-        let summary = format!(
-            "信念更新：意图={}, 置信度={:.2}",
-            intent_name, confidence
-        );
+        let summary = format!("信念更新：意图={}, 置信度={:.2}", intent_name, confidence);
 
         self.thought_logger.log_thought(
-            &self.session_id, ThinkingPhase::Believe,
+            &self.session_id,
+            ThinkingPhase::Believe,
             &summary,
-            &format!("识别意图「{}」(置信度 {:.2})，更新信念状态", intent_name, intent.confidence),
-            &input, None, confidence, 2,
+            &format!(
+                "识别意图「{}」(置信度 {:.2})，更新信念状态",
+                intent_name, intent.confidence
+            ),
+            &input,
+            None,
+            confidence,
+            2,
         );
-        PhaseOutput { phase: PbricPhase::Believe, summary, confidence }
+        PhaseOutput {
+            phase: PbricPhase::Believe,
+            summary,
+            confidence,
+        }
     }
 
     /// 推理阶段：分析输入并生成推理结果
@@ -164,7 +184,11 @@ impl PbricLoop {
                 let analysis = format!(
                     "分析「{}」→ 目标: {}",
                     truncate(&input, 50),
-                    if goals.is_empty() { "通用响应".into() } else { goals.join(", ") }
+                    if goals.is_empty() {
+                        "通用响应".into()
+                    } else {
+                        goals.join(", ")
+                    }
                 );
                 let alts = vec![
                     "直接回答".to_string(),
@@ -173,9 +197,11 @@ impl PbricLoop {
                 ];
                 (analysis, base_conf * 0.9, alts)
             }
-            None => {
-                ("无明确意图，采用通用推理".to_string(), 0.5, vec!["通用响应".to_string()])
-            }
+            None => (
+                "无明确意图，采用通用推理".to_string(),
+                0.5,
+                vec!["通用响应".to_string()],
+            ),
         };
 
         self.reasoning_result = Some(ReasoningResult {
@@ -184,13 +210,26 @@ impl PbricLoop {
             alternatives: alternatives.clone(),
         });
 
-        let summary = format!("推理完成：置信度={:.2}, 备选方案={}", confidence, alternatives.len());
-        self.thought_logger.log_thought(
-            &self.session_id, ThinkingPhase::Reason,
-            &summary, &analysis, &input,
-            Some(&alternatives[0]), confidence, 5,
+        let summary = format!(
+            "推理完成：置信度={:.2}, 备选方案={}",
+            confidence,
+            alternatives.len()
         );
-        PhaseOutput { phase: PbricPhase::Reason, summary, confidence }
+        self.thought_logger.log_thought(
+            &self.session_id,
+            ThinkingPhase::Reason,
+            &summary,
+            &analysis,
+            &input,
+            Some(&alternatives[0]),
+            confidence,
+            5,
+        );
+        PhaseOutput {
+            phase: PbricPhase::Reason,
+            summary,
+            confidence,
+        }
     }
 
     /// 意图阶段：基于推理结果形成行动计划
@@ -200,7 +239,9 @@ impl PbricLoop {
 
         let plan = match reasoning {
             Some(r) => {
-                let action = r.alternatives.first()
+                let action = r
+                    .alternatives
+                    .first()
                     .cloned()
                     .unwrap_or_else(|| "通用响应".to_string());
                 IntentPlan {
@@ -216,21 +257,35 @@ impl PbricLoop {
             },
         };
 
-        let summary = format!("意图形成：行动={}, 置信度={:.2}", plan.action, plan.confidence);
+        let summary = format!(
+            "意图形成：行动={}, 置信度={:.2}",
+            plan.action, plan.confidence
+        );
         self.thought_logger.log_thought(
-            &self.session_id, ThinkingPhase::Intend,
-            &summary, &plan.rationale, &input,
-            Some(&plan.action), plan.confidence, 3,
+            &self.session_id,
+            ThinkingPhase::Intend,
+            &summary,
+            &plan.rationale,
+            &input,
+            Some(&plan.action),
+            plan.confidence,
+            3,
         );
 
         let confidence = plan.confidence;
         self.intent_plan = Some(plan);
-        PhaseOutput { phase: PbricPhase::Intend, summary, confidence }
+        PhaseOutput {
+            phase: PbricPhase::Intend,
+            summary,
+            confidence,
+        }
     }
 
     /// 承诺阶段：执行行动并生成输出
     fn commit(&mut self) -> String {
-        let input = self.latest_input.as_deref()
+        let input = self
+            .latest_input
+            .as_deref()
             .filter(|s| !s.is_empty())
             .unwrap_or("empty");
 
@@ -241,10 +296,14 @@ impl PbricLoop {
         };
 
         self.thought_logger.log_thought(
-            &self.session_id, ThinkingPhase::Commit,
+            &self.session_id,
+            ThinkingPhase::Commit,
             &format!("执行承诺：{}", truncate(&result, 80)),
             "基于意图计划生成最终输出",
-            input, Some(&result), 0.9, 2,
+            input,
+            Some(&result),
+            0.9,
+            2,
         );
         result
     }

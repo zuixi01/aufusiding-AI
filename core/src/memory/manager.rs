@@ -104,7 +104,10 @@ impl MemoryManager {
             if !facts.is_empty() {
                 let mut guard = kb.write().await;
                 let content = facts.join("\n");
-                guard.add_document("conversation-extract", &content).await.map(|_| ())
+                guard
+                    .add_document("conversation-extract", &content)
+                    .await
+                    .map(|_| ())
             } else {
                 Ok(())
             }
@@ -362,13 +365,23 @@ mod tests {
         {
             let mut ep = mgr.episodic.write().await;
             ep.add_episode(vec![
-                Message { role: Role::User, content: "数据库优化".to_string() },
-                Message { role: Role::Assistant, content: "索引是关键".to_string() },
-            ]).await.unwrap();
+                Message {
+                    role: Role::User,
+                    content: "数据库优化".to_string(),
+                },
+                Message {
+                    role: Role::Assistant,
+                    content: "索引是关键".to_string(),
+                },
+            ])
+            .await
+            .unwrap();
         }
         {
             let mut kb = mgr.knowledge.write().await;
-            kb.add_document("db-tips", "数据库索引优化技巧").await.unwrap();
+            kb.add_document("db-tips", "数据库索引优化技巧")
+                .await
+                .unwrap();
         }
 
         let ctx = mgr.build_memory_context("数据库", 10).await;
@@ -387,10 +400,12 @@ mod tests {
         }
         // 同时提供事实性消息
         let messages: Vec<(String, String)> = (0..3)
-            .map(|i| (
-                format!("问题 {}", i),
-                format!("Rust 的特性 {} 确保了安全性和性能。", i),
-            ))
+            .map(|i| {
+                (
+                    format!("问题 {}", i),
+                    format!("Rust 的特性 {} 确保了安全性和性能。", i),
+                )
+            })
             .collect();
 
         mgr.on_session_end(&messages).await.unwrap();

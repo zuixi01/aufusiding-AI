@@ -1,22 +1,26 @@
 # 变更记录
 
-本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 和 [Keep a Changelog](https://keepachangelog.com/zh-CN/) 格式。
+采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/) 的组织方式。当前源码版本为 `0.1.0`，处于 Alpha；此文件不表示已经发布对应 Git tag、安装包或稳定版本。
 
-## [0.1.0] - 2026-03-21
+## [Unreleased]
 
-### 新增
+### 修复
 
-- **核心引擎**：智能路由（意图分类 < 1ms）、三级记忆系统、守护心智 PBRIC 循环、经济皮层
-- **Agent 集群**：7 阶段多智能体编排、大管家 DAG 任务拆解、三道质量门禁、圆桌共识
-- **环境计算**：24h 语音常驻守护、声纹识别、连续对话、打断检测、模式管理
-- **普罗万物**：mDNS/SSDP/BLE 设备发现、自动化引擎、场景编排、门禁对讲、车辆集成
-- **主动服务**：每日简报、媒体播放、通知策略、健康监控、库存追踪、日历同步
-- **数据隐私**：三层全谱 PII 检测（25+ 实体类型）、多策略脱敏引擎、GDPR 合规
-- **安全防护**：儿童模式、SOS 紧急检测、四级数据分级、防篡改审计日志
-- **插件系统**：WASM 沙箱运行时、能力插件（浏览器/导航/邮件/应用/文件）
-- **工具链**：数据分析、文档生成、表格处理、网页搜索
-- **应用层**：CLI 交互工具、HTTP API 服务、UniFFI 跨平台绑定
-- **部署**：Docker 多阶段构建、docker-compose、GitHub Actions CI/CD
-- **测试**：2731 个测试全部通过，覆盖单元/集成/E2E
+- 修复 CLI 在异步运行时中执行阻塞模型探测和嵌套会话操作的问题。
+- 配置文件损坏时仍可通过 `config reset` 恢复；其他命令保留解析错误且不覆盖原文件。
+- 真实模型不可用时报告错误，使用显式 mock 开关进入离线演示。
+- 修正仓库链接、依赖锁定、CI 平台依赖和容器构建上下文。
 
-[0.1.0]: https://github.com/5201314wzq1023-alt/prometheus-ai/releases/tag/v0.1.0
+### 变更
+
+- 重写上手与贡献文档，区分可验证的基础路径、实验模块和平台占位入口。
+- HTTP 服务默认使用本地回环地址；Compose 默认只向宿主回环地址映射端口，TLS 代理通过可选 profile 启动。
+- 移除未经核实的测试数量、性能和法规合规承诺，明确维护与发布边界。
+- 补充第三方字体许可、发布清单和可复现的依赖检查。
+- Rust Alpha API：`DaemonBuilder::build_with_provider` 的三个可选 LLM 参数合并为 `DaemonProviderOptions`；不带 Provider 的 `build` 调用方式保持兼容。
+- 整合现有依赖升级分支，适配 CPAL 0.18、WebSocket 0.29 和 JWT 10；新增音频配置、二进制往返及令牌边界验证。
+- UniFFI runtime/build/bindgen 统一到 0.31，实际编入 UDL 导出；Swift/Kotlin 绑定需由同版生成器重新生成，并与对应原生库配套使用，不能混用旧版绑定。
+
+历史设计与进度报告保留在 `docs/`，其中的阶段计划、测试数字和完成声明不是当前版本的验收证据。实际验证结果以对应提交的 CI 和发布说明为准。
+
+[Unreleased]: https://github.com/zuixi01/aufusiding-AI/commits/main/

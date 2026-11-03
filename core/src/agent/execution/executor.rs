@@ -33,11 +33,17 @@ pub struct ToolAction {
 #[derive(Debug, Clone)]
 pub enum ExecutionOutcome {
     /// 成功产出交付物
-    Completed { output: String, steps: Vec<ExecutionStep> },
+    Completed {
+        output: String,
+        steps: Vec<ExecutionStep>,
+    },
     /// 达到最大步数限制
     MaxStepsReached { steps: Vec<ExecutionStep> },
     /// 执行出错
-    Failed { error: String, steps: Vec<ExecutionStep> },
+    Failed {
+        error: String,
+        steps: Vec<ExecutionStep>,
+    },
 }
 
 /// 执行配置
@@ -90,9 +96,7 @@ impl AgentExecutor {
 
             // 如果上一步检测到应终止，注入强制回答 prompt
             if force_final_answer {
-                context.push_task(
-                    &super::termination::TerminationDetector::force_answer_prompt(),
-                );
+                context.push_task(&super::termination::TerminationDetector::force_answer_prompt());
             }
 
             // 1. 调用 LLM
@@ -144,7 +148,11 @@ impl AgentExecutor {
                         steps,
                     };
                 }
-                ParsedResponse::ToolCall { thought, tool_name, parameters } => {
+                ParsedResponse::ToolCall {
+                    thought,
+                    tool_name,
+                    parameters,
+                } => {
                     // 提前终止检测
                     if termination_detector.should_terminate(&thought) {
                         force_final_answer = true;
@@ -182,7 +190,11 @@ impl AgentExecutor {
     }
 
     /// 构建发送给 LLM 的消息列表
-    fn build_chat_messages(&self, context: &AgentContext, tools: &ToolRegistry) -> Vec<ChatMessage> {
+    fn build_chat_messages(
+        &self,
+        context: &AgentContext,
+        tools: &ToolRegistry,
+    ) -> Vec<ChatMessage> {
         let mut messages: Vec<ChatMessage> = context
             .messages()
             .iter()
@@ -209,10 +221,13 @@ impl AgentExecutor {
                  ANSWER: <最终答案>",
                 tool_desc.join("\n")
             );
-            messages.insert(1, ChatMessage {
-                role: "system".into(),
-                content: tool_msg,
-            });
+            messages.insert(
+                1,
+                ChatMessage {
+                    role: "system".into(),
+                    content: tool_msg,
+                },
+            );
         }
 
         messages
@@ -228,12 +243,7 @@ impl AgentExecutor {
                 .to_string();
 
             let after_action = &response[action_pos + 7..];
-            let tool_name = after_action
-                .lines()
-                .next()
-                .unwrap_or("")
-                .trim()
-                .to_string();
+            let tool_name = after_action.lines().next().unwrap_or("").trim().to_string();
 
             let parameters = if let Some(params_pos) = response.find("PARAMS:") {
                 let params_str = response[params_pos + 7..].trim();
@@ -269,9 +279,9 @@ enum ParsedResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use crate::agent::execution::model_pool::MockModelBackend;
     use crate::agent::tools::registry::MockTool;
+    use std::sync::Arc;
 
     fn make_tools() -> ToolRegistry {
         let mut reg = ToolRegistry::new();
@@ -314,8 +324,12 @@ mod tests {
 
         #[async_trait::async_trait]
         impl ModelBackend for SequentialMock {
-            fn provider_name(&self) -> &str { "mock" }
-            fn model_name(&self) -> &str { "seq" }
+            fn provider_name(&self) -> &str {
+                "mock"
+            }
+            fn model_name(&self) -> &str {
+                "seq"
+            }
             async fn chat(&self, _: &[ChatMessage]) -> anyhow::Result<String> {
                 let mut r = self.responses.lock().unwrap();
                 Ok(r.pop().unwrap_or_else(|| "ANSWER: done".into()))
@@ -378,7 +392,11 @@ mod tests {
         let input = "THOUGHT: 需要搜索\nACTION: search\nPARAMS: {\"q\": \"test\"}";
         let parsed = AgentExecutor::parse_response(input);
         match parsed {
-            ParsedResponse::ToolCall { thought, tool_name, parameters } => {
+            ParsedResponse::ToolCall {
+                thought,
+                tool_name,
+                parameters,
+            } => {
                 assert!(thought.contains("搜索"));
                 assert_eq!(tool_name, "search");
                 assert_eq!(parameters["q"], "test");

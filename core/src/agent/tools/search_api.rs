@@ -56,8 +56,13 @@ impl ApiSearchBackend {
 
 #[async_trait]
 impl SearchBackend for ApiSearchBackend {
-    async fn search(&self, query: &str, max_results: usize) -> anyhow::Result<Vec<SearchResultEntry>> {
-        let resp = self.client
+    async fn search(
+        &self,
+        query: &str,
+        max_results: usize,
+    ) -> anyhow::Result<Vec<SearchResultEntry>> {
+        let resp = self
+            .client
             .get(&self.base_url)
             .query(&[
                 ("key", self.api_key.as_str()),
@@ -71,11 +76,15 @@ impl SearchBackend for ApiSearchBackend {
             anyhow::bail!("search API failed: {}", resp.status());
         }
         let api_resp: ApiSearchResponse = resp.json().await?;
-        let results = api_resp.items.into_iter().map(|item| SearchResultEntry {
-            title: item.title,
-            url: item.link,
-            snippet: item.snippet,
-        }).collect();
+        let results = api_resp
+            .items
+            .into_iter()
+            .map(|item| SearchResultEntry {
+                title: item.title,
+                url: item.link,
+                snippet: item.snippet,
+            })
+            .collect();
         Ok(results)
     }
 }
@@ -89,13 +98,15 @@ mod tests {
     const TEST_ENGINE: &str = "cx-test-engine";
 
     fn mock_search_response(count: usize) -> serde_json::Value {
-        let items: Vec<serde_json::Value> = (0..count).map(|i| {
-            serde_json::json!({
-                "title": format!("Result {}", i + 1),
-                "link": format!("https://example.com/{}", i),
-                "snippet": format!("Snippet for result {}", i + 1)
+        let items: Vec<serde_json::Value> = (0..count)
+            .map(|i| {
+                serde_json::json!({
+                    "title": format!("Result {}", i + 1),
+                    "link": format!("https://example.com/{}", i),
+                    "snippet": format!("Snippet for result {}", i + 1)
+                })
             })
-        }).collect();
+            .collect();
         serde_json::json!({"items": items})
     }
 

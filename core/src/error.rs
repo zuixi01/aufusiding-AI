@@ -67,9 +67,7 @@ mod tests {
         assert!(PrometheusError::Network("x".into())
             .code()
             .starts_with("E5"));
-        assert!(PrometheusError::IoT("x".into())
-            .code()
-            .starts_with("E6"));
+        assert!(PrometheusError::IoT("x".into()).code().starts_with("E6"));
     }
 
     #[test]
