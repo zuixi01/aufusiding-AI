@@ -4,7 +4,7 @@ fn main() {
     uniffi::generate_scaffolding("src/prometheus.udl")
         .expect("failed to generate uniffi scaffolding");
 
-    // UniFFI 0.31 requires this 32 KiB scratch buffer to remain const: into_array
+    // UniFFI 0.32.2 still requires this 32 KiB scratch buffer to remain const: into_array
     // consumes it while producing the much smaller exported metadata static.
     // Limit the lint expectation to that generated declaration, and fail if an
     // upstream template change makes this compatibility adapter obsolete.

@@ -3,8 +3,8 @@
 //! 使用 AES-256-GCM 加密 TokenStore，按 device_id 存储到磁盘。
 //! 进程重启后自动恢复 Token。
 
-use aes_gcm::aead::{Aead, OsRng};
-use aes_gcm::{AeadCore, Aes256Gcm, KeyInit};
+use aes_gcm::aead::{Aead, Generate, Nonce};
+use aes_gcm::{Aes256Gcm, KeyInit};
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -51,7 +51,7 @@ impl TokenPersistence {
         let mut file = self.load_file()?;
 
         let plaintext = serde_json::to_vec(token).context("failed to serialize token")?;
-        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+        let nonce = Nonce::<Aes256Gcm>::generate();
         let ciphertext = self
             .cipher
             .encrypt(&nonce, plaintext.as_ref())
@@ -80,8 +80,8 @@ impl TokenPersistence {
         let nonce_bytes = b64_decode(&entry.nonce).context("invalid nonce")?;
         let ciphertext = b64_decode(&entry.ciphertext).context("invalid ciphertext")?;
 
-        let nonce = aes_gcm::Nonce::from_exact_iter(nonce_bytes)
-            .ok_or_else(|| anyhow::anyhow!("nonce must be 12 bytes"))?;
+        let nonce = Nonce::<Aes256Gcm>::try_from(nonce_bytes.as_slice())
+            .map_err(|_| anyhow::anyhow!("nonce must be 12 bytes"))?;
 
         let plaintext = self
             .cipher
@@ -189,6 +189,51 @@ mod tests {
         assert_eq!(loaded.refresh_token, Some("refresh-tok".into()));
         assert_eq!(loaded.token_type, "Bearer");
         assert_eq!(loaded.scope, Some("read write".into()));
+    }
+
+    #[test]
+    fn loads_legacy_token_file_and_rejects_modified_tag() {
+        // Fixed pre-0.11 wire format, produced independently with AES-256-GCM:
+        // 32-byte key 0..31, 12-byte nonce 0..11, ciphertext followed by a 16-byte tag.
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("legacy-tokens.json");
+        let key = std::array::from_fn(|index| index as u8);
+        let store = TokenPersistence::new(&key, &path);
+        let mut file = TokenFile::default();
+        file.tokens.insert(
+            "legacy-device".into(),
+            EncryptedEntry {
+                nonce: "AAECAwQFBgcICQoL".into(),
+                ciphertext: "PCC3eKaAsWjSNfjg1IdaV6G64lORGCZRWQSG4G4aIp4jYsua3aRh8CvQEIbt6QoCzDUF6ju12vdN8kxrfZCdzNweowKjuFQEbwvLGs21YJ1U5uVAAgw4DZOi6rUIlZu36bo8h9YkujiyPk3RJwVEXYBFEM6CoQXtP5YjqKCbv069bppYIV6cIFpzGZvDtA==".into(),
+            },
+        );
+        store.write_file(&file).unwrap();
+        let loaded = store.load("legacy-device").unwrap().unwrap();
+        assert_eq!(loaded.access_token, "legacy-access");
+        assert_eq!(loaded.refresh_token.as_deref(), Some("legacy-refresh"));
+        assert_eq!(loaded.expires_at, None);
+        assert_eq!(loaded.token_type, "Bearer");
+        assert_eq!(loaded.scope.as_deref(), Some("read write"));
+
+        let entry = file.tokens.get_mut("legacy-device").unwrap();
+        let mut ciphertext = b64_decode(&entry.ciphertext).unwrap();
+        *ciphertext.last_mut().unwrap() ^= 1;
+        entry.ciphertext = b64_encode(&ciphertext);
+        store.write_file(&file).unwrap();
+        assert!(store.load("legacy-device").is_err());
+    }
+
+    #[test]
+    fn rejects_nonce_with_invalid_length() {
+        let (store, _dir) = setup();
+        store.save("device", &make_token("secret")).unwrap();
+        let mut file = store.load_file().unwrap();
+        for length in [0, 11, 13] {
+            file.tokens.get_mut("device").unwrap().nonce = b64_encode(&vec![0; length]);
+            store.write_file(&file).unwrap();
+            let error = store.load("device").unwrap_err();
+            assert!(error.to_string().contains("nonce must be 12 bytes"));
+        }
     }
 
     #[test]

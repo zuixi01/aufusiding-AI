@@ -161,31 +161,34 @@ impl KeyManager {
     // ── 内部加密辅助 ──
 
     fn encrypt_with_master(&self, plaintext: &[u8]) -> Vec<u8> {
-        use aes_gcm::aead::Aead;
-        use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
+        use aes_gcm::aead::{Aead, Nonce};
+        use aes_gcm::{Aes256Gcm, KeyInit};
         let cipher = Aes256Gcm::new_from_slice(&self.master_key).expect("invalid master key");
         let mut nonce_bytes = [0u8; 12];
         ring_rand::SecureRandom::fill(&ring_rand::SystemRandom::new(), &mut nonce_bytes)
             .expect("failed to generate nonce");
-        let nonce = Nonce::from_slice(&nonce_bytes);
-        let ciphertext = cipher.encrypt(nonce, plaintext).expect("encryption failed");
+        let nonce = Nonce::<Aes256Gcm>::from(nonce_bytes);
+        let ciphertext = cipher
+            .encrypt(&nonce, plaintext)
+            .expect("encryption failed");
         let mut out = nonce_bytes.to_vec();
         out.extend(ciphertext);
         out
     }
 
     fn decrypt_with_master(&self, data: &[u8]) -> anyhow::Result<Vec<u8>> {
-        use aes_gcm::aead::Aead;
-        use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
+        use aes_gcm::aead::{Aead, Nonce};
+        use aes_gcm::{Aes256Gcm, KeyInit};
         if data.len() < 12 {
             anyhow::bail!("encrypted data too short");
         }
         let (nonce_bytes, ciphertext) = data.split_at(12);
         let cipher = Aes256Gcm::new_from_slice(&self.master_key)
             .map_err(|_| anyhow::anyhow!("invalid master key"))?;
-        let nonce = Nonce::from_slice(nonce_bytes);
+        let nonce = Nonce::<Aes256Gcm>::try_from(nonce_bytes)
+            .map_err(|_| anyhow::anyhow!("nonce must be 12 bytes"))?;
         cipher
-            .decrypt(nonce, ciphertext)
+            .decrypt(&nonce, ciphertext)
             .map_err(|_| anyhow::anyhow!("decryption failed"))
     }
 }
@@ -268,5 +271,34 @@ mod tests {
         assert_eq!(k1, k2);
         let k3 = mgr.derive_key(b"different-purpose", 32).unwrap();
         assert_ne!(k1, k3);
+    }
+
+    #[test]
+    fn decrypts_legacy_aes256_gcm_payload_and_rejects_tampering() {
+        // NIST CAVS fixture also used by aes-gcm 0.10.3: nonce || ciphertext || tag.
+        let master = [
+            0x31, 0xbd, 0xad, 0xd9, 0x66, 0x98, 0xc2, 0x04, 0xaa, 0x9c, 0xe1, 0x44, 0x8e, 0xa9,
+            0x4a, 0xe1, 0xfb, 0x4a, 0x9a, 0x0b, 0x3c, 0x9d, 0x77, 0x3b, 0x51, 0xbb, 0x18, 0x22,
+            0x66, 0x6b, 0x8f, 0x22,
+        ];
+        let payload = [
+            0x0d, 0x18, 0xe0, 0x6c, 0x7c, 0x72, 0x5a, 0xc9, 0xe3, 0x62, 0xe1, 0xce, 0xfa, 0x43,
+            0x62, 0x18, 0x96, 0x61, 0xd1, 0x63, 0xfc, 0xd6, 0xa5, 0x6d, 0x8b, 0xf0, 0x40, 0x5a,
+            0xd6, 0x36, 0xac, 0x1b, 0xbe, 0xdd, 0x5c, 0xc3, 0xee, 0x72, 0x7d, 0xc2, 0xab, 0x4a,
+            0x94, 0x89,
+        ];
+        let expected = [
+            0x2d, 0xb5, 0x16, 0x8e, 0x93, 0x25, 0x56, 0xf8, 0x08, 0x9a, 0x06, 0x22, 0x98, 0x1d,
+            0x01, 0x7d,
+        ];
+        let mgr = KeyManager::new(test_db(), master).unwrap();
+        assert_eq!(mgr.decrypt_with_master(&payload).unwrap(), expected);
+
+        for index in [0, 12, payload.len() - 1] {
+            let mut corrupted = payload;
+            corrupted[index] ^= 1;
+            assert!(mgr.decrypt_with_master(&corrupted).is_err());
+        }
+        assert!(mgr.decrypt_with_master(&payload[..27]).is_err());
     }
 }
