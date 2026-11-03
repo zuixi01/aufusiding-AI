@@ -3,6 +3,9 @@
 # 用法: ./scripts/build-android.sh [debug|release]
 set -euo pipefail
 
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT_ROOT"
+
 PROFILE="${1:-debug}"
 TARGETS=("aarch64-linux-android" "armv7-linux-androideabi" "x86_64-linux-android")
 
@@ -14,18 +17,21 @@ fi
 
 # 安装 Rust 目标
 for target in "${TARGETS[@]}"; do
-    rustup target add "$target" 2>/dev/null || true
+    rustup target add "$target"
 done
 
 # 编译
 BUILD_FLAG=""
 if [ "$PROFILE" = "release" ]; then
     BUILD_FLAG="--release"
+elif [ "$PROFILE" != "debug" ]; then
+    echo "用法: $0 [debug|release]" >&2
+    exit 1
 fi
 
 for target in "${TARGETS[@]}"; do
     echo "==> 编译 $target ($PROFILE)"
-    cargo build -p prometheus-ffi --target "$target" $BUILD_FLAG
+    cargo build --locked -p prometheus-ffi --target "$target" $BUILD_FLAG
 done
 
 echo "==> Android 编译完成"

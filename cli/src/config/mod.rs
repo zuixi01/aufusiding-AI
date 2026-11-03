@@ -46,7 +46,7 @@ pub struct CliConfig {
     pub data_dir: PathBuf,
 }
 fn default_model() -> String {
-    "qwen2.5-3b-local".to_string()
+    "qwen2.5:1.5b".to_string()
 }
 fn default_strategy() -> String {
     "balanced".to_string()
@@ -116,6 +116,11 @@ impl CliConfig {
 
     /// 设置单个配置项
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
+        self.set_value(key, value)?;
+        self.save()
+    }
+
+    fn set_value(&mut self, key: &str, value: &str) -> Result<()> {
         match key {
             "default_model" => self.default_model = value.to_string(),
             "routing_strategy" => self.routing_strategy = value.to_string(),
@@ -125,9 +130,9 @@ impl CliConfig {
             "show_route_info" => self.show_route_info = value.parse()?,
             "color_output" => self.color_output = value.parse()?,
             "history_size" => self.history_size = value.parse()?,
+            "data_dir" => self.data_dir = PathBuf::from(value),
             _ => anyhow::bail!("未知配置项: {key}"),
         }
-        self.save()?;
         Ok(())
     }
 
@@ -171,7 +176,7 @@ pub fn data_dir() -> PathBuf {
     if let Ok(home) = std::env::var("HOME") {
         return PathBuf::from(home).join(".prometheus");
     }
-    PathBuf::from("/tmp/prometheus-ai")
+    std::env::temp_dir().join("prometheus-ai")
 }
 
 /// 获取配置文件路径
@@ -189,7 +194,7 @@ mod tests {
     #[test]
     fn default_config_is_valid() {
         let config = CliConfig::default();
-        assert_eq!(config.default_model, "qwen2.5-3b-local");
+        assert_eq!(config.default_model, "qwen2.5:1.5b");
         assert_eq!(config.max_tokens, 2048);
         assert!(config.color_output);
     }
@@ -197,7 +202,7 @@ mod tests {
     #[test]
     fn set_and_get_config_value() {
         let mut config = CliConfig::default();
-        config.set("max_tokens", "4096").unwrap();
+        config.set_value("max_tokens", "4096").unwrap();
         assert_eq!(config.get("max_tokens").unwrap(), "4096");
     }
 

@@ -2,7 +2,7 @@ services:
   server:
     build: .
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${PROMETHEUS_PORT:-3000}:3000"
     volumes:
       - prometheus-data:/home/prometheus/data
     environment:
@@ -14,6 +14,11 @@ services:
       - PROMETHEUS_JWT_SECRET=${PROMETHEUS_JWT_SECRET:?请设置JWT密钥: export PROMETHEUS_JWT_SECRET=...}
       - PROMETHEUS_API_KEYS=${PROMETHEUS_API_KEYS:-}
       - PROMETHEUS_CORS_ORIGINS=${PROMETHEUS_CORS_ORIGINS:-}
+      - PROMETHEUS_PROVIDER_OLLAMA_URL=${PROMETHEUS_PROVIDER_OLLAMA_URL:-}
+      - PROMETHEUS_MODEL=${PROMETHEUS_MODEL:-qwen2.5:1.5b}
+      - PROMETHEUS_MOCK_PROVIDER=${PROMETHEUS_MOCK_PROVIDER:-0}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
@@ -23,6 +28,7 @@ services:
       start_period: 10s
 
   nginx:
+    profiles: [tls]
     image: nginx:1.27-alpine
     ports:
       - "443:443"

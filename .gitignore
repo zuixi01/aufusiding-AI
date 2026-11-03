@@ -1,7 +1,7 @@
 # Rust
 /target/
 **/*.rs.bk
-Cargo.lock
+# This workspace ships applications; commit Cargo.lock for reproducible builds.
 
 # macOS
 .DS_Store
@@ -60,6 +60,21 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
+!.env.sample
+
+# Local user data and credentials
+/data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Models (large binary files)
 models/*.bin

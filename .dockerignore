@@ -3,8 +3,15 @@ target/
 .github/
 docs/
 assets/
-apps/
 models/
 tests/
 *.md
 .claude/
+**/node_modules/
+**/dist/
+**/.env
+**/.env.*
+certs/
+**/*.db
+**/*.sqlite
+**/*.sqlite3

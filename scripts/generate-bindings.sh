@@ -25,7 +25,7 @@ echo "生成 Swift 绑定..."
 if [ ${#UNIFFI_CMD[@]} -gt 0 ]; then
   "${UNIFFI_CMD[@]}" generate "$UDL_PATH" --language swift --out-dir "$OUT_DIR/swift"
 else
-  "$HOME/.cargo/bin/cargo" run --quiet -p prometheus-ffi --bin uniffi-bindgen-local -- "$UDL_PATH" "$OUT_DIR"
+  cargo run --quiet --locked --manifest-path "$PROJECT_ROOT/Cargo.toml" -p prometheus-ffi --bin uniffi-bindgen-local -- "$UDL_PATH" "$OUT_DIR"
 fi
 
 echo "生成 Kotlin 绑定..."

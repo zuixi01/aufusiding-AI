@@ -3,6 +3,7 @@ name = "prometheus-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "Prometheus AI 助手核心引擎"
 
 [features]

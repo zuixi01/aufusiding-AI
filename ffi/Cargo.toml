@@ -3,6 +3,7 @@ name = "prometheus-ffi"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "UniFFI 绑定层"
 
 [lib]

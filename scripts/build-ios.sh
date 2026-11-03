@@ -5,6 +5,7 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT_ROOT"
 
 echo "=== 构建 Prometheus iOS 库 ==="
 
@@ -14,10 +15,10 @@ rustup target add aarch64-apple-ios-sim
 
 # 编译 Release
 echo "编译 aarch64-apple-ios..."
-cargo build --release --target aarch64-apple-ios -p prometheus-ffi
+cargo build --locked --release --target aarch64-apple-ios -p prometheus-ffi
 
 echo "编译 aarch64-apple-ios-sim..."
-cargo build --release --target aarch64-apple-ios-sim -p prometheus-ffi
+cargo build --locked --release --target aarch64-apple-ios-sim -p prometheus-ffi
 
 # 生成 UniFFI 绑定
 echo "生成 Swift 绑定..."

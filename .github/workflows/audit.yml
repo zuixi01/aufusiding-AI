@@ -3,17 +3,38 @@ name: Security Audit
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   schedule:
     - cron: "0 6 * * 1" # 每周一 UTC 06:00
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   audit:
-    name: Cargo Audit
+    name: Cargo and npm advisories
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
       - name: Install cargo-audit
-        run: cargo install cargo-audit
-      - name: Run audit
+        run: cargo install cargo-audit --locked
+      - name: Audit locked Rust dependencies
         run: cargo audit
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+      - name: Audit frontend dependencies
+        working-directory: apps/desktop
+        run: npm audit --audit-level=moderate

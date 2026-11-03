@@ -1,66 +1,11 @@
-# 贡献指南
+# 贡献入口
 
-感谢你对 Prometheus 项目的关注！
+本仓库统一使用根目录的 [贡献指南](../CONTRIBUTING.md)，包含环境准备、聚焦修改、检查命令、PR 信息和许可证约定。请不要沿用历史文档中的 Rust 版本、固定覆盖率或全平台完成声明。
 
-## 开发环境
+- [本地入门、配置与排障](getting-started.md)
+- [功能状态与已知限制](project-status.md)
+- [架构说明](architecture.md)
+- [安全策略](../SECURITY.md)
+- [行为准则](../CODE_OF_CONDUCT.md)
 
-### 必需工具
-
-- Rust 1.75+ (stable)
-- Xcode 15+ (macOS/iOS 开发)
-- SQLite 3
-
-### 可选工具
-
-- Android Studio (Android 开发)
-- Node.js 18+ (Tauri 桌面端)
-
-### 环境初始化
-
-```bash
-bash scripts/setup-dev.sh
-```
-
-## 代码规范
-
-- Rust: 遵循 `rustfmt` 和 `clippy` 规范
-- Swift: 遵循 Swift API Design Guidelines
-- 所有公开 API 必须有文档注释
-- 提交前运行 `cargo fmt` 和 `cargo clippy`
-
-## 测试驱动开发（TDD）
-
-- 本项目要求采用 `Red -> Green -> Refactor` 流程开发。
-- 新功能必须先写失败测试，再写最小实现使测试通过。
-- 行为修改必须补充对应测试，禁止仅修改实现不补测试。
-- 详细流程见：`docs/engineering/tdd-protocol.md`
-
-## 工程能力技能手册
-
-- 高质量工程技能与参考资料见：`docs/engineering/skills-playbook.md`
-- `Auto-coding` 本地技能配置见：`docs/engineering/auto-coding.md`
-
-## 提交规范
-
-使用 Conventional Commits：
-
-```
-feat: 新功能
-fix: 修复 bug
-docs: 文档更新
-refactor: 代码重构
-test: 测试相关
-chore: 构建/工具变更
-```
-
-## Pull Request 流程
-
-1. Fork 仓库
-2. 创建功能分支 (`git checkout -b feat/my-feature`)
-3. 编写代码和测试
-4. 确保 CI 通过 (`cargo check && cargo test`)
-5. 提交 PR 并描述变更内容
-
-## 项目结构
-
-请参考 [架构说明](architecture.md) 了解项目整体设计。
+`docs/engineering/` 下的资料可用作工程实践参考；涉及当前验收时，以根贡献指南、实际代码和对应提交的 CI 为准。

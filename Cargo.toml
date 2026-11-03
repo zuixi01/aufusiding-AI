@@ -15,7 +15,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/5201314wzq1023-alt/prometheus-ai"
+repository = "https://github.com/zuixi01/aufusiding-AI"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
