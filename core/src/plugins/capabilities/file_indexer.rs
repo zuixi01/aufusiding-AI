@@ -87,7 +87,7 @@ impl FileIndexer {
     /// 最近修改的文件
     pub fn recent_files(&self, count: usize) -> Vec<&FileEntry> {
         let mut sorted: Vec<&FileEntry> = self.entries.iter().filter(|e| !e.is_dir).collect();
-        sorted.sort_by(|a, b| b.modified_timestamp.cmp(&a.modified_timestamp));
+        sorted.sort_by_key(|entry| std::cmp::Reverse(entry.modified_timestamp));
         sorted.into_iter().take(count).collect()
     }
 

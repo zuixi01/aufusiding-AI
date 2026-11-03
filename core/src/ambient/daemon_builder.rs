@@ -34,12 +34,19 @@ pub struct DaemonComponents {
 /// 守护进程构建器
 pub struct DaemonBuilder;
 
+/// 可选的 LLM Provider 与调用配置。
+#[derive(Default)]
+pub struct DaemonProviderOptions {
+    /// 注入 Chat/Agent 分支的模型提供商；默认不注入。
+    pub provider: Option<Arc<dyn Provider>>,
+    /// 可选系统提示词。
+    pub system_prompt: Option<String>,
+    /// LLM 调用超时（毫秒）；未设置时沿用 Dispatcher 默认值。
+    pub llm_timeout_ms: Option<u64>,
+}
+
 impl DaemonBuilder {
     /// 从 AppConfig + 外部注入的音频/语音组件构建完整守护进程
-    ///
-    /// `provider` 为可选 LLM Provider，注入到 IntentDispatcher 的 Chat/Agent 分支。
-    /// `system_prompt` 为可选系统提示词。
-    /// `llm_timeout_ms` 为可选 LLM 调用超时（毫秒），默认 10000。
     pub fn build(
         config: &AppConfig,
         audio_source: Box<dyn AudioSource>,
@@ -55,13 +62,11 @@ impl DaemonBuilder {
             vad,
             stt,
             tts,
-            None,
-            None,
-            None,
+            DaemonProviderOptions::default(),
         )
     }
 
-    /// 带 Provider 注入的完整构建方法
+    /// 通过 options 注入 Provider、系统提示词及调用超时。
     pub fn build_with_provider(
         config: &AppConfig,
         audio_source: Box<dyn AudioSource>,
@@ -69,9 +74,7 @@ impl DaemonBuilder {
         vad: Box<dyn VadEngine>,
         stt: Box<dyn StreamingSttEngine>,
         tts: Box<dyn StreamingTtsEngine>,
-        provider: Option<Arc<dyn Provider>>,
-        system_prompt: Option<String>,
-        llm_timeout_ms: Option<u64>,
+        options: DaemonProviderOptions,
     ) -> anyhow::Result<DaemonComponents> {
         // 1. EventBus
         let event_bus = Arc::new(EventBus::new(256));
@@ -85,13 +88,13 @@ impl DaemonBuilder {
         // 4. IntentDispatcher (with semantic pipeline + optional provider)
         let mut intent_dispatcher =
             IntentDispatcher::with_semantic(Arc::clone(&profile_store), Arc::clone(&controller));
-        if let Some(p) = provider {
+        if let Some(p) = options.provider {
             intent_dispatcher = intent_dispatcher.with_provider(p);
         }
-        if let Some(prompt) = system_prompt {
+        if let Some(prompt) = options.system_prompt {
             intent_dispatcher = intent_dispatcher.with_system_prompt(prompt);
         }
-        if let Some(timeout) = llm_timeout_ms {
+        if let Some(timeout) = options.llm_timeout_ms {
             intent_dispatcher = intent_dispatcher.with_llm_timeout(timeout);
         }
 
@@ -219,9 +222,10 @@ mod tests {
             Box::new(TestVad),
             Box::new(TestStt),
             Box::new(TestTts),
-            provider,
-            None,
-            None,
+            DaemonProviderOptions {
+                provider,
+                ..Default::default()
+            },
         )
         .unwrap()
     }
@@ -350,9 +354,11 @@ mod tests {
             Box::new(TestVad),
             Box::new(TestStt),
             Box::new(TestTts),
-            Some(Arc::new(MockProvider::new("prompt-test"))),
-            Some("你是一个智能家居助手".into()),
-            None,
+            DaemonProviderOptions {
+                provider: Some(Arc::new(MockProvider::new("prompt-test"))),
+                system_prompt: Some("你是一个智能家居助手".into()),
+                ..Default::default()
+            },
         );
         assert!(result.is_ok());
     }
@@ -369,9 +375,11 @@ mod tests {
             Box::new(TestVad),
             Box::new(TestStt),
             Box::new(TestTts),
-            Some(Arc::new(MockProvider::new("timeout-test"))),
-            None,
-            Some(5000),
+            DaemonProviderOptions {
+                provider: Some(Arc::new(MockProvider::new("timeout-test"))),
+                llm_timeout_ms: Some(5000),
+                ..Default::default()
+            },
         );
         assert!(result.is_ok());
     }

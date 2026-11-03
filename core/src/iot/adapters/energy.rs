@@ -835,7 +835,7 @@ mod tests {
             .get_switch_status("http://192.168.1.100", 0)
             .await
             .unwrap();
-        assert_eq!(status.output, true);
+        assert!(status.output);
         assert_eq!(status.apower, 125.5);
         assert_eq!(status.voltage, 230.2);
         mock.assert();
@@ -853,7 +853,7 @@ mod tests {
         });
         let adapter = shelly_adapter(&server);
         let response = adapter.switch_on("http://192.168.1.100", 0).await.unwrap();
-        assert_eq!(response.was_on, false);
+        assert!(!response.was_on);
         mock.assert();
     }
 
@@ -869,7 +869,7 @@ mod tests {
         });
         let adapter = shelly_adapter(&server);
         let response = adapter.switch_off("http://192.168.1.100", 0).await.unwrap();
-        assert_eq!(response.was_on, true);
+        assert!(response.was_on);
         mock.assert();
     }
 

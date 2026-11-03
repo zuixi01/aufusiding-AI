@@ -58,7 +58,7 @@ impl PrivacyAwareDispatcher {
         // 从后往前替换，避免偏移量变化
         let mut result = text.to_string();
         let mut sorted: Vec<&PiiEntity> = filtered;
-        sorted.sort_by(|a, b| b.start.cmp(&a.start));
+        sorted.sort_by_key(|entity| std::cmp::Reverse(entity.start));
         for entity in sorted {
             let replacement = format!("[{}]", entity.entity_type);
             if entity.start < result.len() && entity.end <= result.len() {

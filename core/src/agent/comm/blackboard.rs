@@ -62,7 +62,7 @@ impl Blackboard {
         }
 
         let mut sorted: Vec<&BlackboardEntry> = entries.values().collect();
-        sorted.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        sorted.sort_by_key(|entry| entry.timestamp);
 
         let mut summary = String::from("[黑板摘要]\n");
         let mut token_count = 2; // 标题行

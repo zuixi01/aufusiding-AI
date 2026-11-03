@@ -215,7 +215,7 @@ impl SanitizingProvider {
 
         // 从后往前替换，避免偏移错乱
         let mut sorted_decisions = decisions;
-        sorted_decisions.sort_by(|a, b| b.entity.start.cmp(&a.entity.start));
+        sorted_decisions.sort_by_key(|decision| std::cmp::Reverse(decision.entity.start));
 
         let mut result = text.to_string();
         for decision in &sorted_decisions {

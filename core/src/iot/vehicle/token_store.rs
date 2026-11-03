@@ -80,7 +80,7 @@ impl TokenPersistence {
         let nonce_bytes = b64_decode(&entry.nonce).context("invalid nonce")?;
         let ciphertext = b64_decode(&entry.ciphertext).context("invalid ciphertext")?;
 
-        let nonce = aes_gcm::Nonce::from_exact_iter(nonce_bytes.into_iter())
+        let nonce = aes_gcm::Nonce::from_exact_iter(nonce_bytes)
             .ok_or_else(|| anyhow::anyhow!("nonce must be 12 bytes"))?;
 
         let plaintext = self

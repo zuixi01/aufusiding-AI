@@ -392,7 +392,7 @@ impl DeviceIntentParser {
         }
 
         // 最长匹配优先
-        candidates.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+        candidates.sort_by_key(|candidate| std::cmp::Reverse(candidate.0.len()));
 
         for (kw, action) in &candidates {
             if text.contains(kw) {
@@ -449,7 +449,7 @@ impl DeviceIntentParser {
 
             // 按关键字长度降序匹配设备类型
             let mut type_kws: Vec<_> = self.device_type_keywords.iter().collect();
-            type_kws.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+            type_kws.sort_by_key(|keyword| std::cmp::Reverse(keyword.0.len()));
 
             for (kw, dt) in &type_kws {
                 if device_part.starts_with(kw.to_lowercase().as_str()) {
@@ -471,7 +471,7 @@ impl DeviceIntentParser {
                     continue;
                 }
                 let mut type_kws: Vec<_> = self.device_type_keywords.iter().collect();
-                type_kws.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+                type_kws.sort_by_key(|keyword| std::cmp::Reverse(keyword.0.len()));
                 for (kw, _dt) in &type_kws {
                     if after.starts_with(kw.to_lowercase().as_str()) {
                         // 从原始文本中提取（保留原始大小写）

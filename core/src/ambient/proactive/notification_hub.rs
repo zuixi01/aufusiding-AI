@@ -81,7 +81,7 @@ impl NotificationHub {
     pub fn pending_sorted(&self) -> Vec<Notification> {
         let queue = self.queue.lock().unwrap_or_else(|e| e.into_inner());
         let mut pending: Vec<Notification> = queue.iter().filter(|n| !n.read).cloned().collect();
-        pending.sort_by(|a, b| b.priority.cmp(&a.priority));
+        pending.sort_by_key(|notification| std::cmp::Reverse(notification.priority));
         pending
     }
 

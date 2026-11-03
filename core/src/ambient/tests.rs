@@ -71,7 +71,7 @@ mod unit {
     }
 
     fn make_runner(vad_decisions: Vec<VadDecision>, stt_text: &str) -> AmbientLoopRunner {
-        let source = MockAudioSource::new((0..100).map(|i| make_speech_chunk(i)).collect());
+        let source = MockAudioSource::new((0..100).map(make_speech_chunk).collect());
         let sink = MockAudioSink::new();
         let vad = MockVad::new(vad_decisions);
         let wakeword = make_wakeword_detector();

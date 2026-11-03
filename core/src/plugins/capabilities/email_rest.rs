@@ -269,7 +269,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(GET)
                 .path("/messages")
-                .header("Authorization", &format!("Bearer {}", TEST_TOKEN));
+                .header("Authorization", format!("Bearer {}", TEST_TOKEN));
             then.status(200)
                 .json_body(serde_json::json!({"messages": []}));
         });

@@ -212,7 +212,7 @@ impl ThoughtLogger {
             .collect();
 
         // 按时间倒序
-        results.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        results.sort_by_key(|entry| std::cmp::Reverse(entry.timestamp));
 
         if let Some(limit) = filter.limit {
             results.truncate(limit);

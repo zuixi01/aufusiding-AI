@@ -612,8 +612,8 @@ mod tests {
         // 8x8 二值图，两个独立的 2x2 黑色块
         let mut binary = vec![255u8; 64];
         // 块1: (1,1)-(2,2)
-        binary[1 * 8 + 1] = 0;
-        binary[1 * 8 + 2] = 0;
+        binary[8 + 1] = 0;
+        binary[8 + 2] = 0;
         binary[2 * 8 + 1] = 0;
         binary[2 * 8 + 2] = 0;
         // 块2: (5,5)-(6,6)

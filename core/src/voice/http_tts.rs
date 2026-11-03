@@ -64,9 +64,11 @@ impl HttpTtsEngine {
     /// 将原始 PCM i16 LE 字节解码为 f32 采样
     fn decode_pcm_i16(bytes: &[u8]) -> Vec<f32> {
         bytes
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|chunk| {
-                let sample = i16::from_le_bytes([chunk[0], chunk[1]]);
+                let sample = i16::from_le_bytes(*chunk);
                 sample as f32 / 32768.0
             })
             .collect()
@@ -138,7 +140,7 @@ mod tests {
             when.method(POST)
                 .path("/synthesize")
                 .header("Authorization", "Bearer my-key");
-            then.status(200).body(&silent_pcm_bytes(800));
+            then.status(200).body(silent_pcm_bytes(800));
         });
         let engine = HttpTtsEngine::with_base_url("my-key", &server.base_url());
         engine.synthesize("test").unwrap();
@@ -149,6 +151,14 @@ mod tests {
     fn synthesize_empty_text_fails() {
         let engine = HttpTtsEngine::with_base_url("key", "http://unused");
         assert!(engine.synthesize("").is_err());
+    }
+
+    #[test]
+    fn decode_pcm_ignores_incomplete_trailing_sample() {
+        let mut bytes = 16_384_i16.to_le_bytes().to_vec();
+        bytes.push(0xff);
+        assert_eq!(HttpTtsEngine::decode_pcm_i16(&bytes), vec![0.5]);
+        assert!(HttpTtsEngine::decode_pcm_i16(&bytes[..1]).is_empty());
     }
 
     #[test]

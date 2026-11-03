@@ -16,6 +16,7 @@
 - HTTP 服务默认使用本地回环地址；Compose 默认只向宿主回环地址映射端口，TLS 代理通过可选 profile 启动。
 - 移除未经核实的测试数量、性能和法规合规承诺，明确维护与发布边界。
 - 补充第三方字体许可、发布清单和可复现的依赖检查。
+- Rust Alpha API：`DaemonBuilder::build_with_provider` 的三个可选 LLM 参数合并为 `DaemonProviderOptions`；不带 Provider 的 `build` 调用方式保持兼容。
 
 历史设计与进度报告保留在 `docs/`，其中的阶段计划、测试数字和完成声明不是当前版本的验收证据。实际验证结果以对应提交的 CI 和发布说明为准。
 

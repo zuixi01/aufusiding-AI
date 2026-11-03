@@ -82,7 +82,7 @@ impl EmailProvider for MockEmailProvider {
     async fn fetch_inbox(&self, limit: usize) -> anyhow::Result<Vec<EmailMessage>> {
         let msgs = self.messages.lock().unwrap_or_else(|e| e.into_inner());
         let mut list: Vec<EmailMessage> = msgs.values().cloned().collect();
-        list.sort_by(|a, b| b.date.cmp(&a.date));
+        list.sort_by_key(|message| std::cmp::Reverse(message.date));
         list.truncate(limit);
         Ok(list)
     }

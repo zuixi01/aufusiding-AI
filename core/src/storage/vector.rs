@@ -66,8 +66,8 @@ fn blob_to_vector(blob: &[u8], dimension: usize) -> Option<Vec<f32>> {
         return None;
     }
     let mut v = Vec::with_capacity(dimension);
-    for chunk in blob.chunks_exact(4) {
-        v.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+    for &chunk in blob.as_chunks::<4>().0 {
+        v.push(f32::from_le_bytes(chunk));
     }
     Some(v)
 }
@@ -362,8 +362,7 @@ impl VectorStore {
                 metadata: meta,
             })
             .collect();
-        results
-            .sort_unstable_by(|a, b| OrderedFloat(b.similarity).cmp(&OrderedFloat(a.similarity)));
+        results.sort_unstable_by_key(|result| Reverse(OrderedFloat(result.similarity)));
         Ok(results)
     }
 
@@ -627,6 +626,16 @@ mod tests {
         assert_eq!(original, decoded);
         // 错误维度应返回 None
         assert!(blob_to_vector(&blob, 3).is_none());
+    }
+
+    #[test]
+    fn test_blob_rejects_incomplete_trailing_value() {
+        for trailing_bytes in 1..4 {
+            let mut blob = vector_to_blob(&[0.5]);
+            blob.extend_from_slice(&[0xff; 3][..trailing_bytes]);
+            assert!(blob_to_vector(&blob, 1).is_none());
+            assert!(blob_to_vector(&blob, 2).is_none());
+        }
     }
 
     #[test]

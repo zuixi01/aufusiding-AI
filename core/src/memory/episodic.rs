@@ -82,7 +82,7 @@ pub fn extract_top_terms(text: &str, n: usize) -> Vec<String> {
     }
 
     let mut ranked: Vec<(String, usize)> = freq.into_iter().collect();
-    ranked.sort_by(|a, b| b.1.cmp(&a.1));
+    ranked.sort_by_key(|entry| std::cmp::Reverse(entry.1));
     ranked.into_iter().take(n).map(|(term, _)| term).collect()
 }
 
