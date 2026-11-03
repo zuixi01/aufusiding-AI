@@ -52,7 +52,7 @@ cargo test --locked -p prometheus-server
 
 共享 API、依赖或跨 crate 改动需要按 [.github/workflows/ci.yml](.github/workflows/ci.yml) 扩大验证。不要默认 `--workspace` 在缺少 Tauri 原生依赖的环境可用。CI 是提交级别的证据；只运行单个包不能声称整个 workspace 通过。
 
-桌面前端使用 `apps/desktop/package-lock.json` 和 npm：
+桌面前端使用 Node.js `>=22.12.0 <23`、npm 10 和 `apps/desktop/package-lock.json`：
 
 ```bash
 cd apps/desktop

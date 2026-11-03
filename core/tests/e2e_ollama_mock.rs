@@ -11,7 +11,7 @@ use prometheus_core::mind::economics::{CostRecord, EconomicCortex};
 use prometheus_core::mind::reflection::ReflectionModule;
 use prometheus_core::providers::ollama::OllamaProvider;
 use prometheus_core::providers::traits::Provider;
-use prometheus_core::router::classifier::{IntentClassifier, IntentType};
+use prometheus_core::router::classifier::IntentClassifier;
 use prometheus_core::router::strategy::{Router, RoutingStrategy};
 use std::sync::Arc;
 

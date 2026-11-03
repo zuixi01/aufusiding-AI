@@ -883,6 +883,24 @@ mod tests {
         assert!(doc["paths"].as_object().unwrap().len() >= 10);
     }
 
+    #[tokio::test]
+    async fn swagger_ui_serves_index_and_assets() {
+        let app = test_app();
+        for path in [
+            "/api/docs/",
+            "/api/docs/swagger-ui.css",
+            "/api/docs/swagger-ui-bundle.js",
+        ] {
+            let request = Request::builder().uri(path).body(Body::empty()).unwrap();
+            let response = app.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{path}");
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            assert!(!body.is_empty(), "{path}");
+        }
+    }
+
     // ── Deep Health Tests ──
 
     #[tokio::test]

@@ -12,7 +12,7 @@ mod tests {
     use crate::ambient::audio_source::MockAudioSource;
     use crate::ambient::config::AmbientConfig;
     use crate::ambient::dispatcher_trait::Dispatcher;
-    use crate::ambient::intent::{DispatchResult, DispatchTarget, IntentDispatcher};
+    use crate::ambient::intent::{DispatchTarget, IntentDispatcher};
     use crate::ambient::loop_runner::AmbientLoopRunner;
     use crate::ambient::privacy_dispatcher::{PrivacyAwareDispatcher, SanitizerConfig};
     use crate::ambient::suggestion_announcer::SuggestionAnnouncer;
@@ -83,10 +83,6 @@ mod tests {
 
     fn make_chunk(seq: u64) -> AudioChunk {
         AudioChunk::new(vec![0.5; 480], 16000, 1, seq, seq * 30)
-    }
-
-    fn make_silence_chunk(seq: u64) -> AudioChunk {
-        AudioChunk::new(vec![0.0; 480], 16000, 1, seq, seq * 30)
     }
 
     fn make_wakeword() -> EnhancedWakewordDetector {
@@ -438,7 +434,7 @@ mod tests {
 
     #[tokio::test]
     async fn daemon_lifecycle_start_tick_stop() {
-        use crate::ambient::daemon_builder::{DaemonBuilder, DaemonComponents};
+        use crate::ambient::daemon_builder::DaemonBuilder;
         use crate::config::AppConfig;
 
         struct TestVad;
@@ -520,7 +516,7 @@ mod tests {
         let config = AppConfig::default();
         let source = MockAudioSource::new(vec![AudioChunk::new(vec![0.0; 480], 16000, 1, 0, 0); 5]);
         let sink = MockAudioSink::new();
-        let components = DaemonBuilder::build(
+        let mut components = DaemonBuilder::build(
             &config,
             Box::new(source),
             Box::new(sink),
@@ -529,15 +525,22 @@ mod tests {
             Box::new(TestTts),
         )
         .unwrap();
+        assert!(components.monitor.device_states().is_empty());
         let bus = components.daemon.event_bus();
-        // 发布事件不 panic
-        bus.publish(DeviceEvent::new(
+        let delivered = bus.publish(DeviceEvent::new(
             "test",
             DeviceType::Light,
             EventKind::StateChanged,
             serde_json::json!({"powered": true}),
         ));
-        assert!(bus.subscriber_count() >= 0);
+        assert!(delivered > 0, "daemon bus must have an active subscriber");
+        components.monitor.process_pending();
+        let state = components
+            .monitor
+            .device_states()
+            .get("test")
+            .expect("monitor must receive the event from the daemon bus");
+        assert_eq!(state["powered"].as_bool(), Some(true));
     }
 
     #[tokio::test]

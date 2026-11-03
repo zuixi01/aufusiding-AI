@@ -664,31 +664,6 @@ impl DeviceController for SmbAdapter {
 mod tests {
     use super::*;
 
-    fn setup() -> (SmbAdapter, Arc<RwLock<MockSmbTransport>>) {
-        let config = SmbConfig::new(
-            "192.168.1.100".to_string(),
-            "testuser".to_string(),
-            "testpass".to_string(),
-        );
-        let mock = Arc::new(RwLock::new(MockSmbTransport::new()));
-        let adapter = SmbAdapter::with_transport(config, Box::new(MockSmbTransport::new()));
-        (adapter, mock)
-    }
-
-    fn setup_with_shared_mock() -> (SmbAdapter, Arc<MockSmbTransport>) {
-        let config = SmbConfig::new(
-            "192.168.1.100".to_string(),
-            "testuser".to_string(),
-            "testpass".to_string(),
-        );
-        let mock = Arc::new(MockSmbTransport::new());
-        let mock_clone = mock.clone();
-        (
-            SmbAdapter::new(config, Box::new(MockSmbTransport::new())),
-            mock_clone,
-        )
-    }
-
     // 1. connect success
     #[tokio::test]
     async fn connect_success() {

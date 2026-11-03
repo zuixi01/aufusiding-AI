@@ -1,0 +1,46 @@
+# Reviewed synthetic fixtures from e26664d; never allowlist a whole test file or directory.
+# Each exception requires both the original source path and the complete extracted fixture value.
+# Schema: https://github.com/gitleaks/gitleaks/blob/v8.30.1/README.md#configuration
+title = "Prometheus reviewed synthetic test fixtures"
+minVersion = "v8.25.0"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Synthetic OctoPrint test_config key reused by local httpmock expectations."
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|[/\\])core[/\\]src[/\\]iot[/\\]adapters[/\\]printer3d\.rs$''']
+regexes = ['''^test-api-key-12345$''']
+
+[[rules.allowlists]]
+description = "Sequential alphabet and digit fixture for redacts_openai_style_secret."
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|[/\\])core[/\\]src[/\\]logging\.rs$''']
+regexes = ['''^sk-1234567890abcdef$''']
+
+[[rules.allowlists]]
+description = "Short sequential fixture for block_on_high_risk_rejects_confidential_data; CaptureMockProvider only."
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|[/\\])core[/\\]src[/\\]privacy[/\\]sanitizing_provider\.rs$''']
+regexes = ['''^sk-abc123def456$''']
+
+[[rules.allowlists]]
+description = "Sequential alphabet and digit fixture for classify_api_key_as_confidential."
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|[/\\])core[/\\]src[/\\]safety[/\\]classification\.rs$''']
+regexes = ['''^sk-1234567890abcdef$''']
+
+[[rules.allowlists]]
+description = "Word-and-sequential-digit fixture for api_key_not_leaked_in_logs."
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|[/\\])server[/\\]src[/\\]main\.rs$''']
+regexes = ['''^sk-secret-key-12345$''']

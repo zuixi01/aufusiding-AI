@@ -161,7 +161,62 @@ cargo run --locked -p prometheus-server
 
 启用认证后，受保护接口使用 `X-API-Key` 或 `Authorization: Bearer <token>`。请自行生成密钥，通过本机环境或部署密钥管理器注入；不要把密钥写入命令示例、Issue 或提交。API Key 格式里的权限标签不等同于已经完成的多租户隔离，部署前需审阅各接口的实际权限检查。
 
-配置云端 Provider 会让请求可能发送给外部服务并产生费用；本地优先的项目目标不代表每一条路由都有完整预算或数据外发约束。请勿直接把本机开发配置暴露到公网。Docker、TLS 和实际部署另有配置与运行要求，不属于本指南的本机验收范围。
+配置云端 Provider 会让请求可能发送给外部服务并产生费用；本地优先的项目目标不代表每一条路由都有完整预算或数据外发约束。内置默认云模型可能不适用于你的账户或供应商当前目录，请通过 `PROMETHEUS_MODEL` 设置实际可用模型。当前 fallback 不会跨 Provider 重映射模型名，混合供应商回退可能失败。请勿直接把本机开发配置暴露到公网。
+
+## Docker Compose：本机演示
+
+需要本机 Docker Engine/Desktop 和 Compose 插件。仓库的 [Compose 配置](../docker-compose.yml) 默认只启动 `server`，将容器的 3000 端口映射到宿主机的 `127.0.0.1:3000`，通过命名卷 `prometheus-data` 保存服务端数据。宿主端口可用 `PROMETHEUS_PORT` 修改，容器内部端口仍是 3000。Compose 与直接运行服务不同：**它固定启用认证，并要求提供 JWT 密钥**。
+
+以下先使用显式 mock 验证容器服务、认证和持久化入口。请在仓库根目录执行；密钥只生成到当前终端环境，不要把展开后的值贴进 Issue 或提交。
+
+Bash / zsh（需要 OpenSSL）：
+
+```bash
+export PROMETHEUS_JWT_SECRET="$(openssl rand -hex 32)"
+export PROMETHEUS_API_KEYS="$(openssl rand -hex 32):admin"
+export PROMETHEUS_MOCK_PROVIDER=1
+docker compose config --quiet
+docker compose build server
+docker compose up -d server
+```
+
+PowerShell：
+
+```powershell
+$composeRandom = [Security.Cryptography.RandomNumberGenerator]::Create()
+$composeBytes = New-Object byte[] 32
+$composeRandom.GetBytes($composeBytes)
+$env:PROMETHEUS_JWT_SECRET = [Convert]::ToBase64String($composeBytes)
+$composeRandom.GetBytes($composeBytes)
+$env:PROMETHEUS_API_KEYS = [Convert]::ToBase64String($composeBytes) + ":admin"
+$composeRandom.Dispose()
+$env:PROMETHEUS_MOCK_PROVIDER = "1"
+docker compose config --quiet
+docker compose build server
+docker compose up -d server
+```
+
+在同一终端中检查健康和受保护的会话列表：
+
+```bash
+curl http://localhost:3000/api/v1/health
+curl -H "X-API-Key: ${PROMETHEUS_API_KEYS%:admin}" http://localhost:3000/api/v1/sessions
+```
+
+PowerShell 使用：
+
+```powershell
+Invoke-RestMethod http://localhost:3000/api/v1/health
+Invoke-RestMethod http://localhost:3000/api/v1/sessions -Headers @{ "X-API-Key" = $env:PROMETHEUS_API_KEYS.Split(':')[0] }
+```
+
+健康响应和会话列表不能证明真实推理已连通。切换真实 Ollama 时，将 `PROMETHEUS_MOCK_PROVIDER` 设为 `0`，设置容器可访问的 `PROMETHEUS_PROVIDER_OLLAMA_URL` 与实际 `PROMETHEUS_MODEL`，再运行 `docker compose up -d server` 更新环境。
+
+容器内的 `localhost` 指向容器自身。访问宿主机 Ollama 时，Compose 提供 `host.docker.internal` 映射，但宿主机 Ollama 的监听地址和防火墙仍必须允许来自容器的连接；默认仅监听宿主 loopback 的服务可能无法访问。请先确认网络和访问边界，不要仅改 URL 就假定模型已可用。Compose 当前透传 JWT、API Keys、CORS、Ollama URL、模型和 mock 变量；宿主机设置的其他云端 Provider 密钥不会自动进入容器，需要单独配置。
+
+默认本机演示不启用 nginx。`nginx` 属于可选的 `tls` profile，需要自行准备匹配 [nginx 配置](../nginx/nginx.conf) 的证书；启用后会发布宿主机的 80/443 端口，不能当作上述仅 loopback 的演示配置。TLS、公网访问、升级和恢复需要独立验收，参考 [发布检查清单](release-checklist.md)。
+
+完成演示后可用 `docker compose stop server` 停止服务，命名卷会保留。保留本机密钥以继续使用同一配置；更换密钥或删除数据应作为明确的维护操作处理。
 
 ## 常见问题
 

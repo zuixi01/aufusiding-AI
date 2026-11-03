@@ -6,7 +6,7 @@ mod unit {
     use crate::plugins::capabilities::browser_actions::{BrowserAction, BrowserResult};
     use crate::plugins::capabilities::browser_pool::BrowserPool;
     use crate::plugins::capability_bridge::CapabilityBridge;
-    use crate::plugins::capability_registry::{CapabilityRegistry, CapabilityStatus};
+    use crate::plugins::capability_registry::CapabilityRegistry;
 
     // ─── BrowserPool ───────────────────────────────────
 
@@ -15,6 +15,7 @@ mod unit {
         let pool = BrowserPool::new(3);
         let id1 = pool.acquire().unwrap();
         let id2 = pool.acquire().unwrap();
+        assert_ne!(id1, id2);
         assert_eq!(pool.active_count(), 2);
         assert_eq!(pool.total_count(), 2);
 

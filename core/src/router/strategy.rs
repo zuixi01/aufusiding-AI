@@ -404,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_route_target_mapping() {
-        let mut router = Router::new(RoutingStrategy::Balanced);
+        let router = Router::new(RoutingStrategy::Balanced);
 
         assert_eq!(
             router.model_to_target(ModelId::Qwen3B),

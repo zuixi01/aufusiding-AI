@@ -65,10 +65,6 @@ mod unit {
         AudioChunk::new(samples, 16000, 1, seq, seq * 30)
     }
 
-    fn make_silence_chunk(seq: u64) -> AudioChunk {
-        AudioChunk::new(vec![0.0; 480], 16000, 1, seq, seq * 30)
-    }
-
     fn make_wakeword_detector() -> EnhancedWakewordDetector {
         let inner = crate::voice::WakewordDetector::new("".into(), 0.05);
         EnhancedWakewordDetector::new(inner, 0.3) // 低阈值方便测试
@@ -492,7 +488,7 @@ mod unit {
 
     #[tokio::test]
     async fn dispatch_provider_error_fallback() {
-        use crate::providers::traits::{ChatRequest, ChatResponse, Provider, TokenUsage};
+        use crate::providers::traits::{ChatRequest, ChatResponse, Provider};
 
         struct FailProvider;
         #[async_trait]
@@ -523,7 +519,7 @@ mod unit {
 
     #[tokio::test]
     async fn dispatch_timeout_fallback() {
-        use crate::providers::traits::{ChatRequest, ChatResponse, Provider, TokenUsage};
+        use crate::providers::traits::{ChatRequest, ChatResponse, Provider};
 
         struct SlowProvider;
         #[async_trait]

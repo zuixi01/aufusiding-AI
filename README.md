@@ -80,7 +80,7 @@ cargo run --locked -p prometheus-cli -- session list
 
 `config list` 显示配置文件路径和数据目录。CLI 在本机保存会话数据库与 REPL 历史，分享日志或备份前请检查个人数据。配置字段的实际生效范围、Windows/macOS/Linux 路径、HTTP 服务环境变量及常见问题见 [入门指南](docs/getting-started.md)。
 
-桌面端使用仓库已有的 npm 锁文件与脚本；还需要对应平台的 Tauri 系统依赖：
+桌面端使用 Node.js `>=22.12.0 <23`、npm 10、仓库已有的 npm 锁文件与脚本；还需要对应平台的 Tauri 系统依赖：
 
 ```bash
 cd apps/desktop
@@ -89,7 +89,7 @@ npm run build
 npm run tauri dev
 ```
 
-桌面端属于实验性入口。HTTP 服务的本机启动示例和认证说明见 [入门指南](docs/getting-started.md#http-服务本机开发)。不要把开发配置直接作为公网部署配置。
+桌面端属于实验性入口，模型标识、mock 回退和自动设置仍有限制，见 [桌面端说明](apps/desktop/README.md)。HTTP 服务与 Compose 的本机示例和认证说明见 [入门指南](docs/getting-started.md#http-服务本机开发)。不要把开发配置直接作为公网部署配置。
 
 ## 仓库结构
 
