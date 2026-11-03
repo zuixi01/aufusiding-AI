@@ -62,7 +62,16 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let config = CliConfig::load()?;
+    let config = if matches!(
+        &cli.command,
+        Some(Commands::Config(ConfigArgs {
+            command: commands::config::ConfigCommand::Reset,
+        }))
+    ) {
+        CliConfig::default()
+    } else {
+        CliConfig::load()?
+    };
 
     match cli.command {
         None | Some(Commands::Chat) => {
