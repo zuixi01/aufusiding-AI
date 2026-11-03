@@ -32,6 +32,8 @@ jobs:
           toolchain: 1.99.1
           components: clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -49,9 +51,11 @@ jobs:
       - name: Build frontend assets required by Tauri
         working-directory: apps/desktop
         run: npm run build
-      - run: cargo check --workspace --all-targets --locked
+      - id: workspace_check
+        run: cargo check --workspace --all-targets --locked
       - run: cargo test --workspace --all-targets --locked
-      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - if: ${{ !cancelled() && steps.workspace_check.outcome == 'success' }}
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
   fmt:
     name: Rustfmt

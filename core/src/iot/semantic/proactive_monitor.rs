@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use chrono::{Datelike, Local};
+use chrono::{DateTime, Datelike, Local};
 use serde_json::Value;
 use tokio::sync::broadcast;
 
@@ -61,7 +61,10 @@ impl ProactiveMonitor {
 
     /// 评估当前状态，生成主动建议
     pub fn evaluate(&self) -> Vec<ProactiveSuggestion> {
-        let now = Local::now();
+        self.evaluate_at(Local::now())
+    }
+
+    fn evaluate_at(&self, now: DateTime<Local>) -> Vec<ProactiveSuggestion> {
         let signal = DeviceContextSignal {
             time_of_day: now.time(),
             day_of_week: now.weekday(),
@@ -135,6 +138,14 @@ mod tests {
     use super::*;
     use crate::iot::event_bus::EventBus;
     use crate::iot::types::DeviceType;
+    use chrono::TimeZone;
+
+    fn fixed_local_time(hour: u32) -> DateTime<Local> {
+        Local
+            .with_ymd_and_hms(2026, 11, 4, hour, 0, 0)
+            .single()
+            .expect("fixed local test time should be unambiguous")
+    }
 
     fn make_store() -> Arc<SemanticProfileStore> {
         let mut store = SemanticProfileStore::new();
@@ -293,9 +304,22 @@ mod tests {
         let bus = EventBus::new(16);
         let store = make_store();
         let monitor = ProactiveMonitor::new(&bus, store);
-        let suggestions = monitor.evaluate();
-        // 无设备状态 → 无建议
+        let suggestions = monitor.evaluate_at(fixed_local_time(14));
+        // 日间无设备状态、占用或温度信号时，不产生建议。
         assert!(suggestions.is_empty());
+    }
+
+    #[test]
+    fn weekday_morning_without_device_states_suggests_lights() {
+        let bus = EventBus::new(16);
+        let store = make_store();
+        let monitor = ProactiveMonitor::new(&bus, store);
+        let suggestions = monitor.evaluate_at(fixed_local_time(7));
+
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].actions.len(), 1);
+        assert_eq!(suggestions[0].actions[0].device_id, "light-001");
+        assert_eq!(suggestions[0].actions[0].command, "turn_on");
     }
 
     #[test]
@@ -327,7 +351,7 @@ mod tests {
         bus.publish(state_event("light-001", true));
         monitor.process_pending();
         monitor.set_room_occupancy("客厅", false);
-        let suggestions = monitor.evaluate();
+        let suggestions = monitor.evaluate_at(fixed_local_time(14));
         assert!(!suggestions.is_empty());
         assert!(suggestions.iter().any(|s| s.description.contains("客厅")));
     }
