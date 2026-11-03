@@ -77,7 +77,9 @@ async fn concurrent_memory_writes_50() {
         });
     }
 
-    while let Some(_) = tasks.join_next().await {}
+    while let Some(result) = tasks.join_next().await {
+        result.expect("记忆写入任务不应 panic");
+    }
 
     let wm_read = wm.read().await;
     assert!(wm_read.len() >= 50, "至少应有 50 条记忆（容量 100）");
@@ -133,13 +135,15 @@ async fn concurrent_iot_commands_30() {
         tasks.spawn(async move {
             let c = ctrl.read().await;
             // 模拟设备命令（即使设备不存在也不应 panic）
-            let _ = c.execute(&format!("device-{}", i), "get_state", serde_json::json!({}));
+            c.execute(&format!("device-{}", i), "get_state", serde_json::json!({}))
+                .await
         });
     }
 
     let mut completed = 0;
     while let Some(result) = tasks.join_next().await {
-        assert!(result.is_ok(), "IoT 命令任务不应 panic");
+        let outcome = result.expect("IoT 命令任务不应 panic");
+        assert!(outcome.is_err(), "未注册适配器的命令应返回错误");
         completed += 1;
     }
     assert_eq!(completed, 30, "30 个并发 IoT 命令应全部完成");
@@ -157,7 +161,7 @@ async fn concurrent_event_bus_publish_100() {
         let bus_clone = Arc::clone(&bus);
         tasks.spawn(async move {
             bus_clone.publish(DeviceEvent::new(
-                &format!("device-{}", i),
+                format!("device-{}", i),
                 DeviceType::Light,
                 EventKind::StateChanged,
                 serde_json::json!({"powered": true}),

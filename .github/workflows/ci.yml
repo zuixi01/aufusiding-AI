@@ -51,12 +51,10 @@ jobs:
       - name: Build frontend assets required by Tauri
         working-directory: apps/desktop
         run: npm run build
-      - id: workspace_check
-        run: cargo check --workspace --all-targets --locked
+      - run: cargo check --workspace --all-targets --locked
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --all-targets --locked
       - run: cargo test --workspace --doc --locked
-      - if: ${{ !cancelled() && steps.workspace_check.outcome == 'success' }}
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
   fmt:
     name: Rustfmt
