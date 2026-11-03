@@ -54,6 +54,7 @@ jobs:
       - id: workspace_check
         run: cargo check --workspace --all-targets --locked
       - run: cargo test --workspace --all-targets --locked
+      - run: cargo test --workspace --doc --locked
       - if: ${{ !cancelled() && steps.workspace_check.outcome == 'success' }}
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
