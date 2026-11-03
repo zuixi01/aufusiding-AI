@@ -32,7 +32,7 @@ base64 = "0.22"
 tracing-appender = "0.2"
 x25519-dalek = { version = "2", features = ["static_secrets"] }
 petgraph = "0.6"
-cron = "0.12"
+cron = "0.17"
 aes-gcm = "0.10"
 regex = "1"
 aho-corasick = "1"
