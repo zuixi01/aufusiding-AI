@@ -39,6 +39,52 @@ fileprivate extension ForeignBytes {
     init(bufferPointer: UnsafeBufferPointer<UInt8>) {
         self.init(len: Int32(bufferPointer.count), data: bufferPointer.baseAddress)
     }
+
+    init(rawBufferPointer: UnsafeRawBufferPointer) {
+        self.init(
+            len: Int32(rawBufferPointer.count),
+            data: rawBufferPointer.baseAddress?.assumingMemoryBound(to: UInt8.self)
+        )
+    }
+}
+
+// Converter for `&[u8]` / `[ByRef] bytes` arguments.
+//
+// Conforms to `FfiConverter` so the compiler enforces the full converter
+// method set. Only the scope-bound `lower(_:_body:)` overload is sound —
+// zero-copy byte buffers only flow foreign -> Rust, and only in argument
+// position. The four protocol-witness methods (`lift`, `lower`, `read`,
+// `write`) `fatalError` at runtime if anyone reaches them.
+//
+// The scope-bound `lower` takes a closure because the `ForeignBytes`
+// pointer is only guaranteed valid for the duration of
+// `Data.withUnsafeBytes`. Callers must run the full FFI call inside
+// the closure body.
+fileprivate enum FfiConverterByRefBytes: FfiConverter {
+    typealias SwiftType = Data
+    typealias FfiType = ForeignBytes
+
+    static func lower<R>(_ value: Data, _ body: (ForeignBytes) throws -> R) rethrows -> R {
+        return try value.withUnsafeBytes { rawBuf in
+            try body(ForeignBytes(rawBufferPointer: rawBuf))
+        }
+    }
+
+    static func lower(_ value: Data) -> ForeignBytes {
+        fatalError("ByRef bytes cannot use the plain lower: returning ForeignBytes escapes the Data.withUnsafeBytes scope. Use the scope-bound lower(_:_body:) overload instead.")
+    }
+
+    static func lift(_ value: ForeignBytes) throws -> Data {
+        fatalError("ByRef bytes cannot be lifted: zero-copy &[u8] only flows foreign->Rust")
+    }
+
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Data {
+        fatalError("ByRef bytes cannot be read from a buffer: zero-copy &[u8] is only supported in argument position, not nested in records/options/etc.")
+    }
+
+    static func write(_ value: Data, into buf: inout [UInt8]) {
+        fatalError("ByRef bytes cannot be written to a buffer: zero-copy &[u8] is only supported in argument position, not nested in records/options/etc.")
+    }
 }
 
 // For every type used in the interface, we provide helper methods for conveniently
@@ -669,253 +715,282 @@ open class EngineHandle: EngineHandleProtocol, @unchecked Sendable {
     
 open func addKnowledge(source: String, content: String) -> Int32  {
     return try!  FfiConverterInt32.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_add_knowledge(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(source),
-        FfiConverterString.lower(content),$0
+        FfiConverterString.lower(content),uniffiCallStatus
     )
 })
 }
     
 open func addWorkingMemory(content: String, importance: Double) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_add_working_memory(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(content),
-        FfiConverterDouble.lower(importance),$0
+        FfiConverterDouble.lower(importance),uniffiCallStatus
     )
 })
 }
     
 open func anonymizeText(text: String) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_anonymize_text(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(text),$0
+        FfiConverterString.lower(text),uniffiCallStatus
     )
 })
 }
     
 open func controlDevice(deviceId: String, command: String, params: String) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_control_device(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(deviceId),
         FfiConverterString.lower(command),
-        FfiConverterString.lower(params),$0
+        FfiConverterString.lower(params),uniffiCallStatus
     )
 })
 }
     
 open func deleteUserData() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_delete_user_data(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func episodicCount() -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_episodic_count(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func exportUserData() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_export_user_data(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func getActiveModel() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_get_active_model(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func getConversation() -> FfiConversation  {
     return try!  FfiConverterTypeFfiConversation_lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_get_conversation(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func getScreenContext() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_get_screen_context(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func getSetting(key: String) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_get_setting(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(key),$0
+        FfiConverterString.lower(key),uniffiCallStatus
     )
 })
 }
     
 open func getSyncStatus() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_get_sync_status(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func getWorkingMemory(maxItems: UInt32) -> [FfiMemoryItem]  {
     return try!  FfiConverterSequenceTypeFfiMemoryItem.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_get_working_memory(
             self.uniffiCloneHandle(),
-        FfiConverterUInt32.lower(maxItems),$0
+        FfiConverterUInt32.lower(maxItems),uniffiCallStatus
     )
 })
 }
     
 open func isPaused() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_is_paused(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func isShutdown() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_is_shutdown(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func knowledgeCount() -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_knowledge_count(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func listPersonas() -> [FfiPersonaInfo]  {
     return try!  FfiConverterSequenceTypeFfiPersonaInfo.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_list_personas(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func pause() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_pause(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func recordConsent(purpose: String, granted: Bool) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_record_consent(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(purpose),
-        FfiConverterBool.lower(granted),$0
+        FfiConverterBool.lower(granted),uniffiCallStatus
     )
 })
 }
     
 open func resume() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_resume(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func scanIotDevices() -> [FfiDeviceInfo]  {
     return try!  FfiConverterSequenceTypeFfiDeviceInfo.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_scan_iot_devices(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func searchEpisodes(query: String, topK: UInt32) -> [String]  {
     return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_search_episodes(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(query),
-        FfiConverterUInt32.lower(topK),$0
+        FfiConverterUInt32.lower(topK),uniffiCallStatus
     )
 })
 }
     
 open func searchKnowledge(query: String, topK: UInt32) -> [FfiKnowledgeResult]  {
     return try!  FfiConverterSequenceTypeFfiKnowledgeResult.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_search_knowledge(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(query),
-        FfiConverterUInt32.lower(topK),$0
+        FfiConverterUInt32.lower(topK),uniffiCallStatus
     )
 })
 }
     
 open func sendMessage(message: String) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_send_message(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(message),$0
+        FfiConverterString.lower(message),uniffiCallStatus
     )
 })
 }
     
 open func setActiveModel(model: String) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_set_active_model(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(model),$0
+        FfiConverterString.lower(model),uniffiCallStatus
     )
 })
 }
     
 open func setSetting(key: String, value: String) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_set_setting(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(key),
-        FfiConverterString.lower(value),$0
+        FfiConverterString.lower(value),uniffiCallStatus
     )
 })
 }
     
 open func shutdown() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_shutdown(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func switchPersona(personaId: String) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_switch_persona(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(personaId),$0
+        FfiConverterString.lower(personaId),uniffiCallStatus
     )
 })
 }
     
 open func workingMemoryCount() -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_enginehandle_working_memory_count(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -1021,7 +1096,8 @@ open class PrometheusApi: PrometheusApiProtocol, @unchecked Sendable {
 public convenience init() {
     let handle =
         try! rustCall() {
-    uniffi_prometheus_ffi_fn_constructor_prometheusapi_new($0
+        uniffiCallStatus in
+    uniffi_prometheus_ffi_fn_constructor_prometheusapi_new(uniffiCallStatus
     )
 }
     self.init(unsafeFromHandle: handle)
@@ -1041,24 +1117,27 @@ public convenience init() {
     
 open func createEngine() -> EngineHandle  {
     return try!  FfiConverterTypeEngineHandle_lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_prometheusapi_create_engine(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func listModelInfo() -> [FfiModelInfo]  {
     return try!  FfiConverterSequenceTypeFfiModelInfo.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_prometheusapi_list_model_info(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func listModels() -> [String]  {
     return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
     uniffi_prometheus_ffi_fn_method_prometheusapi_list_models(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -1738,7 +1817,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_sync_status() != 63215) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_working_memory() != 26466) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_get_working_memory() != 47105) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_prometheus_ffi_checksum_method_enginehandle_is_paused() != 29685) {
@@ -1750,7 +1829,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_prometheus_ffi_checksum_method_enginehandle_knowledge_count() != 52806) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_enginehandle_list_personas() != 53143) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_list_personas() != 52879) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_prometheus_ffi_checksum_method_enginehandle_pause() != 23441) {
@@ -1762,13 +1841,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_prometheus_ffi_checksum_method_enginehandle_resume() != 17141) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_enginehandle_scan_iot_devices() != 16542) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_scan_iot_devices() != 51504) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_enginehandle_search_episodes() != 31545) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_search_episodes() != 47033) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_enginehandle_search_knowledge() != 33639) {
+    if (uniffi_prometheus_ffi_checksum_method_enginehandle_search_knowledge() != 34741) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_prometheus_ffi_checksum_method_enginehandle_send_message() != 7162) {
@@ -1792,10 +1871,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_prometheus_ffi_checksum_method_prometheusapi_create_engine() != 51206) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_prometheusapi_list_model_info() != 44575) {
+    if (uniffi_prometheus_ffi_checksum_method_prometheusapi_list_model_info() != 64389) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_prometheus_ffi_checksum_method_prometheusapi_list_models() != 60933) {
+    if (uniffi_prometheus_ffi_checksum_method_prometheusapi_list_models() != 61660) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_prometheus_ffi_checksum_constructor_prometheusapi_new() != 62426) {
