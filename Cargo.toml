@@ -34,4 +34,4 @@ tower = { version = "0.5", features = ["limit"] }
 tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "limit", "compression-gzip"] }
 utoipa = { version = "6", features = ["axum_extras", "uuid"] }
 utoipa-swagger-ui = { version = "10.0.2", features = ["axum"] }
-jsonwebtoken = "10"
+jsonwebtoken = { version = "10", default-features = false, features = ["aws_lc_rs"] }

@@ -2,7 +2,7 @@
 //!
 //! 将 Rust 核心引擎导出为 Swift/Kotlin 可调用的接口。
 
-uniffi::setup_scaffolding!();
+uniffi::include_scaffolding!("prometheus");
 
 use prometheus_core::iot::DeviceDiscovery;
 use prometheus_core::memory::{EpisodicMemory, KnowledgeBase, WorkingMemory};

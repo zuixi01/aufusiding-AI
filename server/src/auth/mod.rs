@@ -15,7 +15,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
 /// 权限级别
@@ -116,7 +116,7 @@ pub fn generate_token(
         exp: now + duration_secs as usize,
     };
     let token = encode(
-        &Header::default(),
+        &Header::new(Algorithm::HS256),
         &claims,
         &EncodingKey::from_secret(config.jwt_secret.as_bytes()),
     )?;
@@ -128,7 +128,7 @@ pub fn validate_token(config: &AuthConfig, token: &str) -> Result<Claims, AuthEr
     decode::<Claims>(
         token,
         &DecodingKey::from_secret(config.jwt_secret.as_bytes()),
-        &Validation::default(),
+        &Validation::new(Algorithm::HS256),
     )
     .map(|data| data.claims)
     .map_err(|e| AuthError::InvalidToken(e.to_string()))
@@ -279,6 +279,10 @@ mod tests {
     fn jwt_roundtrip() {
         let config = test_config();
         let token = generate_token(&config, "user1", Permission::Write, 3600).unwrap();
+        assert_eq!(
+            jsonwebtoken::decode_header(&token).unwrap().alg,
+            Algorithm::HS256
+        );
         let claims = validate_token(&config, &token).unwrap();
         assert_eq!(claims.sub, "user1");
         assert_eq!(claims.permission, Permission::Write);
@@ -302,6 +306,51 @@ mod tests {
         };
         let result = validate_token(&other_config, &token);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn jwt_expired_token_is_rejected() {
+        let config = test_config();
+        let claims = Claims {
+            sub: "user1".into(),
+            permission: Permission::Read,
+            exp: 1,
+            iat: 0,
+        };
+        let token = encode(
+            &Header::new(Algorithm::HS256),
+            &claims,
+            &EncodingKey::from_secret(config.jwt_secret.as_bytes()),
+        )
+        .unwrap();
+
+        assert!(matches!(
+            validate_token(&config, &token),
+            Err(AuthError::InvalidToken(_))
+        ));
+    }
+
+    #[test]
+    fn jwt_other_hmac_algorithm_is_rejected() {
+        let config = test_config();
+        let now = chrono::Utc::now().timestamp() as usize;
+        let claims = Claims {
+            sub: "user1".into(),
+            permission: Permission::Read,
+            exp: now + 3600,
+            iat: now,
+        };
+        let token = encode(
+            &Header::new(Algorithm::HS512),
+            &claims,
+            &EncodingKey::from_secret(config.jwt_secret.as_bytes()),
+        )
+        .unwrap();
+
+        assert!(matches!(
+            validate_token(&config, &token),
+            Err(AuthError::InvalidToken(_))
+        ));
     }
 
     #[test]

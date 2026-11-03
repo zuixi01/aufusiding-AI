@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use uniffi_bindgen::bindings::{GenerateOptions, TargetLanguage};
 
 fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().skip(1);
@@ -16,25 +17,20 @@ fn main() -> anyhow::Result<()> {
     std::fs::create_dir_all(&swift_out)?;
     std::fs::create_dir_all(&kotlin_out)?;
 
-    uniffi_bindgen::generate_bindings(
-        &udl,
-        None,
-        uniffi_bindgen::bindings::SwiftBindingGenerator,
-        Some(&swift_out),
-        None,
-        None,
-        true,
-    )?;
-
-    uniffi_bindgen::generate_bindings(
-        &udl,
-        None,
-        uniffi_bindgen::bindings::KotlinBindingGenerator,
-        Some(&kotlin_out),
-        None,
-        None,
-        true,
-    )?;
+    for (language, out_dir) in [
+        (TargetLanguage::Swift, swift_out),
+        (TargetLanguage::Kotlin, kotlin_out),
+    ] {
+        uniffi_bindgen::bindings::generate(GenerateOptions {
+            languages: vec![language],
+            source: udl.clone(),
+            out_dir,
+            metadata_no_deps: true,
+            // Keep generation independent of optional swiftformat/ktlint installations.
+            format: false,
+            ..GenerateOptions::default()
+        })?;
+    }
 
     Ok(())
 }

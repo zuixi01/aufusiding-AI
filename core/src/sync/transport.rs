@@ -146,7 +146,7 @@ impl Transport for WebSocketTransport {
             .ok_or_else(|| anyhow::anyhow!("not connected"))?;
         let mut guard = writer.lock().await;
         guard
-            .send(tokio_tungstenite::tungstenite::Message::Binary(
+            .send(tokio_tungstenite::tungstenite::Message::binary(
                 data.to_vec(),
             ))
             .await
@@ -192,6 +192,41 @@ impl Transport for WebSocketTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn websocket_binary_roundtrip_preserves_payload() {
+        use futures_util::{SinkExt, StreamExt};
+        use std::time::Duration;
+
+        const PAYLOAD: &[u8] = b"\x00\xffbinary-sync\x80";
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("ws://{}/sync", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.unwrap();
+            let mut websocket = tokio_tungstenite::accept_async(socket).await.unwrap();
+            let message = websocket.next().await.unwrap().unwrap();
+            assert!(message.is_binary());
+            assert_eq!(message.clone().into_data().as_ref(), PAYLOAD);
+            websocket.send(message).await.unwrap();
+            assert!(websocket.next().await.unwrap().unwrap().is_close());
+        });
+
+        let mut transport = WebSocketTransport::new();
+        transport.connect(&url).await.unwrap();
+        assert!(transport.is_connected());
+        transport.send(PAYLOAD).await.unwrap();
+        let received = tokio::time::timeout(Duration::from_secs(5), transport.receive())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(received, PAYLOAD);
+        transport.disconnect().await.unwrap();
+        assert!(!transport.is_connected());
+        tokio::time::timeout(Duration::from_secs(5), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
 
     #[tokio::test]
     async fn connect_sets_flag() {

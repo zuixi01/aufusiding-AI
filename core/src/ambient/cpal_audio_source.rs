@@ -82,7 +82,7 @@ impl CpalAudioSource {
             let buf_clone = Arc::clone(&buffer);
 
             let stream = device.build_input_stream(
-                &stream_config,
+                stream_config,
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
                     if let Ok(mut buf) = buf_clone.lock() {
                         buf.extend(data.iter());
@@ -141,7 +141,14 @@ impl CpalAudioSource {
         host.input_devices()
             .map(|devices| {
                 use cpal::traits::DeviceTrait;
-                devices.filter_map(|d| d.name().ok()).collect()
+                devices
+                    .filter_map(|device| {
+                        device
+                            .description()
+                            .ok()
+                            .map(|description| description.name().to_owned())
+                    })
+                    .collect()
             })
             .unwrap_or_default()
     }
@@ -206,12 +213,12 @@ impl AudioSource for CpalAudioSource {
 
 /// 从支持的配置中找到匹配的
 fn find_matching_config(
-    supported: cpal::SupportedInputConfigs,
+    supported: impl IntoIterator<Item = cpal::SupportedStreamConfigRange>,
     sample_rate: u32,
     channels: u16,
 ) -> anyhow::Result<cpal::StreamConfig> {
     use cpal::SampleFormat;
-    let rate = cpal::SampleRate(sample_rate);
+    let rate: cpal::SampleRate = sample_rate;
     for cfg in supported {
         if cfg.channels() == channels
             && cfg.sample_format() == SampleFormat::F32
@@ -235,8 +242,11 @@ pub fn samples_to_bytes(samples: &[f32]) -> Vec<u8> {
 
 pub fn bytes_to_samples(bytes: &[u8]) -> Vec<f32> {
     bytes
-        .chunks_exact(4)
-        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .copied()
+        .map(f32::from_le_bytes)
         .collect()
 }
 
@@ -276,6 +286,42 @@ mod tests {
         for (a, b) in samples.iter().zip(recovered.iter()) {
             assert!((a - b).abs() < f32::EPSILON);
         }
+    }
+
+    #[test]
+    fn bytes_to_samples_ignores_incomplete_sample() {
+        for trailing_bytes in 1..4 {
+            let mut bytes = 0.5_f32.to_le_bytes().to_vec();
+            bytes.extend_from_slice(&[0xff; 3][..trailing_bytes]);
+            assert_eq!(bytes_to_samples(&bytes), vec![0.5]);
+            assert!(bytes_to_samples(&bytes[..trailing_bytes]).is_empty());
+        }
+    }
+
+    #[test]
+    fn input_config_preserves_requested_rate_and_format() {
+        let ranges = [
+            cpal::SupportedStreamConfigRange::new(
+                1,
+                16000,
+                48000,
+                cpal::SupportedBufferSize::Unknown,
+                cpal::SampleFormat::I16,
+            ),
+            cpal::SupportedStreamConfigRange::new(
+                1,
+                16000,
+                48000,
+                cpal::SupportedBufferSize::Unknown,
+                cpal::SampleFormat::F32,
+            ),
+        ];
+        let config = find_matching_config(ranges, 16000, 1).unwrap();
+        assert_eq!(config.sample_rate, 16000);
+        assert_eq!(config.channels, 1);
+        assert!(find_matching_config([ranges[0]], 16000, 1).is_err());
+        assert!(find_matching_config(ranges, 8000, 1).is_err());
+        assert!(find_matching_config(ranges, 16000, 2).is_err());
     }
 
     #[test]

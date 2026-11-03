@@ -44,7 +44,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev build-essential curl wget file \
-            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
+            pkg-config libasound2-dev
       - name: Install frontend dependencies
         working-directory: apps/desktop
         run: npm ci
@@ -52,9 +53,20 @@ jobs:
         working-directory: apps/desktop
         run: npm run build
       - run: cargo check --workspace --all-targets --locked
-      - run: cargo clippy --workspace --all-targets --keep-going --locked -- -D warnings
+      - run: cargo clippy --workspace --all-targets --keep-going --locked --features prometheus-core/audio-capture -- -D warnings
       - run: cargo test --workspace --all-targets --locked
+      - name: Test audio configuration without hardware
+        run: cargo test -p prometheus-core --lib --features audio-capture --locked ambient::cpal_audio
       - run: cargo test --workspace --doc --locked
+      - name: Generate Swift and Kotlin bindings with the locked UniFFI version
+        run: bash scripts/generate-bindings.sh "$RUNNER_TEMP/uniffi-bindings"
+      - name: Save generated bindings for verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: uniffi-bindings-${{ github.sha }}
+          path: ${{ runner.temp }}/uniffi-bindings
+          if-no-files-found: error
+          retention-days: 7
 
   fmt:
     name: Rustfmt
