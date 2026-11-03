@@ -380,14 +380,14 @@ mod tests {
         let set_mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/AVTransport/Control")
-                .body_contains("SetAVTransportURI")
-                .body_contains("http://example.com/song.mp3");
+                .body_includes("SetAVTransportURI")
+                .body_includes("http://example.com/song.mp3");
             then.status(200).body(ok_response());
         });
         let play_mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/AVTransport/Control")
-                .body_contains("Play");
+                .body_includes("Play");
             then.status(200).body(ok_response());
         });
         let a = adapter(&server);
@@ -405,7 +405,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/AVTransport/Control")
-                .body_contains("Pause");
+                .body_includes("Pause");
             then.status(200).body(ok_response());
         });
         let a = adapter(&server);
@@ -420,7 +420,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/AVTransport/Control")
-                .body_contains("Stop");
+                .body_includes("Stop");
             then.status(200).body(ok_response());
         });
         let a = adapter(&server);
@@ -435,8 +435,8 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/RenderingControl/Control")
-                .body_contains("SetVolume")
-                .body_contains("<DesiredVolume>75</DesiredVolume>");
+                .body_includes("SetVolume")
+                .body_includes("<DesiredVolume>75</DesiredVolume>");
             then.status(200).body(ok_response());
         });
         let a = adapter(&server);
@@ -459,7 +459,7 @@ mod tests {
         server.mock(|when, then| {
             when.method(POST)
                 .path("/AVTransport/Control")
-                .body_contains("GetTransportInfo");
+                .body_includes("GetTransportInfo");
             then.status(200).body(transport_info_response("PLAYING"));
         });
         let a = adapter(&server);

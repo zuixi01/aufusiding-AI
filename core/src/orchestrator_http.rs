@@ -234,7 +234,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/v1/chat/completions")
-                .body_contains(r#""role":"system""#);
+                .body_includes(r#""role":"system""#);
             then.status(200)
                 .json_body(mock_chat_response("response", 15));
         });

@@ -52,12 +52,6 @@ jobs:
       - name: Build frontend assets required by Tauri
         working-directory: apps/desktop
         run: npm run build
-      - run: cargo check --workspace --all-targets --locked
-      - run: cargo clippy --workspace --all-targets --keep-going --locked --features prometheus-core/audio-capture -- -D warnings
-      - run: cargo test --workspace --all-targets --locked
-      - name: Test audio configuration without hardware
-        run: cargo test -p prometheus-core --lib --features audio-capture --locked ambient::cpal_audio
-      - run: cargo test --workspace --doc --locked
       - name: Generate Swift and Kotlin bindings with the locked UniFFI version
         run: bash scripts/generate-bindings.sh "$RUNNER_TEMP/uniffi-bindings"
       - name: Save generated bindings for verification
@@ -67,6 +61,12 @@ jobs:
           path: ${{ runner.temp }}/uniffi-bindings
           if-no-files-found: error
           retention-days: 7
+      - run: cargo check --workspace --all-targets --keep-going --locked
+      - run: cargo clippy --workspace --all-targets --keep-going --locked --features prometheus-core/audio-capture -- -D warnings
+      - run: cargo test --workspace --all-targets --locked
+      - name: Test audio configuration without hardware
+        run: cargo test -p prometheus-core --lib --features audio-capture --locked ambient::cpal_audio
+      - run: cargo test --workspace --doc --locked
 
   fmt:
     name: Rustfmt

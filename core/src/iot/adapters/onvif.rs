@@ -529,7 +529,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/onvif/ptz_service")
-                .body_contains("ContinuousMove");
+                .body_includes("ContinuousMove");
             then.status(200).body(ptz_ok_response());
         });
         let a = adapter(&server);
@@ -546,7 +546,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/onvif/ptz_service")
-                .body_contains("Stop");
+                .body_includes("Stop");
             then.status(200).body(ptz_ok_response());
         });
         let a = adapter(&server);
@@ -561,7 +561,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/onvif/ptz_service")
-                .body_contains("AbsoluteMove");
+                .body_includes("AbsoluteMove");
             then.status(200).body(ptz_ok_response());
         });
         let a = adapter(&server);
@@ -578,7 +578,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/onvif/ptz_service")
-                .body_contains("ContinuousMove");
+                .body_includes("ContinuousMove");
             then.status(200).body(ptz_ok_response());
         });
         let a = adapter(&server);
@@ -599,7 +599,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/onvif/ptz_service")
-                .body_contains("Stop");
+                .body_includes("Stop");
             then.status(200).body(ptz_ok_response());
         });
         let a = adapter(&server);
@@ -616,7 +616,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/onvif/media_service")
-                .body_contains("GetSnapshotUri");
+                .body_includes("GetSnapshotUri");
             then.status(200).body(snapshot_uri_response());
         });
         let a = adapter(&server);

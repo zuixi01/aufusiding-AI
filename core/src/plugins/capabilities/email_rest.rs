@@ -379,7 +379,7 @@ mod tests {
         let id = Uuid::new_v4();
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET).path_contains("/messages/");
+            when.method(GET).path_includes("/messages/");
             then.status(404);
         });
         let provider = RestEmailProvider::with_base_url(TEST_TOKEN, &server.base_url());

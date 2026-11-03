@@ -342,7 +342,7 @@ mod tests {
     async fn delete_event_not_found() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(DELETE).path_contains("/events/");
+            when.method(DELETE).path_includes("/events/");
             then.status(404);
         });
         let provider = CalDavProvider::with_base_url(&server.base_url(), TEST_USER, TEST_PASS);

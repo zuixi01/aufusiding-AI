@@ -586,7 +586,7 @@ mod tests {
                 .header("client_id", "test_client_id")
                 .header("access_token", "mock_access_token")
                 .header("Content-Type", "application/json")
-                .body_contains(r#""commands":[{"code":"switch","value":true}]"#);
+                .body_includes(r#""commands":[{"code":"switch","value":true}]"#);
             then.status(200).json_body(success_command_body());
         });
         let adapter = setup(&server);
@@ -635,8 +635,8 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/v1.0/devices/dev001/commands")
-                .body_contains(r#""code":"switch"#)
-                .body_contains(r#""value":true"#);
+                .body_includes(r#""code":"switch"#)
+                .body_includes(r#""value":true"#);
             then.status(200).json_body(success_command_body());
         });
         let adapter = setup(&server);
@@ -651,8 +651,8 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/v1.0/devices/dev001/commands")
-                .body_contains(r#""code":"switch"#)
-                .body_contains(r#""value":false"#);
+                .body_includes(r#""code":"switch"#)
+                .body_includes(r#""value":false"#);
             then.status(200).json_body(success_command_body());
         });
         let adapter = setup(&server);
@@ -685,8 +685,8 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/v1.0/devices/dev001/commands")
-                .body_contains(r#""code":"brightness"#)
-                .body_contains(r#""value":50"#);
+                .body_includes(r#""code":"brightness"#)
+                .body_includes(r#""value":50"#);
             then.status(200).json_body(success_command_body());
         });
         let adapter = setup(&server);

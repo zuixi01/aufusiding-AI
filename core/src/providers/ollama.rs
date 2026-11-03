@@ -434,7 +434,7 @@ mod tests {
         let mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/api/chat")
-                .body_contains("qwen2.5:1.5b");
+                .body_includes("qwen2.5:1.5b");
             then.status(200)
                 .header("content-type", "application/json")
                 .body(r#"{"message":{"role":"assistant","content":"ok"},"model":"qwen2.5:1.5b","eval_count":1,"prompt_eval_count":1}"#);

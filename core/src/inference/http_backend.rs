@@ -160,7 +160,7 @@ mod tests {
             when.method(POST)
                 .path("/v1/completions")
                 .header("Authorization", "Bearer test-key")
-                .body_contains(r#""model":"test-model""#);
+                .body_includes(r#""model":"test-model""#);
             then.status(200)
                 .json_body(mock_completions_response("hello world", 12));
         });

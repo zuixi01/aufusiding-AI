@@ -422,7 +422,7 @@ mod tests {
             when.method(POST)
                 .path("/v1/devices:requestSync")
                 .header("Authorization", "Bearer test-oauth-token")
-                .json_body_partial(r#"{"agentUserId":"user-1"}"#);
+                .json_body_includes(r#"{"agentUserId":"user-1"}"#);
             then.status(200).json_body(json!({}));
         });
         let gh = adapter(&server);
