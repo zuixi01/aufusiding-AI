@@ -23,7 +23,7 @@ uuid = { workspace = true }
 rustyline = { version = "19", features = ["derive"] }
 colored = "3"
 tabled = "0.22"
-toml = "0.8"
+toml = "1.1"
 dirs = "6"
 indicatif = "0.18"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
