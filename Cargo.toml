@@ -28,7 +28,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
-rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
 axum = { version = "0.8", features = ["macros"] }
 tower = { version = "0.5", features = ["limit"] }
 tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "limit", "compression-gzip"] }
