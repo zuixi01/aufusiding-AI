@@ -47,4 +47,4 @@ tokio-tungstenite = { version = "0.29", features = ["rustls-tls-native-roots"] }
 futures-util = "0.3"
 
 [dev-dependencies]
-httpmock = "0.8"
+httpmock = "0.9"
